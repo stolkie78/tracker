@@ -177,8 +177,9 @@ WORKOUT_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson order "$(number_field set_order true)" --argjson sets "$(number_field target_sets true)" \
   --argjson min "$(number_field reps_min true)" --argjson max "$(number_field reps_max true)" \
   --argjson start "$(number_field starting_weight)" --argjson increment "$(number_field weight_increment true)" \
+  --argjson rest "$(number_field rest_seconds)" --argjson tempo "$(text_field tempo)" \
   --argjson equipment "$(select_field equipment '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]')" \
-  '[$owner,$workout,$exercise,$order,$sets,$min,$max,$start,$increment,$equipment]')"
+  '[$owner,$workout,$exercise,$order,$sets,$min,$max,$start,$increment,$equipment,$rest,$tempo]')"
 ensure_collection workout_exercises base "$WORKOUT_EXERCISE_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 

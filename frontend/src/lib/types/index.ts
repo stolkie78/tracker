@@ -8,6 +8,9 @@ export type UserRole = 'admin' | 'coach' | 'athlete';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' | 'machine' | 'bodyweight' | 'band' | 'other';
 
+export const DEFAULT_STRENGTH_REST_SECONDS = 90;
+export const DEFAULT_STRENGTH_TEMPO = '3-1-1-0';
+
 export interface BaseRecord {
   id: ID;
   created?: string;
@@ -72,6 +75,8 @@ export interface AISettings extends BaseRecord {
 export interface PlannedStrengthExercise {
   exercise_id: ID;
   equipment?: ExerciseEquipment;
+  rest_seconds?: number;
+  tempo?: string;
   sets: number;
   reps_min: number;
   reps_max: number;
@@ -105,6 +110,8 @@ export interface WorkoutExercise extends BaseRecord {
   workout: ID;
   exercise: ID;
   equipment?: ExerciseEquipment;
+  rest_seconds?: number;
+  tempo?: string;
   set_order: number;
   target_sets: number;
   reps_min: number;

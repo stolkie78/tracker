@@ -67,6 +67,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 | Versie | Wijzigingen |
 |---|---|
+| 0.10.9 | Krachtoefeningen bevatten nu instelbare rust tussen sets en tempo, standaard 90 seconden rust en tempo 3-1-1-0; de waarden zijn zichtbaar bij het trainingsschema en tijdens de oefening. |
 | 0.10.8 | Dashboard licht actieve trainingen en trainingen van vandaag uit, toont de actieve en eerstvolgende training apart en markeert de eerstvolgende training extra. |
 | 0.10.7 | Dashboard toont de eerstvolgende geplande training of training die bezig is. Nieuwe trainingen zijn standaard gepland; wekelijkse reeksen kunnen op meerdere weekdagen starten vanaf een datum, zonder ingeplande tijd. |
 | 0.10.6 | Google OAuth configureerbaar via `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in het env-bestand; API-regels aangescherpt (eigenaar niet te wijzigen, oefeningencatalogus alleen door admins te wijzigen of verwijderen), getest met twee gebruikers. |

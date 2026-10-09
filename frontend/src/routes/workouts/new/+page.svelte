@@ -4,6 +4,8 @@
   import { ArrowLeft, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
   import {
     CARDIO_MODE_OPTIONS,
+    DEFAULT_STRENGTH_REST_SECONDS,
+    DEFAULT_STRENGTH_TEMPO,
     EXERCISE_EQUIPMENT_LABELS,
     EXERCISE_EQUIPMENT_OPTIONS,
     MUSCLE_GROUP_OPTIONS,
@@ -29,6 +31,8 @@
     repsMax: number;
     weight: number;
     increment: number;
+    restSeconds: number;
+    tempo: string;
   };
 
   let type: WorkoutType = 'strength';
@@ -50,7 +54,7 @@
   let duration = 60;
   let notes = '';
   let exercises: Exercise[] = [];
-  let strengthEntries: StrengthEntry[] = [{ muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5 }];
+  let strengthEntries: StrengthEntry[] = [{ muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5, restSeconds: DEFAULT_STRENGTH_REST_SECONDS, tempo: DEFAULT_STRENGTH_TEMPO }];
   let cardioMode = 'running';
   let distance = 0;
   let averageHeartRate = 0;
@@ -87,7 +91,7 @@
   };
 
   const addStrengthEntry = () => {
-    const entry: StrengthEntry = { muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5 };
+    const entry: StrengthEntry = { muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5, restSeconds: DEFAULT_STRENGTH_REST_SECONDS, tempo: DEFAULT_STRENGTH_TEMPO };
     strengthEntries = [...strengthEntries, entry];
   };
 
@@ -160,8 +164,11 @@
 
   const saveWorkout = async () => {
     error = '';
-    if (type === 'strength' && strengthEntries.some((entry) => !entry.exercise || !entry.equipment || entry.repsMin < 1 || entry.repsMax < entry.repsMin)) {
-      error = 'Controleer per oefening de selectie en het herhalingsbereik.';
+    if (type === 'strength' && strengthEntries.some((entry) =>
+      !entry.exercise || !entry.equipment || entry.repsMin < 1 || entry.repsMax < entry.repsMin ||
+      entry.restSeconds < 0 || !/^\d+-\d+-\d+-\d+$/.test(entry.tempo)
+    )) {
+      error = 'Controleer per oefening de selectie, het herhalingsbereik, de rusttijd en het tempo (bijvoorbeeld 3-1-1-0).';
       return;
     }
     if (status === 'planned' && repeatWeekly && repeatDays.length === 0) {
@@ -222,7 +229,9 @@
               reps_min: entry.repsMin,
               reps_max: entry.repsMax,
               starting_weight: entry.weight,
-              weight_increment: entry.increment
+              weight_increment: entry.increment,
+              rest_seconds: entry.restSeconds,
+              tempo: entry.tempo
             });
             for (let setIndex = 0; setIndex < entry.sets; setIndex += 1) {
               await createWorkoutSet({
@@ -369,6 +378,17 @@
               <div class="max-w-xs">
                 <label class="label" for={`increment-${index}`}>Gewichtsstap (kg)</label>
                 <input id={`increment-${index}`} class="input" type="number" min="0.25" step="0.25" bind:value={entry.increment} />
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label class="label" for={`rest-${index}`}>Rust tussen sets (seconden)</label>
+                  <input id={`rest-${index}`} class="input" type="number" min="0" max="600" step="5" bind:value={entry.restSeconds} />
+                </div>
+                <div>
+                  <label class="label" for={`tempo-${index}`}>Tempo (seconden)</label>
+                  <input id={`tempo-${index}`} class="input" bind:value={entry.tempo} pattern="[0-9]+-[0-9]+-[0-9]+-[0-9]+" title="Vul vier waarden in, bijvoorbeeld 3-1-1-0." required />
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Zak - pauze - omhoog - pauze; standaard 3-1-1-0.</p>
+                </div>
               </div>
             </div>
           </div>

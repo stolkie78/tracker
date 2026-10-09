@@ -6,6 +6,8 @@
   import { deleteFutureSeries, deleteWorkout, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateWorkout } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
+    DEFAULT_STRENGTH_REST_SECONDS,
+    DEFAULT_STRENGTH_TEMPO,
     EXERCISE_EQUIPMENT_LABELS,
     RECOVERY_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
@@ -194,6 +196,9 @@
                   {#if exercise.record.equipment}<span class="mt-0.5 inline-block rounded-full bg-gray-200 px-2 py-0.5 text-xs font-bold text-gray-800 dark:bg-gray-700 dark:text-white">{EXERCISE_EQUIPMENT_LABELS[exercise.record.equipment]}</span>{/if}
                   <span class="block text-sm text-gray-600 dark:text-gray-300">
                     {exercise.record.target_sets} × {exercise.record.reps_min}-{exercise.record.reps_max} · {doneSets(exercise)}/{exercise.sets.length} sets
+                  </span>
+                  <span class="block text-sm text-gray-600 dark:text-gray-300">
+                    Rust {exercise.record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS}s · tempo {exercise.record.tempo ?? DEFAULT_STRENGTH_TEMPO}
                   </span>
                 </span>
                 <ChevronRight size={22} class="shrink-0 text-gray-500" />

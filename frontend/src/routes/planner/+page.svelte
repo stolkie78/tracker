@@ -12,6 +12,8 @@
   } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
+    DEFAULT_STRENGTH_REST_SECONDS,
+    DEFAULT_STRENGTH_TEMPO,
     RECOVERY_ACTIVITY_LABELS,
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
@@ -143,7 +145,9 @@
         reps_min: item.reps_min,
         reps_max: item.reps_max,
         starting_weight: item.starting_weight,
-        weight_increment: item.weight_increment
+        weight_increment: item.weight_increment,
+        rest_seconds: item.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS,
+        tempo: item.tempo ?? DEFAULT_STRENGTH_TEMPO
       });
       for (let setIndex = 0; setIndex < item.sets; setIndex += 1) {
         await createWorkoutSet({
@@ -307,7 +311,7 @@
             {#if workout.type === 'strength' && workout.strength_exercises}
               <ul class="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
                 {#each workout.strength_exercises as exercise}
-                  <li>{exercise.sets} × {exercise.reps_min}-{exercise.reps_max} reps · gewicht naar wens ({exercise.weight_increment} kg stap)</li>
+                  <li>{exercise.sets} × {exercise.reps_min}-{exercise.reps_max} reps · {exercise.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS}s rust · tempo {exercise.tempo ?? DEFAULT_STRENGTH_TEMPO} · gewicht naar wens ({exercise.weight_increment} kg stap)</li>
                 {/each}
               </ul>
             {/if}

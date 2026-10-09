@@ -13,7 +13,15 @@
     updateWorkout,
     updateWorkoutSet
   } from '$lib/pocketbase';
-  import { EXERCISE_EQUIPMENT_LABELS, nextSuggestedWeight, type Workout, type WorkoutExercise, type WorkoutSet } from '$lib/types';
+  import {
+    DEFAULT_STRENGTH_REST_SECONDS,
+    DEFAULT_STRENGTH_TEMPO,
+    EXERCISE_EQUIPMENT_LABELS,
+    nextSuggestedWeight,
+    type Workout,
+    type WorkoutExercise,
+    type WorkoutSet
+  } from '$lib/types';
 
   let workout: Workout | null = null;
   let record: WorkoutExercise | null = null;
@@ -133,6 +141,9 @@
       <p class="mt-1 text-gray-600 dark:text-gray-300">
         {#if record.equipment}{EXERCISE_EQUIPMENT_LABELS[record.equipment]} · {/if}{record.target_sets} sets · {record.reps_min}-{record.reps_max} reps
       </p>
+      <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
+        Rust tussen sets: {record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS} sec · tempo: {record.tempo ?? DEFAULT_STRENGTH_TEMPO}
+      </p>
     </div>
 
     <section class="card space-y-3">
@@ -160,6 +171,7 @@
         </div>
       {/each}
       <button type="button" class="btn-secondary w-full" on:click={addSet}><Plus size={18} /> Set toevoegen</button>
+      <p class="text-sm text-gray-600 dark:text-gray-300">Houd bij elke herhaling het tempo {record.tempo ?? DEFAULT_STRENGTH_TEMPO} aan en rust {record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS} seconden tussen de sets.</p>
       <p class="text-sm text-gray-600 dark:text-gray-300">Progressie: +{record.weight_increment} kg zodra alle sets {record.reps_max} reps halen.</p>
       {#if suggestion !== null}<p class="rounded-xl bg-emerald-500/15 p-3 font-semibold text-emerald-700 dark:text-emerald-300">Volgende keer: {suggestion} kg</p>{/if}
     </section>

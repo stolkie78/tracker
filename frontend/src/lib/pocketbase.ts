@@ -1,5 +1,7 @@
 import PocketBase from 'pocketbase';
 import {
+  DEFAULT_STRENGTH_REST_SECONDS,
+  DEFAULT_STRENGTH_TEMPO,
   nextSuggestedWeight,
   type AISettings,
   type Exercise,
@@ -188,7 +190,9 @@ export const getStrengthSuggestion = async (exerciseId: ID, equipment?: string) 
       repsMin: previous.reps_min,
       repsMax: previous.reps_max,
       increment: previous.weight_increment,
-      weight: nextSuggestedWeight(previous.reps_max, sets, lastWeight, previous.weight_increment)
+      weight: nextSuggestedWeight(previous.reps_max, sets, lastWeight, previous.weight_increment),
+      restSeconds: previous.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS,
+      tempo: previous.tempo ?? DEFAULT_STRENGTH_TEMPO
     };
   }
 
