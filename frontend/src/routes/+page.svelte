@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CalendarDays, Dumbbell, Filter, Footprints, HeartPulse, Plus, Timer } from '@lucide/svelte';
+  import { CalendarDays, Dumbbell, Footprints, HeartPulse, Plus, Timer } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse };
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
@@ -176,26 +176,30 @@
     </div>
   {/if}
 
-  <div class="card space-y-4">
-    <div class="flex flex-wrap gap-2" role="group" aria-label="Periode">
+  <div class="card space-y-4 p-3 sm:p-5">
+    <div>
+      <p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Periode</p>
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Periode">
       {#each DATE_RANGE_OPTIONS as option}
         <button
           type="button"
-          class="touch-target rounded-xl px-4 text-sm font-bold transition {dateRangeFilter === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}"
+          class="touch-target w-full rounded-xl px-2 text-sm font-bold transition sm:w-auto sm:px-4 {dateRangeFilter === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}"
           aria-pressed={dateRangeFilter === option.value}
           on:click={() => (dateRangeFilter = option.value)}>{option.label}</button>
       {/each}
+      </div>
     </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <Filter size={18} class="text-gray-500" />
-      <label class="sr-only" for="type-filter">Filter op trainingstype</label>
-      <select id="type-filter" class="input max-w-xs" bind:value={$activeWorkoutType}>
-        <option value="">Alle trainingen</option>
-        {#each WORKOUT_TYPE_OPTIONS as option}
-          <option value={option.value}>{option.label}</option>
-        {/each}
-      </select>
-      <span class="ml-auto text-sm text-gray-500 dark:text-gray-400">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'training' : 'trainingen'}</span>
+    <div class="flex flex-wrap items-end gap-2 sm:gap-3">
+      <div class="min-w-0 flex-1">
+        <label class="label mb-1" for="type-filter">Trainingstype</label>
+        <select id="type-filter" class="input" bind:value={$activeWorkoutType}>
+          <option value="">Alle trainingen</option>
+          {#each WORKOUT_TYPE_OPTIONS as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </div>
+      <span class="w-full text-right text-sm text-gray-500 dark:text-gray-400 sm:w-auto sm:pb-3">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'training' : 'trainingen'}</span>
     </div>
   </div>
 
@@ -225,16 +229,16 @@
           <div class="space-y-3 border-l-2 border-primary-200 pl-4 dark:border-primary-900">
             {#each entries as workout (workout.id)}
               <a
-                class="card block border-2 transition hover:shadow-md {activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800'}"
+                class="card block border-2 p-4 transition hover:shadow-md sm:p-5 {activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800'}"
                 href={`/workouts/${workout.id}`}>
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                  <div class="flex items-start gap-3">
-                    <div class="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-md {WORKOUT_TYPE_STYLES[workout.type].icon}">
-                      <svelte:component this={TYPE_ICONS[workout.type]} size={24} strokeWidth={2.25} />
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="flex min-w-0 items-start gap-3">
+                    <div class="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-md sm:h-12 sm:w-12 {WORKOUT_TYPE_STYLES[workout.type].icon}">
+                      <svelte:component this={TYPE_ICONS[workout.type]} size={22} strokeWidth={2.25} />
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <div class="flex flex-wrap items-center gap-2">
-                        <h3 class="text-lg font-bold">{workout.title}</h3>
+                        <h3 class="text-base font-bold sm:text-lg">{workout.title}</h3>
                         {#if activeWorkout?.id === workout.id}
                           <span class="badge bg-emerald-600 text-white">Actief</span>
                         {:else if isToday(workout.performed_at)}
@@ -246,7 +250,7 @@
                       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{workoutSubtitle(workout)}</p>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
                     <span class="badge {WORKOUT_TYPE_STYLES[workout.type].badge}">{WORKOUT_TYPE_LABELS[workout.type]}</span>
                     <span class="badge border border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{WORKOUT_STATUS_LABELS[workout.status]}</span>
                   </div>
