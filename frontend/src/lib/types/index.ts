@@ -26,7 +26,7 @@ export const TOP_PROTOCOLS: TopProtocol[] = [
   { index: 2, name: 'Strength endurance', reps_min: 30, reps_max: 60, rest_min_seconds: 30, rest_max_seconds: 60, recovery: '12 uur' },
   { index: 3, name: 'Endurance / hypertrophy', reps_min: 20, reps_max: 30, rest_min_seconds: 60, rest_max_seconds: 90, recovery: '12 uur' },
   { index: 4, name: 'Hypertrophy / endurance', reps_min: 15, reps_max: 20, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '24 uur' },
-  { index: 5, name: 'Hypertrophy', reps_min: 8, reps_max: 15, rest_min_seconds: 60, rest_max_seconds: 120, recovery: 'Niet vermeld (**)' },
+  { index: 5, name: 'Hypertrophy', reps_min: 8, reps_max: 15, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '48 uur' },
   { index: 6, name: 'Hypertrophy / strength', reps_min: 6, reps_max: 10, rest_min_seconds: 120, rest_max_seconds: 180, recovery: '48 uur' },
   { index: 7, name: 'Strength / hypertrophy', reps_min: 5, reps_max: 8, rest_min_seconds: 180, rest_max_seconds: 240, recovery: '72 uur' },
   { index: 8, name: 'Strength', reps_min: 2, reps_max: 5, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 uur' },
