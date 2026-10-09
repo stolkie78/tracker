@@ -101,7 +101,13 @@ fi
 
 step "1/5 Controles ($ENVIRONMENT)"
 if [ "$CHECKS" = true ]; then
-  (cd frontend && npm ci && npm run check && npm run build)
+  if command -v npm >/dev/null 2>&1; then
+    (cd frontend && npm ci && npm run check && npm run build)
+  else
+    echo "npm niet gevonden; controles draaien in een node:22-alpine container"
+    docker run --rm -v "$ROOT/frontend:/app" -w /app node:22-alpine \
+      sh -c "npm ci && npm run check && npm run build"
+  fi
 fi
 compose config -q
 
