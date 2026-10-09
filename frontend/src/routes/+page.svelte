@@ -20,6 +20,14 @@
   let loading = true;
   let error = '';
   let requestId = 0;
+  type DateRangeFilter = 'today' | 'week' | 'month' | 'planned';
+  let dateRangeFilter: DateRangeFilter = 'today';
+  const DATE_RANGE_OPTIONS: { value: DateRangeFilter; label: string }[] = [
+    { value: 'today', label: 'Vandaag' },
+    { value: 'week', label: 'Deze week' },
+    { value: 'month', label: 'Deze maand' },
+    { value: 'planned', label: 'Gepland' }
+  ];
 
   const loadWorkouts = async (type: WorkoutType | '', planId = '') => {
     const currentRequest = ++requestId;
@@ -42,10 +50,59 @@
   const workoutFilter = (type: WorkoutType | '', planId: string) =>
     [contextFilter(type), planId ? `plan = "${planId}"` : ''].filter(Boolean).join(' && ');
 
+  const dateOnly = (date: Date) => {
+    const result = new Date(date);
+    result.setHours(0, 0, 0, 0);
+    return result;
+  };
+
+  const rangeFor = (filter: DateRangeFilter) => {
+    const start = dateOnly(new Date());
+    if (filter === 'week') {
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+    } else if (filter === 'month') {
+      start.setDate(1);
+    }
+    const end = new Date(start);
+    if (filter === 'today') end.setDate(end.getDate() + 1);
+    else if (filter === 'week') end.setDate(end.getDate() + 7);
+    else end.setMonth(end.getMonth() + 1);
+    return { start, end };
+  };
+
+  const workoutDay = (workout: Workout) => dateOnly(new Date(workout.performed_at));
+
+  const workoutsInRange = (records: Workout[], filter: DateRangeFilter) => {
+    if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
+    const { start, end } = rangeFor(filter);
+    return records.filter((workout) => {
+      const day = workoutDay(workout);
+      return day >= start && day < end;
+    });
+  };
+
+  const sortWorkouts = (records: Workout[]) => {
+    const today = dateOnly(new Date());
+    const bucket = (workout: Workout) => {
+      if (workout.status === 'in_progress') return 0;
+      if (workout.status === 'planned' && workoutDay(workout) >= today) return 1;
+      return 2;
+    };
+    return [...records].sort((a, b) => {
+      const bucketDifference = bucket(a) - bucket(b);
+      if (bucketDifference !== 0) return bucketDifference;
+      const dateDifference = new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime();
+      return bucket(a) === 2 ? -dateDifference : dateDifference;
+    });
+  };
+
+  $: visibleWorkouts = sortWorkouts(workoutsInRange(workouts, dateRangeFilter));
+
   const groupedByDay = (records: Workout[]) => {
     const groups = new Map<string, Workout[]>();
     for (const workout of records) {
-      const key = workout.performed_at.slice(0, 10);
+      const date = workoutDay(workout);
+      const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
       groups.set(key, [...(groups.get(key) ?? []), workout]);
     }
     return [...groups.entries()];
@@ -65,18 +122,10 @@
       && workoutDay.getDate() === today.getDate();
   };
 
-  const getUpcomingWorkout = (records: Workout[]) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return records
-      .filter((workout) => workout.status === 'planned' && new Date(workout.performed_at) >= today)
-      .sort((a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime())[0] ?? null;
-  };
-
-  $: activeWorkout = workouts
+  $: activeWorkout = visibleWorkouts
     .filter((workout) => workout.status === 'in_progress')
     .sort((a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime())[0] ?? null;
-  $: upcomingWorkout = getUpcomingWorkout(workouts);
+  $: upcomingWorkout = visibleWorkouts.find((workout) => workout.status === 'planned') ?? null;
 
   const workoutSubtitle = (workout: Workout) => {
     const details: string[] = [];
@@ -120,31 +169,6 @@
     </button>
   </div>
 
-  {#if !loading && !error && (activeWorkout || upcomingWorkout)}
-    <div class="grid gap-4 sm:grid-cols-2">
-      {#if activeWorkout}
-        <section class="card border-2 border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950" aria-labelledby="active-workout-heading">
-          <p class="text-sm font-bold uppercase tracking-[0.15em] text-emerald-800 dark:text-emerald-200" id="active-workout-heading">Training bezig</p>
-          <h3 class="mt-1 text-xl font-black">{activeWorkout.title}</h3>
-          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{formatDay(activeWorkout.performed_at.slice(0, 10))} · {formatDateTime(activeWorkout.performed_at)}</p>
-          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(activeWorkout)}</p>
-          <a class="btn-primary mt-4 w-full" href={`/workouts/${activeWorkout.id}`}>Doorgaan met training →</a>
-        </section>
-      {/if}
-      {#if upcomingWorkout}
-        <section class="card border-2 border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950" aria-labelledby="upcoming-workout-heading">
-          <p class="text-sm font-bold uppercase tracking-[0.15em] text-primary-800 dark:text-primary-200" id="upcoming-workout-heading">
-            {isToday(upcomingWorkout.performed_at) ? 'Training vandaag' : 'Volgende training'}
-          </p>
-          <h3 class="mt-1 text-xl font-black">{upcomingWorkout.title}</h3>
-          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{formatDay(upcomingWorkout.performed_at.slice(0, 10))}</p>
-          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(upcomingWorkout)}</p>
-          <a class="btn-secondary mt-4 w-full" href={`/workouts/${upcomingWorkout.id}`}>Training bekijken →</a>
-        </section>
-      {/if}
-    </div>
-  {/if}
-
   {#if selectedPlan}
     <div class="card flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm font-semibold">Tijdlijn gefilterd op één trainingsplan.</p>
@@ -152,16 +176,27 @@
     </div>
   {/if}
 
-  <div class="card flex flex-wrap items-center gap-3">
-    <Filter size={18} class="text-gray-500" />
-    <label class="sr-only" for="type-filter">Filter op trainingstype</label>
-    <select id="type-filter" class="input max-w-xs" bind:value={$activeWorkoutType}>
-      <option value="">Alle trainingen</option>
-      {#each WORKOUT_TYPE_OPTIONS as option}
-        <option value={option.value}>{option.label}</option>
+  <div class="card space-y-4">
+    <div class="flex flex-wrap gap-2" role="group" aria-label="Periode">
+      {#each DATE_RANGE_OPTIONS as option}
+        <button
+          type="button"
+          class="touch-target rounded-xl px-4 text-sm font-bold transition {dateRangeFilter === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}"
+          aria-pressed={dateRangeFilter === option.value}
+          on:click={() => (dateRangeFilter = option.value)}>{option.label}</button>
       {/each}
-    </select>
-    <span class="ml-auto text-sm text-gray-500 dark:text-gray-400">{workouts.length} {workouts.length === 1 ? 'training' : 'trainingen'}</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-3">
+      <Filter size={18} class="text-gray-500" />
+      <label class="sr-only" for="type-filter">Filter op trainingstype</label>
+      <select id="type-filter" class="input max-w-xs" bind:value={$activeWorkoutType}>
+        <option value="">Alle trainingen</option>
+        {#each WORKOUT_TYPE_OPTIONS as option}
+          <option value={option.value}>{option.label}</option>
+        {/each}
+      </select>
+      <span class="ml-auto text-sm text-gray-500 dark:text-gray-400">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'training' : 'trainingen'}</span>
+    </div>
   </div>
 
   {#if loading}
@@ -170,18 +205,18 @@
     <div class="card border-red-300 text-red-700 dark:border-red-900 dark:text-red-300">
       <p class="font-bold">Laden mislukt</p>
       <p class="mt-1 text-sm">{error}</p>
-      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType)}>Opnieuw proberen</button>
+      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType, selectedPlan)}>Opnieuw proberen</button>
     </div>
-  {:else if workouts.length === 0}
+  {:else if visibleWorkouts.length === 0}
     <div class="card flex flex-col items-center py-12 text-center">
       <div class="rounded-2xl bg-primary-600 p-4 text-white"><Dumbbell size={28} /></div>
-      <h3 class="mt-4 text-xl font-bold">Je tijdlijn is nog leeg</h3>
-      <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Voeg je eerste training toe. Je kunt kracht, cardio, interval en herstel vastleggen.</p>
-      <button class="btn-primary mt-6" on:click={() => goto('/workouts/new')}><Plus size={18} /> Eerste training toevoegen</button>
+      <h3 class="mt-4 text-xl font-bold">{workouts.length === 0 ? 'Je tijdlijn is nog leeg' : 'Geen trainingen in deze periode'}</h3>
+      <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Voeg een training toe of kies een andere periode.</p>
+      <button class="btn-primary mt-6" on:click={() => goto('/workouts/new')}><Plus size={18} /> Training toevoegen</button>
     </div>
   {:else}
     <div class="space-y-8">
-      {#each groupedByDay(workouts) as [day, entries]}
+      {#each groupedByDay(visibleWorkouts) as [day, entries]}
         <section aria-label={formatDay(day)}>
           <div class="mb-3 flex items-center gap-2 text-sm font-bold capitalize text-gray-600 dark:text-gray-300">
             <CalendarDays size={17} />
@@ -205,7 +240,7 @@
                         {:else if isToday(workout.performed_at)}
                           <span class="badge bg-amber-500 text-white">Vandaag</span>
                         {:else if upcomingWorkout?.id === workout.id}
-                          <span class="badge bg-primary-600 text-white">Komend</span>
+                          <span class="badge bg-primary-600 text-white">Eerstvolgende</span>
                         {/if}
                       </div>
                       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{workoutSubtitle(workout)}</p>
