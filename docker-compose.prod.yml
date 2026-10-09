@@ -1,0 +1,57 @@
+services:
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: top-trainer-pb
+    networks:
+      - default
+      - caddy-net
+    command: ["--http=0.0.0.0:8090"]
+    environment:
+      PB_ADMIN_EMAIL: ${PB_SUPERUSER_EMAIL:?Set PB_SUPERUSER_EMAIL in .env}
+      PB_ADMIN_PASSWORD: ${PB_SUPERUSER_PASSWORD:?Set PB_SUPERUSER_PASSWORD in .env}
+    volumes:
+      - ${PB_DATA_DIR:-./pb_data}:/pb_data
+      - ./pb_hooks:/pb_hooks:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8090/api/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  pb-setup:
+    image: alpine:3.20
+    depends_on:
+      pocketbase:
+        condition: service_healthy
+    environment:
+      PB_URL: http://pocketbase:8090
+      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL:?Set PB_SUPERUSER_EMAIL in .env}
+      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD:?Set PB_SUPERUSER_PASSWORD in .env}
+      PB_ADMIN_USER_EMAIL: ${PB_ADMIN_USER_EMAIL:-}
+      PB_ADMIN_USER_PASSWORD: ${PB_ADMIN_USER_PASSWORD:-}
+      PB_ADMIN_USER_NAME: ${PB_ADMIN_USER_NAME:-TOP Trainer Admin}
+      SEED_DEMO: ${SEED_DEMO:-false}
+    volumes:
+      - ./scripts:/scripts:ro
+    command: ["/bin/sh", "-c", "apk add --no-cache bash curl jq && bash /scripts/setup-collections.sh && if [ \"$$SEED_DEMO\" = true ]; then bash /scripts/seed-demo.sh; fi"]
+    restart: "no"
+
+  frontend:
+    container_name: top-trainer-frontend
+    networks:
+      - default
+      - caddy-net
+    build:
+      context: ./frontend
+      args:
+        VITE_POCKETBASE_URL: ""
+    depends_on:
+      pb-setup:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+networks:
+  default:
+  caddy-net:
+    external: true

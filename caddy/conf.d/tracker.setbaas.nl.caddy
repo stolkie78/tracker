@@ -1,0 +1,27 @@
+# T.O.P. Trainer production - tracker.setbaas.nl (automatic Let's Encrypt HTTPS)
+# Drop-in for the central Caddy instance; installed by ./scripts/deploy.sh production
+tracker.setbaas.nl {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# PocketBase API + Admin UI
+	handle /api/* {
+		reverse_proxy top-trainer-pb:8090
+	}
+
+	handle /_/* {
+		reverse_proxy top-trainer-pb:8090
+	}
+
+	# Frontend app
+	handle {
+		reverse_proxy top-trainer-frontend:80
+	}
+}

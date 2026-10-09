@@ -1,0 +1,6 @@
+pb_data*/
+backups/
+.env*
+frontend/node_modules/
+.git
+.DS_Store
