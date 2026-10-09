@@ -57,20 +57,26 @@
   const formatDateTime = (date: string) =>
     new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
 
-  const getNextWorkout = (records: Workout[]) => {
-    const byDate = (a: Workout, b: Workout) =>
-      new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime();
-    const inProgress = records.filter((workout) => workout.status === 'in_progress').sort(byDate);
-    if (inProgress[0]) return inProgress[0];
+  const isToday = (date: string) => {
+    const workoutDay = new Date(date);
+    const today = new Date();
+    return workoutDay.getFullYear() === today.getFullYear()
+      && workoutDay.getMonth() === today.getMonth()
+      && workoutDay.getDate() === today.getDate();
+  };
 
+  const getUpcomingWorkout = (records: Workout[]) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     return records
       .filter((workout) => workout.status === 'planned' && new Date(workout.performed_at) >= today)
-      .sort(byDate)[0] ?? null;
+      .sort((a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime())[0] ?? null;
   };
 
-  $: nextWorkout = getNextWorkout(workouts);
+  $: activeWorkout = workouts
+    .filter((workout) => workout.status === 'in_progress')
+    .sort((a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime())[0] ?? null;
+  $: upcomingWorkout = getUpcomingWorkout(workouts);
 
   const workoutSubtitle = (workout: Workout) => {
     const details: string[] = [];
@@ -114,28 +120,29 @@
     </button>
   </div>
 
-  {#if !loading && !error && nextWorkout}
-    <section class="card border-primary-200 bg-primary-50 dark:border-primary-900 dark:bg-primary-950" aria-labelledby="next-workout-heading">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-bold uppercase tracking-[0.15em] text-primary-800 dark:text-primary-200" id="next-workout-heading">
-            {nextWorkout.status === 'in_progress' ? 'Training bezig' : 'Volgende training'}
+  {#if !loading && !error && (activeWorkout || upcomingWorkout)}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {#if activeWorkout}
+        <section class="card border-2 border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950" aria-labelledby="active-workout-heading">
+          <p class="text-sm font-bold uppercase tracking-[0.15em] text-emerald-800 dark:text-emerald-200" id="active-workout-heading">Training bezig</p>
+          <h3 class="mt-1 text-xl font-black">{activeWorkout.title}</h3>
+          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{formatDay(activeWorkout.performed_at.slice(0, 10))} · {formatDateTime(activeWorkout.performed_at)}</p>
+          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(activeWorkout)}</p>
+          <a class="btn-primary mt-4 w-full" href={`/workouts/${activeWorkout.id}`}>Doorgaan met training →</a>
+        </section>
+      {/if}
+      {#if upcomingWorkout}
+        <section class="card border-2 border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950" aria-labelledby="upcoming-workout-heading">
+          <p class="text-sm font-bold uppercase tracking-[0.15em] text-primary-800 dark:text-primary-200" id="upcoming-workout-heading">
+            {isToday(upcomingWorkout.performed_at) ? 'Training vandaag' : 'Volgende training'}
           </p>
-          <h3 class="mt-1 text-xl font-black">{nextWorkout.title}</h3>
-          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
-            {formatDay(nextWorkout.performed_at.slice(0, 10))}
-            {#if nextWorkout.status === 'in_progress'} · {formatDateTime(nextWorkout.performed_at)}{/if}
-          </p>
-          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(nextWorkout)}</p>
-          <span class="badge mt-3 border border-primary-300 bg-white text-primary-900 dark:border-primary-700 dark:bg-gray-900 dark:text-primary-100">
-            {WORKOUT_STATUS_LABELS[nextWorkout.status]}
-          </span>
-        </div>
-        <a class="btn-primary w-full sm:w-auto" href={`/workouts/${nextWorkout.id}`}>
-          {nextWorkout.status === 'in_progress' ? 'Doorgaan met training' : 'Training bekijken'} →
-        </a>
-      </div>
-    </section>
+          <h3 class="mt-1 text-xl font-black">{upcomingWorkout.title}</h3>
+          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">{formatDay(upcomingWorkout.performed_at.slice(0, 10))}</p>
+          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(upcomingWorkout)}</p>
+          <a class="btn-secondary mt-4 w-full" href={`/workouts/${upcomingWorkout.id}`}>Training bekijken →</a>
+        </section>
+      {/if}
+    </div>
   {/if}
 
   {#if selectedPlan}
@@ -182,14 +189,25 @@
           </div>
           <div class="space-y-3 border-l-2 border-primary-200 pl-4 dark:border-primary-900">
             {#each entries as workout (workout.id)}
-              <a class="card block transition hover:border-primary-300 hover:shadow-md dark:hover:border-primary-800" href={`/workouts/${workout.id}`}>
+              <a
+                class="card block border-2 transition hover:shadow-md {activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800'}"
+                href={`/workouts/${workout.id}`}>
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="flex items-start gap-3">
                     <div class="mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-md {WORKOUT_TYPE_STYLES[workout.type].icon}">
                       <svelte:component this={TYPE_ICONS[workout.type]} size={24} strokeWidth={2.25} />
                     </div>
                     <div>
-                      <h3 class="text-lg font-bold">{workout.title}</h3>
+                      <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-lg font-bold">{workout.title}</h3>
+                        {#if activeWorkout?.id === workout.id}
+                          <span class="badge bg-emerald-600 text-white">Actief</span>
+                        {:else if isToday(workout.performed_at)}
+                          <span class="badge bg-amber-500 text-white">Vandaag</span>
+                        {:else if upcomingWorkout?.id === workout.id}
+                          <span class="badge bg-primary-600 text-white">Komend</span>
+                        {/if}
+                      </div>
                       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{workoutSubtitle(workout)}</p>
                     </div>
                   </div>
