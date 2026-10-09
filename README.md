@@ -26,7 +26,11 @@ De frontendcheck en productiebuild zijn onderdeel van de `frontend` Docker-build
 
 ### Google OAuth
 
-Configureer de Google OAuth-provider in PocketBase Admin UI onder **Settings → Auth providers → Google**. Stel de PocketBase OAuth callback-URL in bij de Google OAuth-client en voeg de lokale en productie-origin toe aan de toegestane origins. E-mail/wachtwoord-authenticatie loopt via de PocketBase `users` auth-collection.
+Zet `GOOGLE_CLIENT_ID` en `GOOGLE_CLIENT_SECRET` in het env-bestand (beide of geen); `setup-collections.sh` configureert de Google-provider op de `users`-collectie en schakelt hem uit als de waarden leeg zijn. Voeg `https://<DOMAIN>/api/oauth2-redirect` toe als redirect-URI in de Google OAuth-client. E-mail/wachtwoord blijft beschikbaar.
+
+### Gegevensisolatie
+
+Elke gebruiker ziet alleen eigen data: alle gebruikersdata (workouts, oefeningen in training, sets, plannen, AI-instellingen) heeft een `owner` en de API-regels laten alleen `owner = @request.auth.id` toe; eigenaar wijzigen via update is geblokkeerd. De oefeningencatalogus is gedeeld: iedereen kan lezen en toevoegen, alleen een app-admin kan wijzigen of verwijderen.
 
 ### AI-trainingsplanner
 
@@ -63,6 +67,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 | Versie | Wijzigingen |
 |---|---|
+| 0.10.6 | Google OAuth configureerbaar via `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` in het env-bestand; API-regels aangescherpt (eigenaar niet te wijzigen, oefeningencatalogus alleen door admins te wijzigen of verwijderen), getest met twee gebruikers. |
 | 0.10.5 | Deploy-standaarden van SetBaas toegepast: `deploy.sh` ondersteunt de commando's `down`, `status` en `logs`; `.dockerignore`-bestanden, Caddy drop-in `caddy/conf.d/tracker.setbaas.nl.caddy` die `deploy.sh` installeert en herlaadt (centrale Caddy via `caddy-net`), uitgebreide `.env.example`, `.env.test.example` en `.gitignore`; README en DEPLOYMENT.md bijgewerkt. |
 | 0.10.4 | Bugfix: de naam in "Training toevoegen" wordt nu direct bij het wisselen van trainingstype aangepast, tenzij je de naam zelf hebt getypt (robuustere implementatie dan 0.10.2). |
 | 0.10.3 | Het statusveld in "Training toevoegen" is nu een cyclusknop (Gepland → Bezig → Voltooid → Overgeslagen), gelijk aan de trainingsdetailpagina. |

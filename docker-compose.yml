@@ -29,6 +29,8 @@ services:
       PB_ADMIN_USER_EMAIL: ${PB_ADMIN_USER_EMAIL:-}
       PB_ADMIN_USER_PASSWORD: ${PB_ADMIN_USER_PASSWORD:-}
       PB_ADMIN_USER_NAME: ${PB_ADMIN_USER_NAME:-TOP Trainer Admin}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       SEED_DEMO: ${SEED_DEMO:-false}
     volumes:
       - ./scripts:/scripts:ro

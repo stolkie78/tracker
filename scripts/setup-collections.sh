@@ -7,10 +7,18 @@ PB_SUPERUSER_PASSWORD="${PB_SUPERUSER_PASSWORD:?Set PB_SUPERUSER_PASSWORD}"
 PB_ADMIN_USER_EMAIL="${PB_ADMIN_USER_EMAIL:-}"
 PB_ADMIN_USER_PASSWORD="${PB_ADMIN_USER_PASSWORD:-}"
 PB_ADMIN_USER_NAME="${PB_ADMIN_USER_NAME:-TOP Trainer Admin}"
+GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
+GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
 
 if { [ -n "$PB_ADMIN_USER_EMAIL" ] && [ -z "$PB_ADMIN_USER_PASSWORD" ]; } ||
   { [ -z "$PB_ADMIN_USER_EMAIL" ] && [ -n "$PB_ADMIN_USER_PASSWORD" ]; }; then
   echo "Set both PB_ADMIN_USER_EMAIL and PB_ADMIN_USER_PASSWORD, or leave both empty." >&2
+  exit 1
+fi
+
+if { [ -n "$GOOGLE_CLIENT_ID" ] && [ -z "$GOOGLE_CLIENT_SECRET" ]; } ||
+  { [ -z "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; }; then
+  echo "Set both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or leave both empty." >&2
   exit 1
 fi
 
@@ -121,7 +129,7 @@ EXERCISE_FIELDS="$(jq -cn --argjson name "$(text_field name true)" \
   --argjson muscle "$(select_field muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]')" \
   --argjson equipment "$(jq -cn --argjson values '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]' '{name:"equipment_options",type:"select",required:false,maxSelect:8,values:$values}')" \
   --argjson active "$(bool_field active true)" '[$name,$category,$muscle,$equipment,$active]')"
-ensure_collection exercises base "$EXERCISE_FIELDS" '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != ""'
+ensure_collection exercises base "$EXERCISE_FIELDS" '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != "" && @collection.profiles.user ?= @request.auth.id && @collection.profiles.role ?= "admin"' '@request.auth.id != "" && @collection.profiles.user ?= @request.auth.id && @collection.profiles.role ?= "admin"'
 
 PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson title "$(text_field title true)" \
@@ -132,7 +140,7 @@ PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson summary "$(text_field summary)" \
   '[$owner,$title,$goal,$start,$end,$weeks,$summary]')"
 ensure_collection training_plans base "$PLAN_FIELDS" \
-  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id'
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 AI_SETTINGS_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson endpoint "$(text_field endpoint true)" \
@@ -141,7 +149,7 @@ AI_SETTINGS_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson key_set "$(bool_field api_key_set)" \
   '[$owner,$endpoint,$model,$key,$key_set]')"
 ensure_collection ai_settings base "$AI_SETTINGS_FIELDS" \
-  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id'
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 PLAN_ID="$(collection_id training_plans)"
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
@@ -159,7 +167,7 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$effort,$series]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
-  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id'
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 WORKOUT_ID="$(collection_id workouts)"
 EXERCISE_ID="$(collection_id exercises)"
@@ -172,7 +180,7 @@ WORKOUT_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson equipment "$(select_field equipment '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]')" \
   '[$owner,$workout,$exercise,$order,$sets,$min,$max,$start,$increment,$equipment]')"
 ensure_collection workout_exercises base "$WORKOUT_EXERCISE_FIELDS" \
-  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id'
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 WORKOUT_EXERCISE_ID="$(collection_id workout_exercises)"
 SET_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
@@ -181,7 +189,7 @@ SET_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson weight "$(number_field weight)" --argjson completed "$(bool_field completed)" \
   '[$owner,$workout_exercise,$order,$reps,$weight,$completed]')"
 ensure_collection workout_sets base "$SET_FIELDS" \
-  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id'
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 ensure_select_values workouts type '["strength","cardio","interval","recovery"]'
 ensure_select_values workouts status '["planned","in_progress","completed","skipped"]'
@@ -357,6 +365,21 @@ ensure_admin_user() {
   fi
 }
 
+ensure_google_oauth() {
+  local users_id payload
+  users_id="$(collection_id users)"
+  if [ -n "$GOOGLE_CLIENT_ID" ]; then
+    payload="$(jq -n --arg id "$GOOGLE_CLIENT_ID" --arg secret "$GOOGLE_CLIENT_SECRET" \
+      '{oauth2:{enabled:true,providers:[{name:"google",clientId:$id,clientSecret:$secret}]}}')"
+    echo "Ensuring Google OAuth provider."
+  else
+    payload='{"oauth2":{"enabled":false,"providers":[]}}'
+    echo "Google OAuth not configured; disabled."
+  fi
+  api -X PATCH "$PB_URL/api/collections/$users_id" -H 'Content-Type: application/json' --data "$payload" >/dev/null
+}
+
+ensure_google_oauth
 ensure_admin_user
 
 echo "PocketBase collections are ready."

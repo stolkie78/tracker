@@ -24,6 +24,7 @@ Maak per omgeving een env-bestand op basis van `.env.example`: `.env.test`, `.en
 |---|---|
 | `PB_SUPERUSER_EMAIL` / `PB_SUPERUSER_PASSWORD` | PocketBase-superuser, gebruikt door de setup-scripts |
 | `PB_ADMIN_USER_EMAIL` / `PB_ADMIN_USER_PASSWORD` / `PB_ADMIN_USER_NAME` | Applicatie-admin (verplicht voor demodata) |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (optioneel, beide of geen). Redirect-URI: `https://<DOMAIN>/api/oauth2-redirect`. Setup zet de provider aan, of uit als ze leeg zijn |
 | `DOMAIN` | Domein voor Caddy (alleen production) |
 
 ## Stappen die het script altijd uitvoert
