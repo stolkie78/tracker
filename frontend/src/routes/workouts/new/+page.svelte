@@ -34,8 +34,18 @@
   let type: WorkoutType = 'strength';
   let title = '';
   let dateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  let scheduleStartDate = dateTime.slice(0, 10);
+  const WEEKDAYS = [
+    { value: 1, label: 'Ma' },
+    { value: 2, label: 'Di' },
+    { value: 3, label: 'Wo' },
+    { value: 4, label: 'Do' },
+    { value: 5, label: 'Vr' },
+    { value: 6, label: 'Za' },
+    { value: 0, label: 'Zo' }
+  ];
   const STATUS_CYCLE: WorkoutStatus[] = ['planned', 'in_progress', 'completed', 'skipped'];
-  let status: WorkoutStatus = 'completed';
+  let status: WorkoutStatus = 'planned';
   const cycleStatus = () => (status = STATUS_CYCLE[(STATUS_CYCLE.indexOf(status) + 1) % STATUS_CYCLE.length]);
   let duration = 60;
   let notes = '';
@@ -50,6 +60,7 @@
   let recoveryActivity = 'mobility';
   let perceivedEffort = 5;
   let repeatWeekly = false;
+  let repeatDays = [new Date().getDay()];
   let repeatWeeks = 4;
   let loading = false;
   let error = '';
@@ -82,6 +93,12 @@
 
   const removeStrengthEntry = (index: number) =>
     (strengthEntries = strengthEntries.filter((_, entryIndex) => entryIndex !== index));
+
+  const toggleRepeatDay = (day: number) => {
+    repeatDays = repeatDays.includes(day)
+      ? repeatDays.filter((selected) => selected !== day)
+      : [...repeatDays, day];
+  };
 
   const updateEntry = (index: number, patch: Partial<StrengthEntry>) =>
     (strengthEntries = strengthEntries.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...patch } : entry)));
@@ -147,60 +164,79 @@
       error = 'Controleer per oefening de selectie en het herhalingsbereik.';
       return;
     }
+    if (status === 'planned' && repeatWeekly && repeatDays.length === 0) {
+      error = 'Kies minimaal één weekdag voor de trainingsreeks.';
+      return;
+    }
 
     loading = true;
     try {
-      const occurrences = status === 'planned' && repeatWeekly ? Math.min(Math.max(repeatWeeks, 1), 52) : 1;
-      const seriesId = occurrences > 1 ? crypto.randomUUID() : '';
-      let first: Awaited<ReturnType<typeof createWorkout>> | undefined;
-      for (let week = 0; week < occurrences; week += 1) {
-      const when = new Date(dateTime);
-      when.setDate(when.getDate() + week * 7);
-      const created = await createWorkout({
-        title: title.trim(),
-        type,
-        status,
-        performed_at: when.toISOString(),
-        ...(seriesId ? { series_id: seriesId } : {}),
-        duration_minutes: duration,
-        notes,
-        ...(type === 'cardio'
-          ? { cardio_mode: cardioMode as CardioMode, distance_km: distance, average_heart_rate: averageHeartRate }
-          : {}),
-        ...(type === 'interval'
-          ? { cardio_mode: cardioMode as CardioMode, interval_work_seconds: intervalWork, interval_rest_seconds: intervalRest, interval_rounds: intervalRounds }
-          : {}),
-        ...(type === 'recovery' ? { recovery_activity: recoveryActivity as RecoveryActivity } : {}),
-        ...(type === 'cardio' || type === 'interval' ? { perceived_effort: perceivedEffort } : {})
-      });
-
-      if (type === 'strength') {
-        for (const [index, entry] of strengthEntries.entries()) {
-          const workoutExercise = await createWorkoutExercise({
-            owner: created.owner,
-            workout: created.id,
-            exercise: entry.exercise,
-            ...(entry.equipment ? { equipment: entry.equipment } : {}),
-            set_order: index + 1,
-            target_sets: entry.sets,
-            reps_min: entry.repsMin,
-            reps_max: entry.repsMax,
-            starting_weight: entry.weight,
-            weight_increment: entry.increment
-          });
-          for (let setIndex = 0; setIndex < entry.sets; setIndex += 1) {
-            await createWorkoutSet({
-              owner: created.owner,
-              workout_exercise: workoutExercise.id,
-              set_order: setIndex + 1,
-              reps: 0,
-              weight: entry.weight,
-              completed: false
-            });
+      const scheduleDates: Date[] = [];
+      if (status === 'planned' && repeatWeekly) {
+        const start = new Date(`${scheduleStartDate}T12:00:00`);
+        const startWeekday = start.getDay();
+        const totalDays = Math.min(Math.max(Number(repeatWeeks) || 1, 1), 52) * 7;
+        for (const weekday of repeatDays) {
+          let offset = (weekday - startWeekday + 7) % 7;
+          while (offset < totalDays) {
+            const occurrence = new Date(start);
+            occurrence.setDate(start.getDate() + offset);
+            scheduleDates.push(occurrence);
+            offset += 7;
           }
         }
+        scheduleDates.sort((a, b) => a.getTime() - b.getTime());
+      } else {
+        scheduleDates.push(status === 'planned' ? new Date(`${scheduleStartDate}T12:00:00`) : new Date(dateTime));
       }
-      first ??= created;
+      const seriesId = scheduleDates.length > 1 ? crypto.randomUUID() : '';
+      let first: Awaited<ReturnType<typeof createWorkout>> | undefined;
+      for (const when of scheduleDates) {
+        const created = await createWorkout({
+          title: title.trim(),
+          type,
+          status,
+          performed_at: when.toISOString(),
+          ...(seriesId ? { series_id: seriesId } : {}),
+          duration_minutes: duration,
+          notes,
+          ...(type === 'cardio'
+            ? { cardio_mode: cardioMode as CardioMode, distance_km: distance, average_heart_rate: averageHeartRate }
+            : {}),
+          ...(type === 'interval'
+            ? { cardio_mode: cardioMode as CardioMode, interval_work_seconds: intervalWork, interval_rest_seconds: intervalRest, interval_rounds: intervalRounds }
+            : {}),
+          ...(type === 'recovery' ? { recovery_activity: recoveryActivity as RecoveryActivity } : {}),
+          ...(type === 'cardio' || type === 'interval' ? { perceived_effort: perceivedEffort } : {})
+        });
+
+        if (type === 'strength') {
+          for (const [index, entry] of strengthEntries.entries()) {
+            const workoutExercise = await createWorkoutExercise({
+              owner: created.owner,
+              workout: created.id,
+              exercise: entry.exercise,
+              ...(entry.equipment ? { equipment: entry.equipment } : {}),
+              set_order: index + 1,
+              target_sets: entry.sets,
+              reps_min: entry.repsMin,
+              reps_max: entry.repsMax,
+              starting_weight: entry.weight,
+              weight_increment: entry.increment
+            });
+            for (let setIndex = 0; setIndex < entry.sets; setIndex += 1) {
+              await createWorkoutSet({
+                owner: created.owner,
+                workout_exercise: workoutExercise.id,
+                set_order: setIndex + 1,
+                reps: 0,
+                weight: entry.weight,
+                completed: false
+              });
+            }
+          }
+        }
+        first ??= created;
       }
       const created = first!;
       await goto(`/workouts/${created.id}`);
@@ -235,8 +271,12 @@
           <input id="title" class="input" bind:value={title} on:input={() => (titleEdited = true)} required />
         </div>
         <div>
-          <label class="label" for="performed-at">Datum en tijd</label>
-          <input id="performed-at" class="input" type="datetime-local" bind:value={dateTime} required />
+          <label class="label" for="performed-at">{status === 'planned' ? 'Startdatum' : 'Datum en tijd'}</label>
+          {#if status === 'planned'}
+            <input id="performed-at" class="input" type="date" bind:value={scheduleStartDate} required />
+          {:else}
+            <input id="performed-at" class="input" type="datetime-local" bind:value={dateTime} required />
+          {/if}
         </div>
         <div>
           <label class="label" for="duration">Duur (minuten)</label>
@@ -252,12 +292,26 @@
       </div>
       {#if status === 'planned'}
         <div class="rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
-          <label class="flex min-h-12 items-center gap-3 font-semibold"><input type="checkbox" class="h-5 w-5" bind:checked={repeatWeekly} /> Wekelijks herhalen op dezelfde dag</label>
+          <label class="flex min-h-12 items-center gap-3 font-semibold"><input type="checkbox" class="h-5 w-5" bind:checked={repeatWeekly} /> Wekelijks herhalen</label>
           {#if repeatWeekly}
-            <div class="mt-3 max-w-xs">
-              <label class="label" for="repeat-weeks">Aantal weken</label>
-              <input id="repeat-weeks" class="input" type="number" min="2" max="52" bind:value={repeatWeeks} />
-              <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Plant {repeatWeeks} trainingen, elke week op dezelfde weekdag en tijd als hierboven.</p>
+            <div class="mt-3 space-y-4">
+              <fieldset>
+                <legend class="label">Weekdagen voor deze training</legend>
+                <div class="flex flex-wrap gap-2">
+                  {#each WEEKDAYS as day}
+                    <button
+                      type="button"
+                      class="touch-target min-w-12 rounded-xl px-3 text-sm font-bold transition {repeatDays.includes(day.value) ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}"
+                      aria-pressed={repeatDays.includes(day.value)}
+                      on:click={() => toggleRepeatDay(day.value)}>{day.label}</button>
+                  {/each}
+                </div>
+              </fieldset>
+              <div class="max-w-xs">
+                <label class="label" for="repeat-weeks">Aantal weken</label>
+                <input id="repeat-weeks" class="input" type="number" min="1" max="52" bind:value={repeatWeeks} />
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Plant deze training op de gekozen weekdagen, vanaf de startdatum. Er wordt geen tijd ingepland.</p>
+              </div>
             </div>
           {/if}
         </div>
