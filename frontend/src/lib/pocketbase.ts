@@ -202,6 +202,9 @@ export const getStrengthSuggestion = async (exerciseId: ID, equipment?: string) 
 export const createWorkoutExercise = (data: Omit<WorkoutExercise, 'id' | 'created' | 'updated'>) =>
   pb.collection('workout_exercises').create<WorkoutExercise>(data);
 
+export const updateWorkoutExercise = (id: ID, data: Partial<WorkoutExercise>) =>
+  pb.collection('workout_exercises').update<WorkoutExercise>(id, data);
+
 export const createWorkoutSet = (data: Omit<WorkoutSet, 'id' | 'created' | 'updated'>) =>
   pb.collection('workout_sets').create<WorkoutSet>(data);
 

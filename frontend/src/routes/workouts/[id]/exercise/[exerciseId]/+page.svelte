@@ -11,6 +11,7 @@
     getWorkoutExercise,
     getWorkoutExercises,
     updateWorkout,
+    updateWorkoutExercise,
     updateWorkoutSet
   } from '$lib/pocketbase';
   import {
@@ -99,13 +100,21 @@
 
   const save = async (goNext: boolean) => {
     if (!workout || !record) return;
+    const restSeconds = Number(record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS);
+    if (!Number.isFinite(restSeconds) || restSeconds < 0 || restSeconds > 600) {
+      error = 'Rust tussen sets moet tussen 0 en 600 seconden liggen.';
+      return;
+    }
     saving = true;
     error = '';
     try {
       await Promise.all(
-        sets.map((set) =>
-          updateWorkoutSet(set.id, { reps: Number(set.reps) || 0, weight: Number(set.weight) || 0, completed: set.completed })
-        )
+        [
+          updateWorkoutExercise(record.id, { rest_seconds: restSeconds }),
+          ...sets.map((set) =>
+            updateWorkoutSet(set.id, { reps: Number(set.reps) || 0, weight: Number(set.weight) || 0, completed: set.completed })
+          )
+        ]
       );
       if (workout.status === 'planned') {
         await updateWorkout(workout.id, { status: 'in_progress', performed_at: new Date().toISOString() });
@@ -148,6 +157,18 @@
       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
         Rust tussen sets: {record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS} sec · tempo: {record.tempo ?? DEFAULT_STRENGTH_TEMPO}
       </p>
+      <div class="mt-3 max-w-xs">
+        <label class="label" for="exercise-rest-seconds">Rust tussen sets (seconden)</label>
+        <input
+          id="exercise-rest-seconds"
+          class="input"
+          type="number"
+          min="0"
+          max="600"
+          step="5"
+          bind:value={record.rest_seconds}
+        />
+      </div>
       {#if topProtocol}
         <p class="mt-1 text-sm font-semibold text-primary-700 dark:text-primary-300">
           T.O.P.-index {String(topProtocol.index).padStart(2, '0')} · {topProtocol.name} · herstel na training: {topProtocol.recovery}
