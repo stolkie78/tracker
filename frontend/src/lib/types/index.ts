@@ -11,6 +11,45 @@ export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' 
 export const DEFAULT_STRENGTH_REST_SECONDS = 90;
 export const DEFAULT_STRENGTH_TEMPO = '3-1-1-0';
 
+export interface TopProtocol {
+  index: number;
+  name: string;
+  reps_min: number;
+  reps_max: number;
+  rest_min_seconds: number;
+  rest_max_seconds: number;
+  recovery: string;
+}
+
+export const TOP_PROTOCOLS: TopProtocol[] = [
+  { index: 1, name: 'Coordination', reps_min: 5, reps_max: 12, rest_min_seconds: 60, rest_max_seconds: 60, recovery: '3-4 uur' },
+  { index: 2, name: 'Strength endurance', reps_min: 30, reps_max: 60, rest_min_seconds: 30, rest_max_seconds: 60, recovery: '12 uur' },
+  { index: 3, name: 'Endurance / hypertrophy', reps_min: 20, reps_max: 30, rest_min_seconds: 60, rest_max_seconds: 90, recovery: '12 uur' },
+  { index: 4, name: 'Hypertrophy / endurance', reps_min: 15, reps_max: 20, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '24 uur' },
+  { index: 5, name: 'Hypertrophy', reps_min: 8, reps_max: 15, rest_min_seconds: 60, rest_max_seconds: 120, recovery: 'Niet vermeld (**)' },
+  { index: 6, name: 'Hypertrophy / strength', reps_min: 6, reps_max: 10, rest_min_seconds: 120, rest_max_seconds: 180, recovery: '48 uur' },
+  { index: 7, name: 'Strength / hypertrophy', reps_min: 5, reps_max: 8, rest_min_seconds: 180, rest_max_seconds: 240, recovery: '72 uur' },
+  { index: 8, name: 'Strength', reps_min: 2, reps_max: 5, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 uur' },
+  { index: 9, name: 'Maximum strength', reps_min: 1, reps_max: 3, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 uur' },
+  { index: 10, name: 'Retro gravity', reps_min: 1, reps_max: 3, rest_min_seconds: 180, rest_max_seconds: 300, recovery: '72 uur' }
+];
+
+export const getTopProtocol = (repsMin: number, repsMax: number, restSeconds: number) => {
+  const targetReps = (repsMin + repsMax) / 2;
+  const distanceToRange = (value: number, min: number, max: number) =>
+    value < min ? min - value : value > max ? value - max : 0;
+
+  return TOP_PROTOCOLS.reduce((best, protocol) => {
+    const repsDistance = distanceToRange(targetReps, protocol.reps_min, protocol.reps_max);
+    const bestRepsDistance = distanceToRange(targetReps, best.reps_min, best.reps_max);
+    const restDistance = distanceToRange(restSeconds, protocol.rest_min_seconds, protocol.rest_max_seconds);
+    const bestRestDistance = distanceToRange(restSeconds, best.rest_min_seconds, best.rest_max_seconds);
+    return repsDistance < bestRepsDistance || (repsDistance === bestRepsDistance && restDistance < bestRestDistance)
+      ? protocol
+      : best;
+  });
+};
+
 export interface BaseRecord {
   id: ID;
   created?: string;

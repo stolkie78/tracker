@@ -9,6 +9,7 @@
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
     EXERCISE_EQUIPMENT_LABELS,
+    getTopProtocol,
     RECOVERY_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
@@ -186,6 +187,11 @@
       {:else}
         <ul class="space-y-3">
           {#each exerciseLogs as exercise, exerciseIndex}
+            {@const topProtocol = getTopProtocol(
+              exercise.record.reps_min,
+              exercise.record.reps_max,
+              exercise.record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS
+            )}
             <li>
               <a href={`/workouts/${workout.id}/exercise/${exercise.record.id}`} class="card flex min-h-[72px] items-center gap-4 transition hover:border-primary-400 hover:shadow-md">
                 <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-black {isDone(exercise) ? 'bg-emerald-500 text-white' : 'bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-white'}">
@@ -199,6 +205,9 @@
                   </span>
                   <span class="block text-sm text-gray-600 dark:text-gray-300">
                     Rust {exercise.record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS}s · tempo {exercise.record.tempo ?? DEFAULT_STRENGTH_TEMPO}
+                  </span>
+                  <span class="block text-sm font-semibold text-primary-700 dark:text-primary-300">
+                    T.O.P.-index {String(topProtocol.index).padStart(2, '0')} · {topProtocol.name} · herstel na training: {topProtocol.recovery}
                   </span>
                 </span>
                 <ChevronRight size={22} class="shrink-0 text-gray-500" />

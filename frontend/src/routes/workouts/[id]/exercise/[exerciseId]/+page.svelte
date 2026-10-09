@@ -17,6 +17,7 @@
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
     EXERCISE_EQUIPMENT_LABELS,
+    getTopProtocol,
     nextSuggestedWeight,
     type Workout,
     type WorkoutExercise,
@@ -34,6 +35,9 @@
   $: index = record ? siblings.findIndex((item) => item.id === record?.id) : -1;
   $: next = index >= 0 ? siblings[index + 1] : undefined;
   $: allDone = sets.length > 0 && sets.every((set) => set.completed);
+  $: topProtocol = record
+    ? getTopProtocol(record.reps_min, record.reps_max, record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS)
+    : null;
   $: suggestion =
     record && allDone && sets.every((set) => Number(set.reps) >= record!.reps_max)
       ? nextSuggestedWeight(record.reps_max, sets, Math.min(...sets.map((set) => Number(set.weight) || 0)), record.weight_increment)
@@ -144,6 +148,11 @@
       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">
         Rust tussen sets: {record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS} sec · tempo: {record.tempo ?? DEFAULT_STRENGTH_TEMPO}
       </p>
+      {#if topProtocol}
+        <p class="mt-1 text-sm font-semibold text-primary-700 dark:text-primary-300">
+          T.O.P.-index {String(topProtocol.index).padStart(2, '0')} · {topProtocol.name} · herstel na training: {topProtocol.recovery}
+        </p>
+      {/if}
     </div>
 
     <section class="card space-y-3">
