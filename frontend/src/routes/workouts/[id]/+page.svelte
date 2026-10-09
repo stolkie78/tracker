@@ -29,8 +29,7 @@
         day: 'numeric',
         month: 'long',
         year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
+        ...(workout.status === 'planned' ? {} : { hour: '2-digit', minute: '2-digit' })
       }).format(new Date(workout.performed_at))
     : '';
 
@@ -72,7 +71,10 @@
   const changeStatus = async (status: Workout['status']) => {
     if (!workout) return;
     try {
-      workout = await updateWorkout(workout.id, { status });
+      workout = await updateWorkout(workout.id, {
+        status,
+        ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
+      });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Status kon niet worden aangepast.';
     }

@@ -95,7 +95,9 @@
           updateWorkoutSet(set.id, { reps: Number(set.reps) || 0, weight: Number(set.weight) || 0, completed: set.completed })
         )
       );
-      if (workout.status === 'planned') await updateWorkout(workout.id, { status: 'in_progress' });
+      if (workout.status === 'planned') {
+        await updateWorkout(workout.id, { status: 'in_progress', performed_at: new Date().toISOString() });
+      }
       await goto(goNext && next ? `/workouts/${workout.id}/exercise/${next.id}` : `/workouts/${workout.id}`);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Sets konden niet worden opgeslagen.';

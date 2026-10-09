@@ -57,6 +57,21 @@
   const formatDateTime = (date: string) =>
     new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
 
+  const getNextWorkout = (records: Workout[]) => {
+    const byDate = (a: Workout, b: Workout) =>
+      new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime();
+    const inProgress = records.filter((workout) => workout.status === 'in_progress').sort(byDate);
+    if (inProgress[0]) return inProgress[0];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return records
+      .filter((workout) => workout.status === 'planned' && new Date(workout.performed_at) >= today)
+      .sort(byDate)[0] ?? null;
+  };
+
+  $: nextWorkout = getNextWorkout(workouts);
+
   const workoutSubtitle = (workout: Workout) => {
     const details: string[] = [];
     if (workout.type === 'strength') {
@@ -98,6 +113,30 @@
       <Plus size={19} /> Training toevoegen
     </button>
   </div>
+
+  {#if !loading && !error && nextWorkout}
+    <section class="card border-primary-200 bg-primary-50 dark:border-primary-900 dark:bg-primary-950" aria-labelledby="next-workout-heading">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-bold uppercase tracking-[0.15em] text-primary-800 dark:text-primary-200" id="next-workout-heading">
+            {nextWorkout.status === 'in_progress' ? 'Training bezig' : 'Volgende training'}
+          </p>
+          <h3 class="mt-1 text-xl font-black">{nextWorkout.title}</h3>
+          <p class="mt-1 text-sm text-gray-700 dark:text-gray-200">
+            {formatDay(nextWorkout.performed_at.slice(0, 10))}
+            {#if nextWorkout.status === 'in_progress'} · {formatDateTime(nextWorkout.performed_at)}{/if}
+          </p>
+          <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">{workoutSubtitle(nextWorkout)}</p>
+          <span class="badge mt-3 border border-primary-300 bg-white text-primary-900 dark:border-primary-700 dark:bg-gray-900 dark:text-primary-100">
+            {WORKOUT_STATUS_LABELS[nextWorkout.status]}
+          </span>
+        </div>
+        <a class="btn-primary w-full sm:w-auto" href={`/workouts/${nextWorkout.id}`}>
+          {nextWorkout.status === 'in_progress' ? 'Doorgaan met training' : 'Training bekijken'} →
+        </a>
+      </div>
+    </section>
+  {/if}
 
   {#if selectedPlan}
     <div class="card flex flex-wrap items-center justify-between gap-3">
@@ -163,7 +202,7 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{formatDateTime(workout.performed_at)}</span>
+                  <span>{workout.status === 'planned' ? 'Tijd niet ingepland' : formatDateTime(workout.performed_at)}</span>
                   <span>Details bekijken →</span>
                 </div>
               </a>
