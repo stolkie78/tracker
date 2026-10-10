@@ -6,7 +6,7 @@
   import { CalendarDays, ChartNoAxesColumn, Dumbbell, LogOut, Menu, Moon, Plus, Sparkles, Sun, X } from '@lucide/svelte';
   import { isAuthenticated } from '$lib/stores/auth';
   import { loadUserRoles, rolesLoaded, clearUserRoles } from '$lib/stores/role';
-  import { logout } from '$lib/pocketbase';
+  import { getStravaStatus, logout, syncStrava } from '$lib/pocketbase';
 
   let menuOpen = false;
   let dark = true;
@@ -39,6 +39,18 @@
     loadUserRoles().catch((error) => {
       roleLoadError = error instanceof Error ? error.message : 'Je profiel kon niet worden geladen.';
     });
+  }
+
+  let stravaChecked = false;
+  $: if (browser && $isAuthenticated && !isLogin && !stravaChecked) {
+    stravaChecked = true;
+    const last = Number(sessionStorage.getItem('strava-sync') ?? 0);
+    if (Date.now() - last > 10 * 60_000) {
+      sessionStorage.setItem('strava-sync', String(Date.now()));
+      getStravaStatus()
+        .then((status) => (status.connected ? syncStrava() : null))
+        .catch(() => undefined);
+    }
   }
 
   $: if (browser) {

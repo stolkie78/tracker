@@ -29,7 +29,19 @@ export interface ExerciseProgress {
   repsChange: number;
 }
 
+export interface RunStats {
+  runs: number;
+  km: number;
+  minutes: number;
+  paceMinPerKm: number;
+  elevation: number;
+  averageHeartRate: number;
+  fastestPaceMinPerKm: number;
+  recent: Workout[];
+}
+
 export interface Stats {
+  run: RunStats;
   total: number;
   perWeek: number;
   totalMinutes: number;
@@ -59,6 +71,21 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
   const cardioKm: Partial<Record<CardioMode, number>> = {};
   let totalMinutes = 0;
   let longestRunKm = 0;
+  const runs = done.filter((workout) => workout.cardio_mode === 'running' && (workout.type === 'cardio' || workout.type === 'interval') && Number(workout.distance_km) > 0);
+  const runKm = runs.reduce((sum, workout) => sum + Number(workout.distance_km), 0);
+  const runMinutes = runs.reduce((sum, workout) => sum + (Number(workout.duration_minutes) || 0), 0);
+  const heartRuns = runs.filter((workout) => Number(workout.average_heart_rate) > 0);
+  const paces = runs.filter((workout) => Number(workout.duration_minutes) > 0).map((workout) => Number(workout.duration_minutes) / Number(workout.distance_km));
+  const run: RunStats = {
+    runs: runs.length,
+    km: round1(runKm),
+    minutes: Math.round(runMinutes),
+    paceMinPerKm: runKm && runMinutes ? runMinutes / runKm : 0,
+    elevation: Math.round(runs.reduce((sum, workout) => sum + (Number(workout.elevation_gain_m) || 0), 0)),
+    averageHeartRate: heartRuns.length ? Math.round(heartRuns.reduce((sum, workout) => sum + Number(workout.average_heart_rate), 0) / heartRuns.length) : 0,
+    fastestPaceMinPerKm: paces.length ? Math.min(...paces) : 0,
+    recent: [...runs].reverse().slice(0, 5)
+  };
   const perExercise = new Map<string, { name: string; sessions: ExerciseSession[] }>();
 
   for (const workout of done) {
@@ -116,6 +143,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
     .sort((a, b) => b.sessions.length - a.sessions.length || a.name.localeCompare(b.name));
 
   return {
+    run,
     total: done.length,
     perWeek: round1(done.length / weeks),
     totalMinutes,

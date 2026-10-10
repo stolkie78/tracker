@@ -88,6 +88,8 @@ export interface Workout extends BaseRecord {
   recovery_activity?: RecoveryActivity;
   perceived_effort?: number;
   series_id?: string;
+  strava_id?: string;
+  elevation_gain_m?: number;
   expand?: {
     workout_exercises_via_workout?: WorkoutExercise[];
   };
@@ -289,3 +291,23 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, { icon: string; badge: str
 
 export const exerciseLabel = (name: string, equipment?: ExerciseEquipment | '') =>
   equipment ? `${name} · ${EXERCISE_EQUIPMENT_LABELS[equipment]}` : name;
+
+export interface StravaStatus {
+  configured: boolean;
+  client_id: string;
+  connected: boolean;
+  athlete_name: string;
+  last_synced_at: string;
+}
+
+export interface StravaSyncCounts {
+  created: number;
+  linked: number;
+  updated: number;
+}
+
+export const formatPace = (distanceKm: number, minutes: number) => {
+  if (!distanceKm || !minutes) return '';
+  const total = Math.round((minutes / distanceKm) * 60);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')} /km`;
+};

@@ -3,7 +3,7 @@
   import { ArrowDown, ArrowUp, Minus } from '@lucide/svelte';
   import { getWorkouts } from '$lib/pocketbase';
   import { computeStats, PERIOD_OPTIONS, type ExerciseProgress, type PeriodKey } from '$lib/stats';
-  import { CARDIO_MODE_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_STYLES, type CardioMode, type Workout, type WorkoutType } from '$lib/types';
+  import { CARDIO_MODE_LABELS, formatPace, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_STYLES, type CardioMode, type Workout, type WorkoutType } from '$lib/types';
 
   let workouts: Workout[] = [];
   let loading = true;
@@ -72,6 +72,25 @@
       <div class="card"><p class="label">Hardgelopen</p><p class="text-3xl font-black">{stats.runningKm} km</p><p class="text-sm text-gray-600 dark:text-gray-300">langste: {stats.longestRunKm} km</p></div>
       <div class="card"><p class="label">Cardio totaal</p><p class="text-3xl font-black">{stats.cardioKmTotal} km</p></div>
     </section>
+
+    {#if stats.run.runs > 0}
+      <section class="card space-y-3">
+        <h3 class="text-xl font-bold">Hardlopen</h3>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Runs</p><p class="text-2xl font-black">{stats.run.runs}</p></div>
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Afstand</p><p class="text-2xl font-black">{stats.run.km} km</p></div>
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Gem. tempo</p><p class="text-2xl font-black">{formatPace(stats.run.km, stats.run.minutes) || '-'}</p></div>
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Snelste tempo</p><p class="text-2xl font-black">{formatPace(1, stats.run.fastestPaceMinPerKm) || '-'}</p></div>
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Hoogtemeters</p><p class="text-2xl font-black">{stats.run.elevation} m</p></div>
+          <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Gem. hartslag</p><p class="text-2xl font-black">{stats.run.averageHeartRate ? `${stats.run.averageHeartRate} bpm` : '-'}</p></div>
+        </div>
+        <ul class="divide-y divide-gray-200 text-sm dark:divide-gray-700">
+          {#each stats.run.recent as run}
+            <li><a class="flex items-center justify-between gap-3 py-2" href={`/workouts/${run.id}`}><span>{dateLabel(run.performed_at)} · {run.title}</span><span class="shrink-0 font-bold">{run.distance_km} km · {formatPace(Number(run.distance_km), Number(run.duration_minutes)) || '-'}</span></a></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
 
     <section class="card space-y-3">
       <h3 class="text-xl font-bold">Trainingen per type</h3>

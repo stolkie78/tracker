@@ -1,7 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ArrowLeft, KeyRound, Save } from '@lucide/svelte';
-  import { getAISettings, saveAISettings } from '$lib/pocketbase';
+  import { ArrowLeft, KeyRound, RefreshCw, Save } from '@lucide/svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { connectStrava, disconnectStrava, getAISettings, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
+  import type { StravaStatus, StravaSyncCounts } from '$lib/types';
 
   const defaultEndpoint = 'https://api.openai.com/v1';
   let endpoint = defaultEndpoint;
@@ -13,7 +16,78 @@
   let error = '';
   let success = '';
 
+  let strava: StravaStatus | null = null;
+  let stravaBusy = false;
+  let stravaError = '';
+  let stravaMessage = '';
+
+  const describeSync = (counts: StravaSyncCounts) =>
+    `Gesynchroniseerd: ${counts.created} nieuw, ${counts.linked} gekoppeld aan een geplande training, ${counts.updated} bijgewerkt.`;
+
+  const loadStrava = async () => {
+    try {
+      strava = await getStravaStatus();
+      const code = $page.url.searchParams.get('code');
+      if (code && $page.url.searchParams.get('scope')?.includes('activity:read')) {
+        stravaBusy = true;
+        await goto('/settings', { replaceState: true });
+        const result = await connectStrava(code);
+        strava = await getStravaStatus();
+        stravaMessage = `Strava gekoppeld. ${describeSync(result.counts)}`;
+      } else if (code) {
+        await goto('/settings', { replaceState: true });
+        stravaError = 'Geef toegang tot je activiteiten om Strava te koppelen.';
+      }
+    } catch (err) {
+      stravaError = err instanceof Error ? err.message : 'Strava kon niet worden geladen.';
+    } finally {
+      stravaBusy = false;
+    }
+  };
+
+  const startStravaAuth = () => {
+    if (!strava) return;
+    const params = new URLSearchParams({
+      client_id: strava.client_id,
+      redirect_uri: `${window.location.origin}/settings`,
+      response_type: 'code',
+      approval_prompt: 'auto',
+      scope: 'read,activity:read_all'
+    });
+    window.location.href = `https://www.strava.com/oauth/authorize?${params}`;
+  };
+
+  const runStravaSync = async () => {
+    stravaBusy = true;
+    stravaError = '';
+    stravaMessage = '';
+    try {
+      const result = await syncStrava();
+      strava = await getStravaStatus();
+      stravaMessage = describeSync(result.counts);
+    } catch (err) {
+      stravaError = err instanceof Error ? err.message : 'Synchroniseren mislukt.';
+    } finally {
+      stravaBusy = false;
+    }
+  };
+
+  const stopStrava = async () => {
+    if (!confirm('Strava ontkoppelen? Al geïmporteerde hardlooptrainingen blijven bewaard.')) return;
+    stravaBusy = true;
+    try {
+      await disconnectStrava();
+      strava = await getStravaStatus();
+      stravaMessage = 'Strava ontkoppeld.';
+    } catch (err) {
+      stravaError = err instanceof Error ? err.message : 'Ontkoppelen mislukt.';
+    } finally {
+      stravaBusy = false;
+    }
+  };
+
   onMount(async () => {
+    loadStrava();
     try {
       const settings = await getAISettings();
       if (settings) {
@@ -55,9 +129,32 @@
   </a>
   <div>
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Persoonlijke configuratie</p>
-    <h2 class="mt-1 text-3xl font-black">AI-instellingen</h2>
+    <h2 class="mt-1 text-3xl font-black">Instellingen</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">Koppel je eigen OpenAI-compatibele API om trainingsperiodes te laten plannen.</p>
   </div>
+
+  <section class="card space-y-3">
+    <h3 class="text-xl font-bold">Strava</h3>
+    {#if !strava}
+      <p class="animate-pulse text-gray-600 dark:text-gray-300">Strava laden...</p>
+    {:else if !strava.configured}
+      <p class="text-gray-600 dark:text-gray-300">Strava is niet geconfigureerd op de server (STRAVA_CLIENT_ID en STRAVA_CLIENT_SECRET ontbreken).</p>
+    {:else if strava.connected}
+      <p class="text-gray-600 dark:text-gray-300">
+        Gekoppeld{#if strava.athlete_name} als <strong>{strava.athlete_name}</strong>{/if}. Hardloopactiviteiten worden automatisch geïmporteerd en gekoppeld aan een geplande hardlooptraining van dezelfde dag.
+        {#if strava.last_synced_at}Laatst gesynchroniseerd: {new Date(strava.last_synced_at.replace(' ', 'T')).toLocaleString('nl-NL')}.{/if}
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" type="button" disabled={stravaBusy} on:click={runStravaSync}><RefreshCw size={18} /> {stravaBusy ? 'Bezig...' : 'Nu synchroniseren'}</button>
+        <button class="btn-secondary" type="button" disabled={stravaBusy} on:click={stopStrava}>Ontkoppelen</button>
+      </div>
+    {:else}
+      <p class="text-gray-600 dark:text-gray-300">Koppel Strava om je hardloopactiviteiten automatisch te importeren.</p>
+      <button class="btn-primary" type="button" disabled={stravaBusy} on:click={startStravaAuth}>{stravaBusy ? 'Bezig...' : 'Koppel met Strava'}</button>
+    {/if}
+    {#if stravaError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaError}</p>{/if}
+    {#if stravaMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaMessage}</p>{/if}
+  </section>
 
   {#if loading}
     <div class="card animate-pulse">Instellingen laden...</div>

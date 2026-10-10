@@ -67,6 +67,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 | Versie | Wijzigingen |
 |---|---|
+| 0.11.0 | Strava-koppeling: hardloopactiviteiten worden automatisch geïmporteerd (elke 30 minuten en bij openen van de app), gekoppeld aan een geplande hardlooptraining van dezelfde dag en bijgewerkt bij wijzigingen. Statistieken tonen hardloopafstand, tempo, hoogtemeters en hartslag. Sets worden direct per set opgeslagen en er is een rusttimer. |
 | 0.10.9 | Krachtoefeningen bevatten nu instelbare rust tussen sets en tempo, standaard 90 seconden rust en tempo 3-1-1-0; de waarden zijn zichtbaar bij het trainingsschema en tijdens de oefening. |
 | 0.10.8 | Dashboard licht actieve trainingen en trainingen van vandaag uit, toont de actieve en eerstvolgende training apart en markeert de eerstvolgende training extra. |
 | 0.10.7 | Dashboard toont de eerstvolgende geplande training of training die bezig is. Nieuwe trainingen zijn standaard gepland; wekelijkse reeksen kunnen op meerdere weekdagen starten vanaf een datum, zonder ingeplande tijd. |

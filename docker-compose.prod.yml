@@ -9,6 +9,8 @@ services:
     environment:
       PB_ADMIN_EMAIL: ${PB_SUPERUSER_EMAIL:?Set PB_SUPERUSER_EMAIL in .env}
       PB_ADMIN_PASSWORD: ${PB_SUPERUSER_PASSWORD:?Set PB_SUPERUSER_PASSWORD in .env}
+      STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
+      STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
     volumes:
       - ${PB_DATA_DIR:-./pb_data}:/pb_data
       - ./pb_hooks:/pb_hooks:ro

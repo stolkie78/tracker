@@ -25,6 +25,7 @@ Maak per omgeving een env-bestand op basis van `.env.example`: `.env.test`, `.en
 | `PB_SUPERUSER_EMAIL` / `PB_SUPERUSER_PASSWORD` | PocketBase-superuser, gebruikt door de setup-scripts |
 | `PB_ADMIN_USER_EMAIL` / `PB_ADMIN_USER_PASSWORD` / `PB_ADMIN_USER_NAME` | Applicatie-admin (verplicht voor demodata) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth (optioneel, beide of geen). Redirect-URI: `https://<DOMAIN>/api/oauth2-redirect`. Setup zet de provider aan, of uit als ze leeg zijn |
+| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava-koppeling (optioneel). Maak een app op strava.com/settings/api met als Authorization Callback Domain je `DOMAIN`. Gebruikers koppelen via Instellingen; hardloopactiviteiten worden elke 30 minuten en bij het openen van de app gesynchroniseerd |
 | `DOMAIN` | Domein voor Caddy (alleen production) |
 
 ## Stappen die het script altijd uitvoert

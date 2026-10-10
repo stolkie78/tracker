@@ -63,7 +63,7 @@ ensure_collection() {
     --arg type "$type" \
     --argjson fields "$fields" \
     --arg list "$list_rule" --arg view "$view_rule" --arg create "$create_rule" --arg update "$update_rule" --arg delete "$delete_rule" \
-    '{name:$name,type:$type,fields:$fields,listRule:$list,viewRule:$view,createRule:$create,updateRule:$update,deleteRule:$delete}')"
+    'def rule: if . == "__locked__" then null else . end; {name:$name,type:$type,fields:$fields,listRule:($list|rule),viewRule:($view|rule),createRule:($create|rule),updateRule:($update|rule),deleteRule:($delete|rule)}')"
   if [ -n "$existing_id" ]; then
     api -X PATCH "$PB_URL/api/collections/$existing_id" -H 'Content-Type: application/json' --data "$payload" >/dev/null
   else
@@ -151,6 +151,15 @@ AI_SETTINGS_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection ai_settings base "$AI_SETTINGS_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
+STRAVA_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson athlete "$(text_field athlete_id)" --argjson name "$(text_field athlete_name)" \
+  --argjson access "$(secret_field access_token)" --argjson refresh "$(secret_field refresh_token)" \
+  --argjson expires "$(number_field expires_at)" --argjson synced "$(date_field last_synced_at)" \
+  '[$owner,$athlete,$name,$access,$refresh,$expires,$synced]')"
+# Alleen toegankelijk via de server-hooks (rules "__locked__" = geen API-toegang).
+ensure_collection strava_connections base "$STRAVA_FIELDS" \
+  __locked__ __locked__ __locked__ __locked__ __locked__
+
 PLAN_ID="$(collection_id training_plans)"
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson plan "$(relation_field plan "$PLAN_ID")" \
@@ -165,7 +174,8 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson rounds "$(number_field interval_rounds)" \
   --argjson recovery "$(select_field recovery_activity '["rest","mobility","yoga","walking","stretching","other"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$effort,$series]')"
+  --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$effort,$series,$strava,$elevation]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 

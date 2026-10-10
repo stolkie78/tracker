@@ -8,6 +8,8 @@ import {
   type GeneratedPlan,
   type ID,
   type Profile,
+  type StravaStatus,
+  type StravaSyncCounts,
   type TrainingPlan,
   type Workout,
   type WorkoutExercise,
@@ -79,6 +81,22 @@ export const saveAISettings = (settings: Pick<AISettings, 'endpoint' | 'model'> 
     body: settings,
     requestKey: null
   });
+
+export const getStravaStatus = () =>
+  pb.send<StravaStatus>('/api/top-trainer/strava', { method: 'GET', requestKey: null });
+
+export const connectStrava = (code: string) =>
+  pb.send<{ connected: boolean; athlete_name: string; counts: StravaSyncCounts }>('/api/top-trainer/strava/connect', {
+    method: 'POST',
+    body: { code },
+    requestKey: null
+  });
+
+export const syncStrava = () =>
+  pb.send<{ counts: StravaSyncCounts }>('/api/top-trainer/strava/sync', { method: 'POST', requestKey: null });
+
+export const disconnectStrava = () =>
+  pb.send<{ connected: boolean }>('/api/top-trainer/strava', { method: 'DELETE', requestKey: null });
 
 export const generateTrainingPlan = (input: {
   start_date: string;
