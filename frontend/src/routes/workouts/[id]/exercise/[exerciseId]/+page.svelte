@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { ArrowLeft, Check, Plus, Trash2 } from '@lucide/svelte';
@@ -61,10 +61,49 @@
     }
   });
 
-  const completeSet = (set: WorkoutSet) => {
+  let restLeft = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  const stopRest = () => {
+    if (timer) clearInterval(timer);
+    timer = undefined;
+    restLeft = 0;
+  };
+
+  const startRest = () => {
+    stopRest();
+    const seconds = Math.min(600, Math.max(0, Number(record?.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS) || 0));
+    if (!seconds) return;
+    const end = Date.now() + seconds * 1000;
+    restLeft = seconds;
+    timer = setInterval(() => {
+      restLeft = Math.max(0, Math.ceil((end - Date.now()) / 1000));
+      if (restLeft <= 0) {
+        stopRest();
+        if (typeof navigator !== 'undefined') navigator.vibrate?.([200, 100, 200]);
+      }
+    }, 250);
+  };
+
+  onDestroy(stopRest);
+
+  const formatTime = (total: number) => `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+
+  const completeSet = async (set: WorkoutSet) => {
     if (!set.completed && record && !Number(set.reps)) set.reps = record.reps_max;
     set.completed = !set.completed;
     sets = sets;
+    if (set.completed) startRest();
+    else stopRest();
+    error = '';
+    try {
+      await updateWorkoutSet(set.id, { reps: Number(set.reps) || 0, weight: Number(set.weight) || 0, completed: set.completed });
+      if (workout && workout.status === 'planned') {
+        workout = await updateWorkout(workout.id, { status: 'in_progress', performed_at: new Date().toISOString() });
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Set kon niet worden opgeslagen.';
+    }
   };
 
   const addSet = async () => {
@@ -127,7 +166,7 @@
     }
   };
 
-  $: weightStep = Number(record?.weight_increment) > 0 && Number(record?.weight_increment) <= 5 ? Number(record?.weight_increment) : 2.5;
+  const weightStep = 0.5;
 
   const adjust = (set: WorkoutSet, key: 'reps' | 'weight', delta: number) => {
     const current = Number((set as Record<string, any>)[key]) || 0;
@@ -183,15 +222,15 @@
             <span class="text-sm font-bold text-gray-700 dark:text-gray-200">Set {setIndex + 1}</span>
             <button type="button" class="touch-target flex items-center justify-center rounded-xl text-red-600 disabled:opacity-30" aria-label="Set verwijderen" disabled={sets.length <= 1} on:click={() => removeSet(set)}><Trash2 size={20} /></button>
           </div>
-          {#each [{ key: 'reps' as 'reps' | 'weight', label: 'Reps', step: 1, big: 5, decimal: false }, { key: 'weight' as 'reps' | 'weight', label: 'Kg', step: weightStep, big: weightStep * 4, decimal: true }] as field}
+          {#each [{ key: 'reps' as 'reps' | 'weight', label: 'Reps', step: 1, big: 5, decimal: false }, { key: 'weight' as 'reps' | 'weight', label: 'Kg', step: weightStep, big: 5, decimal: true }] as field}
             <div>
               <label class="label" for={`${field.key}-${set.id}`}>{field.label}</label>
-              <div class="grid grid-cols-[auto_auto_1fr_auto_auto] items-stretch gap-1.5">
-                <button type="button" class="touch-target rounded-xl border border-gray-300 px-2 text-xs font-bold text-gray-800 active:scale-95 dark:border-gray-600 dark:text-gray-100" aria-label="{field.label} -{field.big}" on:click={() => adjust(set, field.key, -field.big)}>−{field.big}</button>
-                <button type="button" class="touch-target rounded-xl bg-primary-600 text-2xl font-bold text-white active:scale-95" aria-label="{field.label} verlagen" on:click={() => adjust(set, field.key, -field.step)}>−</button>
-                <input id={`${field.key}-${set.id}`} class="input min-w-0 text-center text-xl font-bold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" min="0" step={field.decimal ? 'any' : 1} inputmode={field.decimal ? 'decimal' : 'numeric'} bind:value={set[field.key]} />
-                <button type="button" class="touch-target rounded-xl bg-primary-600 text-2xl font-bold text-white active:scale-95" aria-label="{field.label} verhogen" on:click={() => adjust(set, field.key, field.step)}>+</button>
-                <button type="button" class="touch-target rounded-xl border border-gray-300 px-2 text-xs font-bold text-gray-800 active:scale-95 dark:border-gray-600 dark:text-gray-100" aria-label="{field.label} +{field.big}" on:click={() => adjust(set, field.key, field.big)}>+{field.big}</button>
+              <div class="grid grid-cols-[2.5rem_2.75rem_minmax(0,1fr)_2.75rem_2.5rem] items-stretch gap-1">
+                <button type="button" class="touch-target !min-w-0 rounded-xl border border-gray-300 px-0 text-xs font-bold text-gray-800 active:scale-95 dark:border-gray-600 dark:text-gray-100" aria-label="{field.label} -{field.big}" on:click={() => adjust(set, field.key, -field.big)}>−{field.big}</button>
+                <button type="button" class="touch-target !min-w-0 rounded-xl bg-primary-600 text-2xl font-bold text-white active:scale-95" aria-label="{field.label} verlagen" on:click={() => adjust(set, field.key, -field.step)}>−</button>
+                <input id={`${field.key}-${set.id}`} class="input !px-1 min-w-0 text-center text-xl font-bold [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" type="number" min="0" step={field.decimal ? 'any' : 1} inputmode={field.decimal ? 'decimal' : 'numeric'} bind:value={set[field.key]} />
+                <button type="button" class="touch-target !min-w-0 rounded-xl bg-primary-600 text-2xl font-bold text-white active:scale-95" aria-label="{field.label} verhogen" on:click={() => adjust(set, field.key, field.step)}>+</button>
+                <button type="button" class="touch-target !min-w-0 rounded-xl border border-gray-300 px-0 text-xs font-bold text-gray-800 active:scale-95 dark:border-gray-600 dark:text-gray-100" aria-label="{field.label} +{field.big}" on:click={() => adjust(set, field.key, field.big)}>+{field.big}</button>
               </div>
             </div>
           {/each}
@@ -206,6 +245,13 @@
       {#if suggestion !== null}<p class="rounded-xl bg-emerald-500/15 p-3 font-semibold text-emerald-700 dark:text-emerald-300">Volgende keer: {suggestion} kg</p>{/if}
     </section>
 
+    {#if restLeft > 0}
+      <div class="fixed inset-x-3 bottom-24 z-50 mx-auto flex max-w-md items-center justify-between gap-3 rounded-2xl bg-primary-600 p-3 text-white shadow-lg" role="timer" aria-live="off">
+        <span class="font-semibold">Rust</span>
+        <span class="text-3xl font-black tabular-nums">{formatTime(restLeft)}</span>
+        <button type="button" class="touch-target rounded-xl border border-white/60 px-3 font-bold" on:click={stopRest}>Overslaan</button>
+      </div>
+    {/if}
     {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
     <div class="grid gap-3 sm:grid-cols-2">
       <button class="btn-secondary" disabled={saving} on:click={() => save(false)}>Opslaan en terug naar lijst</button>
