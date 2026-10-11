@@ -178,6 +178,33 @@ export const deleteFutureSeries = async (seriesId: ID) => {
   return planned.length;
 };
 
+export const updateNextSeriesExerciseWeight = async (
+  workout: Pick<Workout, 'series_id' | 'performed_at'>,
+  exercise: WorkoutExercise,
+  weight: number
+) => {
+  if (!workout.series_id) return;
+  const performedAt = new Date(workout.performed_at).getTime();
+  const nextWorkout = (await getSeriesWorkouts(workout.series_id)).find(
+    (entry) => entry.status === 'planned' && new Date(entry.performed_at).getTime() > performedAt
+  );
+  if (!nextWorkout) return;
+
+  const nextExercise = (await getWorkoutExercises(nextWorkout.id)).find(
+    (entry) =>
+      entry.exercise === exercise.exercise &&
+      entry.set_order === exercise.set_order &&
+      entry.equipment === exercise.equipment
+  );
+  if (!nextExercise) return;
+
+  const sets = await getSetsForWorkoutExercise(nextExercise.id);
+  await Promise.all([
+    updateWorkoutExercise(nextExercise.id, { starting_weight: weight }),
+    ...sets.map((set) => updateWorkoutSet(set.id, { weight }))
+  ]);
+};
+
 export const getWorkoutExercise = (id: ID) =>
   pb.collection('workout_exercises').getOne<WorkoutExercise>(id, { expand: 'exercise' });
 
