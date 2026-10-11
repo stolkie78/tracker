@@ -33,7 +33,7 @@ Maak per omgeving een env-bestand op basis van `.env.example`: `.env.test`, `.en
 1. **Controles**: `npm ci`, `npm run check` en `npm run build` in `frontend/`, plus `docker compose config -q`. Een fout stopt de deploy.
 2. **Back-up** (alleen production, als er al data is): `backups/pb_data_<tijdstempel>.tar.gz`.
 3. **Bouwen**: `docker compose build` van de frontend-image.
-4. **Migraties en data**: `pb-setup` draait `scripts/setup-collections.sh` (schema, 50 oefeningen, admin-gebruiker; idempotent). Bij `test` en `demo` volgt `scripts/seed-demo.sh` (voorbeeldtrainingen en een geplande reeks van 4 weken; slaat zichzelf over als de data er al is).
+4. **Migraties en data**: `pb-setup` draait `scripts/setup-collections.sh` (schema, 50 oefeningen, admin-gebruiker; idempotent). Bij `test` en `demo` volgt `scripts/seed-demo.sh` (voorbeeldtrainingen, een geplande reeks van 4 weken en een OMAD-programma met weekmenu en 4 dagen reeks; slaat onderdelen over als de data er al is).
 5. **Verificatie**: wacht tot `pb-setup` succesvol eindigt (anders worden de logs getoond en faalt het script) en voert een smoke test uit op frontend en `/api/health`.
 
 ## Opties

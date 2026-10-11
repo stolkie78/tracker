@@ -243,7 +243,7 @@ export const getSetsForWorkoutExercise = (workoutExerciseId: ID) =>
   });
 
 export const getHealthPrograms = () =>
-  pb.collection('health_programs').getFullList<HealthProgram>({ filter: ownerFilter(), sort: '-created', requestKey: null });
+  pb.collection('health_programs').getFullList<HealthProgram>({ filter: ownerFilter(), requestKey: null });
 
 export const createHealthProgram = (data: Omit<HealthProgram, 'id' | 'created' | 'updated' | 'owner'>) =>
   pb.collection('health_programs').create<HealthProgram>({ ...data, owner: currentUserId() });

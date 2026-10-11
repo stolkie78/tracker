@@ -16,11 +16,6 @@ q() { jq -rn --arg v "$1" '$v|@uri'; }
 
 OWNER="$(api "$PB_URL/api/collections/users/records?perPage=1&filter=$(q "email=\"$PB_ADMIN_USER_EMAIL\"")" | jq -er '.items[0].id')"
 
-if [ "$(api "$PB_URL/api/collections/workouts/records?perPage=1&filter=$(q "owner=\"$OWNER\" && series_id=\"$SERIES_ID\"")" | jq '.totalItems')" -gt 0 ]; then
-  echo "Demodata staat er al, overslaan."
-  exit 0
-fi
-
 exercise_id() {
   api "$PB_URL/api/collections/exercises/records?perPage=1&filter=$(q "name=\"$1\"")" | jq -er '.items[0].id'
 }
@@ -49,6 +44,29 @@ strength_workout() { # title date status series weightOffset
 }
 
 day() { date -u -d "@$(($(date +%s) + $1 * 86400))" +%Y-%m-%d; }
+
+seed_health() {
+  if [ "$(api "$PB_URL/api/collections/health_programs/records?perPage=1&filter=$(q "owner=\"$OWNER\" && kind=\"omad\"")" | jq '.totalItems')" -gt 0 ]; then
+    echo "Health-demodata staat er al, overslaan."
+    return 0
+  fi
+  local plan program i
+  plan='{"1":"Zalm, ei, aardappel, broccoli en olijfolie; yoghurt met noten toe.","2":"Kipdijfilet met rijst, groenten en avocado; kwark met fruit toe.","3":"Rundergehakt-chilli met bonen en rijst; handvol noten toe.","4":"Omelet van 4 eieren met spinazie en feta, volkorenbrood en fruit.","5":"Tonijn-quinoa-salade met kikkererwten en olijfolie; kefir toe.","6":"Kalkoen met zoete aardappel en boerenkool; cottage cheese met appel toe.","0":"Witte vis met pasta, tomatensaus en groenten; Griekse yoghurt toe."}'
+  program="$(create health_programs "$(jq -n --arg o "$OWNER" --arg d "$(day -4)" --arg plan "$plan" \
+    '{owner:$o,kind:"omad",title:"OMAD",start_date:$d,meal_time:"18:00",calories:2000,protein_g:130,meal_plan:$plan,active:true}')" | jq -er .id)"
+  for i in 4 3 2 1; do
+    create health_checkins "$(jq -n --arg o "$OWNER" --arg p "$program" --arg d "$(day -$i)" \
+      '{owner:$o,program:$p,date:$d,fasted:true,note:""}')" >/dev/null
+  done
+  echo "Health-demodata geladen."
+}
+
+seed_health
+
+if [ "$(api "$PB_URL/api/collections/workouts/records?perPage=1&filter=$(q "owner=\"$OWNER\" && series_id=\"$SERIES_ID\"")" | jq '.totalItems')" -gt 0 ]; then
+  echo "Demodata staat er al, overslaan."
+  exit 0
+fi
 
 strength_workout "Upper" "$(day -14) 09:00:00.000Z" completed "" 0
 strength_workout "Upper" "$(day -7) 09:00:00.000Z" completed "" 2
