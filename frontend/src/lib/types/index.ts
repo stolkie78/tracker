@@ -312,7 +312,7 @@ export const formatPace = (distanceKm: number, minutes: number) => {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')} /km`;
 };
 
-export type HealthProgramKind = 'omad';
+export type HealthProgramKind = 'omad' | '16_8' | '12_12';
 
 export interface HealthProgram extends BaseRecord {
   owner: ID;

@@ -27,7 +27,15 @@
   ];
   const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
+  const healthNav = [
+    { href: '/health/fasting', label: 'Fasting' },
+    { href: '/health/mindfulness', label: 'Mindfulness' },
+    { href: '/health/braintraining', label: 'Braintraining' }
+  ];
+
   $: inTraining = nav[0].match($page.url.pathname);
+  $: inHealth = nav[1].match($page.url.pathname);
+  $: subNav = inHealth ? healthNav : inTraining ? trainingNav : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
@@ -139,10 +147,10 @@
         </div>
       {/if}
     </header>
-    {#if inTraining}
-      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label="Training">
+    {#if subNav.length}
+      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label={inHealth ? 'Health' : 'Training'}>
         <div class="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-4 py-2">
-          {#each trainingNav as item}
+          {#each subNav as item}
             <a
               class="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition {isActive($page.url.pathname, item.href) ? 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800'}"
               aria-current={isActive($page.url.pathname, item.href) ? 'page' : undefined}

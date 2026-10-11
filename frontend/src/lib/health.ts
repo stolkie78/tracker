@@ -1,4 +1,4 @@
-import type { HealthCheckin } from '$lib/types';
+import type { HealthCheckin, HealthProgramKind } from '$lib/types';
 
 export type MealPlan = Record<number, string>;
 
@@ -15,11 +15,11 @@ const MEAL_IDEAS = [
   'Witte vis met pasta, tomatensaus en groenten; Griekse yoghurt met honing toe.'
 ];
 
-export const suggestMealPlan = (proteinG: number, calories: number): MealPlan =>
+export const suggestMealPlan = (proteinG: number, calories: number, kind: HealthProgramKind = 'omad'): MealPlan =>
   Object.fromEntries(
     WEEK_ORDER.map((day, index) => [
       day,
-      `${MEAL_IDEAS[index]} (richtlijn ca. ${calories} kcal en ${proteinG} g eiwit)`
+      `${MEAL_IDEAS[index]} (richtlijn ca. ${calories} kcal en ${proteinG} g eiwit${kind === 'omad' ? '' : ', verdeel over je eetvenster'})`
     ])
   );
 
@@ -64,14 +64,34 @@ export const longestStreak = (checkins: HealthCheckin[]) => {
   return best;
 };
 
-/** Uren en minuten tot de volgende maaltijd (vandaag of morgen). */
-export const timeUntilMeal = (mealTime: string, now: Date) => {
-  const [hours, minutes] = mealTime.split(':').map(Number);
-  const target = new Date(now);
-  target.setHours(hours || 0, minutes || 0, 0, 0);
-  if (target.getTime() <= now.getTime()) target.setDate(target.getDate() + 1);
+export const FASTING_PROTOCOLS: Record<HealthProgramKind, { label: string; eatHours: number; description: string; defaultStart: string }> = {
+  omad: { label: 'OMAD', eatHours: 1, defaultStart: '18:00', description: 'One Meal A Day: vast door de dag en eet één voedzame maaltijd.' },
+  '16_8': { label: '16:8', eatHours: 8, defaultStart: '12:00', description: '16 uur vasten en een eetvenster van 8 uur.' },
+  '12_12': { label: '12:12', eatHours: 12, defaultStart: '08:00', description: '12 uur vasten en een eetvenster van 12 uur; een rustige instap.' }
+};
+
+export const FASTING_KINDS = Object.keys(FASTING_PROTOCOLS) as HealthProgramKind[];
+
+/** Of je nu in je eetvenster zit en hoeveel tijd er nog is tot het venster sluit of opent. */
+export const windowStatus = (start: string, eatHours: number, now: Date) => {
+  const [hours, minutes] = start.split(':').map(Number);
+  const open = new Date(now);
+  open.setHours(hours || 0, minutes || 0, 0, 0);
+  let eating = false;
+  let target = open;
+  for (const shift of [-1, 0]) {
+    const candidateOpen = new Date(open.getTime() + shift * 86_400_000);
+    const candidateClose = new Date(candidateOpen.getTime() + eatHours * 3_600_000);
+    if (now >= candidateOpen && now < candidateClose) {
+      eating = true;
+      target = candidateClose;
+    }
+  }
+  if (!eating) {
+    target = now < open ? open : new Date(open.getTime() + 86_400_000);
+  }
   const totalMinutes = Math.round((target.getTime() - now.getTime()) / 60_000);
-  return { hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
+  return { eating, hours: Math.floor(totalMinutes / 60), minutes: totalMinutes % 60 };
 };
 
 const QUOTES = [
