@@ -95,6 +95,12 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 Op de detailpagina van elke krachttraining (geplande programmasessie of losse training) kun je met **Oefening toevoegen** op elk moment een extra oefening toevoegen. Bij een geplande reeks geldt dit alleen voor die ene sessie.
 
-### Health-programma's (OMAD)
+### Health
 
-Onder **Health** staan leefstijlprogramma's los van trainingen. De eerste is OMAD (One Meal A Day) met een weekmaaltijdplanner (met voorstel), maaltijdtijd, calorie- en eiwitdoel, een dagelijkse check-in met reeksen en een motivator. De nieuwe collecties `health_programs` en `health_checkins` worden automatisch aangemaakt door `./scripts/deploy.sh <omgeving>` (zie `DEPLOYMENT.md`). Dit is geen medisch advies.
+Onder **Health** staan leefstijlprogramma's los van trainingen, met drie onderdelen:
+
+- **Fasting**: OMAD (One Meal A Day), 16:8 en 12:12. Per protocol een weekmaaltijdplanner (met voorstel), start van maaltijd of eetvenster, calorie- en eiwitdoel, een dagelijkse check-in met reeksen, een aftelklok naar het eetvenster en een motivator. De collecties `health_programs` en `health_checkins` worden automatisch aangemaakt door `./scripts/deploy.sh <omgeving>` (zie `DEPLOYMENT.md`).
+- **Mindfulness**: ademhalingsoefening met kiesbaar ritme en duur.
+- **Braintraining**: cijfergeheugenspel met persoonlijk record (lokaal opgeslagen).
+
+Dit is geen medisch advies.
