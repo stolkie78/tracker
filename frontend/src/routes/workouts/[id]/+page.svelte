@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { ArrowLeft, Check, ChevronRight, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
-  import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateWorkout } from '$lib/pocketbase';
+  import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
     DEFAULT_STRENGTH_REST_SECONDS,
@@ -13,6 +13,7 @@
     getTopProtocol,
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
+    nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
@@ -153,12 +154,23 @@
   const changeStatus = async (status: Workout['status']) => {
     if (!workout) return;
     try {
+      if (status === 'completed' && workout.status !== 'completed' && workout.series_id) {
+        for (const exercise of exerciseLogs) {
+          const { record, sets } = exercise;
+          if (sets.length === 0 || !sets.every((set) => set.completed && Number(set.reps) >= record.reps_max)) continue;
+          const currentWeight = Math.min(...sets.map((set) => Number(set.weight) || 0));
+          const nextWeight = nextSuggestedWeight(record.reps_max, sets, currentWeight, record.weight_increment);
+          if (nextWeight > currentWeight) {
+            await updateNextSeriesExerciseWeight(workout, record, nextWeight);
+          }
+        }
+      }
       workout = await updateWorkout(workout.id, {
         status,
         ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Status kon niet worden aangepast.';
+      error = err instanceof Error ? err.message : 'Training kon niet worden aangepast.';
     }
   };
 
