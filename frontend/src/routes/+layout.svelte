@@ -17,6 +17,7 @@
     { href: '/workouts/new', label: 'Training toevoegen' },
     { href: '/stats', label: 'Statistieken' },
     { href: '/planner', label: 'AI-planner' },
+    { href: '/health', label: 'Health' },
     { href: '/settings', label: 'Instellingen' }
   ];
 

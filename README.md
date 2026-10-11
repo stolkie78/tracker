@@ -90,3 +90,11 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 | 0.3.0 | Een AI-trainingsplanner toegevoegd waarmee een gemengd schema van 1–12 weken kan worden gegenereerd op basis van doel, ervaringsniveau, materiaal, beschikbare dagen en wekelijkse aantallen kracht-, cardio-, interval- en herstelsessies. Het AI-voorstel kan eerst worden nagekeken en daarna als periodeplan met geplande trainingen en krachtsets aan de tijdlijn worden toegevoegd. Een persoonlijke instellingenpagina bewaart endpoint, model en API-sleutel; de sleutel staat in een verborgen PocketBase-veld met gesloten directe collection-regels en wordt uitsluitend via beveiligde server-side PocketBase-hooks opgeslagen en gebruikt. |
 | 0.2.0 | App-adminbootstrap toegevoegd aan het idempotente PocketBase-setupscript. Met `PB_ADMIN_USER_EMAIL`, `PB_ADMIN_USER_PASSWORD` en optioneel `PB_ADMIN_USER_NAME` wordt bij de eerste setup een loginaccount met geverifieerd e-mailadres en bijbehorend admin-profiel aangemaakt; latere deploys behouden het bestaande accountwachtwoord en herstellen zo nodig de profielrol. |
 | 0.1.0 | Eerste versie van T.O.P. Trainer met client-side SvelteKit-frontend, PocketBase-authenticatie en schema-as-code; een mobielvriendelijke chronologische trainingsfeed met trainingstypen kracht, cardio, interval en herstel; typegerichte invoervelden, status en notities; krachtsets met instelbaar repbereik en gewichtsstap inclusief suggestie voor de volgende sessie; centrale PocketBase-API, gedeelde types en labelmappings, auth- en rolstores, dark-modecomponentklassen, Docker Compose voor lokale ontwikkeling en productie en Caddy-configuratie voor HTTPS. |
+
+### Oefening tijdens de training toevoegen
+
+Op de detailpagina van elke krachttraining (geplande programmasessie of losse training) kun je met **Oefening toevoegen** op elk moment een extra oefening toevoegen. Bij een geplande reeks geldt dit alleen voor die ene sessie.
+
+### Health-programma's (OMAD)
+
+Onder **Health** staan leefstijlprogramma's los van trainingen. De eerste is OMAD (One Meal A Day) met een weekmaaltijdplanner (met voorstel), maaltijdtijd, calorie- en eiwitdoel, een dagelijkse check-in met reeksen en een motivator. Draai na een update `docker compose run --rm pb-setup` voor de nieuwe collecties `health_programs` en `health_checkins`. Dit is geen medisch advies.
