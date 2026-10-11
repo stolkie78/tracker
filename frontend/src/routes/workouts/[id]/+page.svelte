@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Check, ChevronRight, Play, RefreshCw, Trash2 } from '@lucide/svelte';
-  import { deleteFutureSeries, deleteWorkout, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateWorkout } from '$lib/pocketbase';
+  import { ArrowLeft, Check, ChevronRight, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
+  import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateWorkout } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
     DEFAULT_STRENGTH_REST_SECONDS,
@@ -11,10 +11,13 @@
     EXERCISE_EQUIPMENT_LABELS,
     formatPace,
     getTopProtocol,
+    MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
+    type Exercise,
+    type ExerciseEquipment,
     type Workout,
     type WorkoutExercise,
     type WorkoutSet
@@ -36,6 +39,81 @@
         ...(workout.status === 'planned' ? {} : { hour: '2-digit', minute: '2-digit' })
       }).format(new Date(workout.performed_at))
     : '';
+
+  let catalog: Exercise[] = [];
+  let showAdd = false;
+  let adding = false;
+  let addMuscle = '';
+  let addExerciseId = '';
+  let addEquipment: ExerciseEquipment | '' = '';
+  let addSets = 3;
+  let addRepsMin = 8;
+  let addRepsMax = 12;
+  let addWeight = 0;
+  let addIncrement = 2.5;
+
+  $: addOptions = catalog.filter((exercise) => !addMuscle || exercise.muscle_group === addMuscle);
+  $: equipmentOptions = catalog.find((exercise) => exercise.id === addExerciseId)?.equipment_options ?? [];
+
+  const openAdd = async () => {
+    showAdd = !showAdd;
+    if (showAdd && catalog.length === 0) {
+      try {
+        catalog = await getExercises();
+      } catch (err) {
+        error = err instanceof Error ? err.message : 'Oefeningen konden niet worden geladen.';
+      }
+    }
+  };
+
+  const pickExercise = async () => {
+    addEquipment = equipmentOptions[0] ?? '';
+    if (!addExerciseId) return;
+    const suggestion = await getStrengthSuggestion(addExerciseId, addEquipment || undefined).catch(() => null);
+    if (suggestion) {
+      addSets = suggestion.sets;
+      addRepsMin = suggestion.repsMin;
+      addRepsMax = suggestion.repsMax;
+      addIncrement = suggestion.increment;
+      addWeight = suggestion.weight;
+    }
+  };
+
+  const addExerciseToWorkout = async () => {
+    if (!workout || !addExerciseId || addRepsMin < 1 || addRepsMax < addRepsMin || addSets < 1) {
+      error = 'Kies een oefening en controleer sets en herhalingsbereik.';
+      return;
+    }
+    adding = true;
+    error = '';
+    try {
+      const record = await createWorkoutExercise({
+        owner: workout.owner,
+        workout: workout.id,
+        exercise: addExerciseId,
+        ...(addEquipment ? { equipment: addEquipment } : {}),
+        set_order: Math.max(0, ...exerciseLogs.map((log) => log.record.set_order)) + 1,
+        target_sets: addSets,
+        reps_min: addRepsMin,
+        reps_max: addRepsMax,
+        starting_weight: addWeight,
+        weight_increment: addIncrement,
+        rest_seconds: DEFAULT_STRENGTH_REST_SECONDS,
+        tempo: DEFAULT_STRENGTH_TEMPO
+      });
+      for (let index = 0; index < addSets; index += 1) {
+        await createWorkoutSet({ owner: workout.owner, workout_exercise: record.id, set_order: index + 1, reps: 0, weight: addWeight, completed: false });
+      }
+      addExerciseId = '';
+      addEquipment = '';
+      showAdd = false;
+      await loadExerciseLogs();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Oefening kon niet worden toegevoegd.';
+    } finally {
+      adding = false;
+    }
+  };
 
   const loadExerciseLogs = async () => {
     if (!workout || workout.type !== 'strength') {
@@ -142,6 +220,7 @@
         <div class="flex flex-wrap gap-2">
           <span class="badge {WORKOUT_TYPE_STYLES[workout.type].badge}">{WORKOUT_TYPE_LABELS[workout.type]}</span>
           <span class="badge border border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{WORKOUT_STATUS_LABELS[workout.status]}</span>
+          {#if workout.type === 'strength'}<span class="badge border border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{workout.series_id || workout.plan ? 'Programma' : 'Losse training'}</span>{/if}
           {#if workout.strava_id}<a class="badge bg-orange-600 text-white" href={`https://www.strava.com/activities/${workout.strava_id}`} target="_blank" rel="noopener noreferrer">Strava</a>{/if}
         </div>
         <h2 class="mt-3 text-3xl font-black">{workout.title}</h2>
@@ -183,7 +262,44 @@
           <p class="text-xs font-bold uppercase tracking-[0.17em] text-overload-signal">Oefeningen</p>
           <h3 class="mt-1 text-2xl font-black">{finishedCount} van {exerciseLogs.length} afgerond</h3>
         </div>
+        <button type="button" class="btn-secondary" on:click={openAdd}><Plus size={18} /> Oefening toevoegen</button>
       </div>
+      {#if showAdd}
+        <form class="card space-y-4" on:submit|preventDefault={addExerciseToWorkout}>
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            {workout.series_id ? 'Deze oefening geldt alleen voor deze sessie; de rest van het geplande programma blijft ongewijzigd.' : 'Voeg tijdens de training een extra oefening toe.'}
+          </p>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label class="label" for="add-muscle">Spiergroep</label>
+              <select id="add-muscle" class="input" bind:value={addMuscle} on:change={() => (addExerciseId = '')}>
+                <option value="">Alle</option>
+                {#each MUSCLE_GROUP_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
+              </select>
+            </div>
+            <div>
+              <label class="label" for="add-exercise">Oefening</label>
+              <select id="add-exercise" class="input" bind:value={addExerciseId} on:change={pickExercise} required>
+                <option value="">Kies...</option>
+                {#each addOptions as option}<option value={option.id}>{option.name}</option>{/each}
+              </select>
+            </div>
+            <div>
+              <label class="label" for="add-equipment">Materiaal</label>
+              <select id="add-equipment" class="input" bind:value={addEquipment}>
+                {#each equipmentOptions as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
+              </select>
+            </div>
+            <div><label class="label" for="add-sets">Sets</label><input id="add-sets" class="input" type="number" min="1" bind:value={addSets} /></div>
+            <div><label class="label" for="add-min">Reps min</label><input id="add-min" class="input" type="number" min="1" bind:value={addRepsMin} /></div>
+            <div><label class="label" for="add-max">Reps max</label><input id="add-max" class="input" type="number" min="1" bind:value={addRepsMax} /></div>
+            <div><label class="label" for="add-weight">Startgewicht (kg)</label><input id="add-weight" class="input" type="number" min="0" step="0.5" bind:value={addWeight} /></div>
+            <div><label class="label" for="add-inc">Gewichtsstap (kg)</label><input id="add-inc" class="input" type="number" min="0" step="0.5" bind:value={addIncrement} /></div>
+          </div>
+          <button class="btn-primary w-full" type="submit" disabled={adding}>{adding ? 'Toevoegen...' : 'Toevoegen aan training'}</button>
+        </form>
+      {/if}
+      {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
       {#if loading}
         <div class="card animate-pulse">Oefeningen laden...</div>
       {:else if exerciseLogs.length === 0}

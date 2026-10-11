@@ -6,6 +6,8 @@ import {
   type AISettings,
   type Exercise,
   type GeneratedPlan,
+  type HealthCheckin,
+  type HealthProgram,
   type ID,
   type Profile,
   type StravaStatus,
@@ -239,3 +241,24 @@ export const getSetsForWorkoutExercise = (workoutExerciseId: ID) =>
     sort: 'set_order',
     requestKey: null
   });
+
+export const getHealthPrograms = () =>
+  pb.collection('health_programs').getFullList<HealthProgram>({ filter: ownerFilter(), sort: '-created', requestKey: null });
+
+export const createHealthProgram = (data: Omit<HealthProgram, 'id' | 'created' | 'updated' | 'owner'>) =>
+  pb.collection('health_programs').create<HealthProgram>({ ...data, owner: currentUserId() });
+
+export const updateHealthProgram = (id: ID, data: Partial<HealthProgram>) =>
+  pb.collection('health_programs').update<HealthProgram>(id, data);
+
+export const getHealthCheckins = (programId: ID) =>
+  pb.collection('health_checkins').getFullList<HealthCheckin>({
+    filter: `${ownerFilter()} && program = "${programId}"`,
+    sort: '-date',
+    requestKey: null
+  });
+
+export const saveHealthCheckin = async (programId: ID, date: string, data: { fasted: boolean; note?: string }, existing?: HealthCheckin) =>
+  existing
+    ? pb.collection('health_checkins').update<HealthCheckin>(existing.id, data)
+    : pb.collection('health_checkins').create<HealthCheckin>({ ...data, program: programId, date, owner: currentUserId() });

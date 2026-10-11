@@ -202,10 +202,31 @@ SET_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection workout_sets base "$SET_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
+HEALTH_PROGRAM_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson kind "$(select_field kind '["omad"]' true)" \
+  --argjson title "$(text_field title true)" \
+  --argjson start "$(text_field start_date true)" \
+  --argjson meal_time "$(text_field meal_time)" \
+  --argjson calories "$(number_field calories)" --argjson protein "$(number_field protein_g)" \
+  --argjson plan "$(text_field meal_plan)" --argjson active "$(bool_field active)" \
+  '[$owner,$kind,$title,$start,$meal_time,$calories,$protein,$plan,$active]')"
+ensure_collection health_programs base "$HEALTH_PROGRAM_FIELDS" \
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
+
+HEALTH_PROGRAM_ID="$(collection_id health_programs)"
+HEALTH_CHECKIN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson program "$(relation_field program "$HEALTH_PROGRAM_ID" true)" \
+  --argjson date "$(text_field date true)" \
+  --argjson fasted "$(bool_field fasted)" --argjson note "$(text_field note)" \
+  '[$owner,$program,$date,$fasted,$note]')"
+ensure_collection health_checkins base "$HEALTH_CHECKIN_FIELDS" \
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
+
 ensure_select_values workouts type '["strength","cardio","interval","recovery"]'
 ensure_select_values workouts status '["planned","in_progress","completed","skipped"]'
 ensure_select_values exercises category '["compound","isolation","bodyweight","other"]'
 ensure_select_values exercises muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]'
+ensure_select_values health_programs kind '["omad"]'
 ensure_select_values exercises equipment_options '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]'
 
 seed_exercise() {

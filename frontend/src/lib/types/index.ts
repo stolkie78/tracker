@@ -311,3 +311,25 @@ export const formatPace = (distanceKm: number, minutes: number) => {
   const total = Math.round((minutes / distanceKm) * 60);
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')} /km`;
 };
+
+export type HealthProgramKind = 'omad';
+
+export interface HealthProgram extends BaseRecord {
+  owner: ID;
+  kind: HealthProgramKind;
+  title: string;
+  start_date: string;
+  meal_time?: string;
+  calories?: number;
+  protein_g?: number;
+  meal_plan?: string;
+  active: boolean;
+}
+
+export interface HealthCheckin extends BaseRecord {
+  owner: ID;
+  program: ID;
+  date: string;
+  fasted: boolean;
+  note?: string;
+}
