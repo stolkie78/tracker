@@ -97,4 +97,4 @@ Op de detailpagina van elke krachttraining (geplande programmasessie of losse tr
 
 ### Health-programma's (OMAD)
 
-Onder **Health** staan leefstijlprogramma's los van trainingen. De eerste is OMAD (One Meal A Day) met een weekmaaltijdplanner (met voorstel), maaltijdtijd, calorie- en eiwitdoel, een dagelijkse check-in met reeksen en een motivator. Draai na een update `docker compose run --rm pb-setup` voor de nieuwe collecties `health_programs` en `health_checkins`. Dit is geen medisch advies.
+Onder **Health** staan leefstijlprogramma's los van trainingen. De eerste is OMAD (One Meal A Day) met een weekmaaltijdplanner (met voorstel), maaltijdtijd, calorie- en eiwitdoel, een dagelijkse check-in met reeksen en een motivator. De nieuwe collecties `health_programs` en `health_checkins` worden automatisch aangemaakt door `./scripts/deploy.sh <omgeving>` (zie `DEPLOYMENT.md`). Dit is geen medisch advies.
