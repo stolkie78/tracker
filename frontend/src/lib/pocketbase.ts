@@ -354,6 +354,14 @@ export const createTemplate = (data: Omit<WorkoutTemplate, 'id' | 'created' | 'u
 export const createTemplateExercise = (data: Omit<TemplateExercise, 'id' | 'created' | 'updated' | 'owner' | 'expand'>) =>
   pb.collection('template_exercises').create<TemplateExercise>({ ...data, owner: currentUserId() });
 
+export const saveTemplate = (
+  id: ID | null,
+  template: Omit<WorkoutTemplate, 'id' | 'owner' | 'created' | 'updated' | 'expand'>,
+  exercises: Omit<TemplateExercise, 'id' | 'owner' | 'template' | 'created' | 'updated' | 'expand'>[]
+) => pb.send<Pick<WorkoutTemplate, 'id' | 'title'>>('/api/top-trainer/templates', {
+  method: 'POST', body: { id, template, exercises }, requestKey: null
+});
+
 export const deleteTemplate = async (id: ID) => {
   const entries = await pb.collection('template_exercises').getFullList<TemplateExercise>({
     filter: `${ownerFilter()} && template = "${id}"`,

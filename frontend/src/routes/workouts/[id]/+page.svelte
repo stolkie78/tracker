@@ -375,7 +375,7 @@
           <p class="text-xs font-bold uppercase tracking-[0.17em] text-overload-signal">Oefeningen</p>
           <h3 class="mt-1 text-2xl font-black">{finishedCount} van {exerciseLogs.length} afgerond</h3>
         </div>
-        <button type="button" class="btn-secondary" on:click={openAdd}><Plus size={18} /> Oefening toevoegen</button>
+        <button type="button" class="btn-secondary" aria-label="Nieuwe oefening" on:click={openAdd}><Plus size={18} /> Nieuw</button>
       </div>
       {#if showAdd}
         <form class="card space-y-4" on:submit|preventDefault={addExerciseToWorkout}>

@@ -30,7 +30,7 @@ test('personal records, relationships and protected photos stay with their owner
   };
   const denied = async (...args) => {
     const result = await request(...args);
-    assert.ok([400, 403, 404].includes(result.status), `${args[0]} unexpectedly allowed: ${JSON.stringify(result)}`);
+    assert.ok([400, 401, 403, 404].includes(result.status), `${args[0]} unexpectedly allowed: ${JSON.stringify(result)}`);
   };
   const path = (collection, id = '') => `collections/${collection}/records${id ? `/${id}` : ''}`;
   const create = async (collection, token, data) => {
@@ -125,6 +125,62 @@ test('personal records, relationships and protected photos stay with their owner
     await ok(path('exercises', shared.id), carol.token, 'PATCH', { name: shared.name });
     await denied(path('exercises'), bob.token, 'POST', { name: 'Shared spoof', category: 'other', active: true });
 
+    // Template edits are atomic and never change instantiated workout data.
+    const templateRoute = 'top-trainer/templates';
+    const templateData = { title: 'Edited strength', type: 'strength', duration_minutes: 45, notes: 'New notes', level: 'advanced', goal: 'Strength', tags: 'test' };
+    const exerciseData = { exercise: shared.id, equipment: shared.equipment_options[0], target_sets: 4, reps_min: 5, reps_max: 8, starting_weight: 50, weight_increment: 2.5, rest_seconds: 120, tempo: '4-0-1-0' };
+    const templateEntries = () => ok(`${path('template_exercises')}?filter=${encodeURIComponent(`template="${template.id}"`)}&sort=set_order`, alice.token);
+    await ok(templateRoute, alice.token, 'POST', { id: template.id, template: templateData, exercises: [exerciseData, { ...exerciseData, starting_weight: 60 }] });
+    const edited = await ok(path('workout_templates', template.id), alice.token);
+    assert.equal(edited.title, templateData.title);
+    assert.equal(edited.owner, alice.id);
+    assert.equal(edited.goal, templateData.goal);
+    const changedEntries = (await templateEntries()).items;
+    for (const child of changedEntries) records.push(['template_exercises', child.id]);
+    assert.equal(changedEntries.length, 2);
+    assert.deepEqual(changedEntries.map((entry) => entry.set_order), [1, 2]);
+    assert.equal(changedEntries[0].tempo, exerciseData.tempo);
+    assert.equal(changedEntries[0].rest_seconds, exerciseData.rest_seconds);
+    assert.equal(changedEntries[0].weight_increment, exerciseData.weight_increment);
+    assert.equal((await ok(path('workouts', workout.id), alice.token)).title, workout.title);
+    assert.equal((await ok(path('workout_sets', set.id), alice.token)).weight, 42);
+    for (const stranger of [bob, carol, { token: '' }]) {
+      await denied(templateRoute, stranger.token, 'POST', { id: template.id, template: templateData, exercises: [exerciseData] });
+    }
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, title: 'Should roll back' }, exercises: [exerciseData, { ...exerciseData, reps_max: 1 }] });
+    assert.equal((await ok(path('workout_templates', template.id), alice.token)).title, templateData.title);
+    assert.deepEqual((await templateEntries()).items, changedEntries);
+    await denied(templateRoute, bob.token, 'POST', { template: templateData, exercises: [{ ...exerciseData, exercise: exercise.id }] });
+    const bobTemplates = await ok(`${path('workout_templates')}?filter=${encodeURIComponent(`owner="${bob.id}"`)}`, bob.token);
+    assert.equal(bobTemplates.items.length, 0, 'A failed creation must not leave an orphan template');
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: templateData, exercises: [{ ...exerciseData, equipment: 'invalid' }] });
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: templateData, exercises: [] });
+    const createdTemplate = await ok(templateRoute, alice.token, 'POST', { template: { ...templateData, owner: bob.id }, exercises: [exerciseData] });
+    records.push(['workout_templates', createdTemplate.id]);
+    const createdChildren = await ok(`${path('template_exercises')}?filter=${encodeURIComponent(`template="${createdTemplate.id}"`)}`, alice.token);
+    for (const child of createdChildren.items) records.push(['template_exercises', child.id]);
+    assert.equal((await ok(path('workout_templates', createdTemplate.id), alice.token)).owner, alice.id);
+    await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'cardio', cardio_mode: 'running', distance_km: 5 }, exercises: [] });
+    assert.equal((await templateEntries()).items.length, 0);
+    await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'recovery', recovery_activity: 'yoga' }, exercises: [] });
+    const recovery = await ok(path('workout_templates', template.id), alice.token);
+    assert.equal(recovery.cardio_mode, '');
+    assert.equal(recovery.distance_km, 0);
+    assert.equal(recovery.recovery_activity, 'yoga');
+    await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'interval', cardio_mode: 'running', interval_work_seconds: 45, interval_rest_seconds: 30, interval_rounds: 6 }, exercises: [] });
+    const interval = await ok(path('workout_templates', template.id), alice.token);
+    assert.equal(interval.interval_work_seconds, 45);
+    assert.equal(interval.interval_rest_seconds, 30);
+    assert.equal(interval.interval_rounds, 6);
+    assert.equal(interval.recovery_activity, '');
+    await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'sport', sport_activity: 'tennis' }, exercises: [] });
+    const sport = await ok(path('workout_templates', template.id), alice.token);
+    assert.equal(sport.sport_activity, 'tennis');
+    assert.equal(sport.interval_rounds, 0);
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, duration_minutes: 0 }, exercises: [exerciseData] });
+    // The original child was replaced by the transaction.
+    records.splice(records.findIndex(([collection, id]) => collection === 'template_exercises' && id === templateExercise.id), 1);
+
     // Photo URLs require a file token AND the owner's view rule.
     const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
     const upload = new FormData();
@@ -151,6 +207,7 @@ test('personal records, relationships and protected photos stay with their owner
   } finally {
     for (const [collection, id] of records.reverse()) {
       const response = await request(path(collection, id), adminToken, 'DELETE');
+      if (collection === 'template_exercises' && response.status === 404) continue;
       assert.equal(response.status, 204, `Failed to clean up ${collection}/${id}`);
     }
   }

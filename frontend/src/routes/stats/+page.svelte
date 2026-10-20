@@ -3,7 +3,7 @@
   import { ArrowDown, ArrowUp, Minus } from '@lucide/svelte';
   import { getBodyMeasurements, getHealthCheckins, getWorkouts } from '$lib/pocketbase';
   import { healthInsights } from '$lib/health';
-  import { calculateBMI, measurementDateLabel, measurementStats } from '$lib/measurements';
+  import { calculateBMI, MEASUREMENT_METRICS, measurementChart, measurementDateLabel, measurementStats, type MeasurementMetric } from '$lib/measurements';
   import type { BodyMeasurement, HealthCheckin } from '$lib/types';
   import { computeStats, periodStart, PERIOD_OPTIONS, type ExerciseProgress, type PeriodKey } from '$lib/stats';
   import { CARDIO_MODE_LABELS, formatPace, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_STYLES, type CardioMode, type Workout, type WorkoutType } from '$lib/types';
@@ -17,9 +17,11 @@
   let error = '';
   let period: PeriodKey = '12w';
   let selected = '';
+  let measurementMetric: MeasurementMetric = 'weight';
 
   $: stats = computeStats(workouts, period);
   $: body = measurementStats(measurements, period);
+  $: bodyChart = measurementChart(body.entries, measurementMetric);
   $: health = healthInsights(checkins, periodStart(period));
   $: if (stats.exercises.length && !stats.exercises.some((exercise) => exercise.id === selected)) selected = stats.exercises[0].id;
   $: current = stats.exercises.find((exercise) => exercise.id === selected);
@@ -100,7 +102,7 @@
 
   {#if !loading && !error}
     <section class="card space-y-3">
-      <div class="flex items-center justify-between gap-3"><h3 class="text-xl font-bold">Lichaamsmetingen</h3><a class="font-bold text-overload-signal" href="/profile">Meting toevoegen</a></div>
+      <div class="flex items-center justify-between gap-3"><h3 class="text-xl font-bold">Lichaamsmetingen</h3><a class="font-bold text-overload-signal" href="/health/measurements">Naar Metingen</a></div>
       {#if body.latest}
         <p class="text-sm text-gray-600 dark:text-gray-300">Laatste meting in deze periode: {measurementDateLabel(body.latest.measured_at)}</p>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -109,6 +111,35 @@
           <div><p class="label">Verandering</p><p class="text-2xl font-black">{body.weightChange === null ? '—' : `${sign(body.weightChange)} kg`}</p></div>
           <div><p class="label">Taille</p><p class="text-2xl font-black">{body.latest.waist_cm ? `${body.latest.waist_cm} cm` : '—'}</p></div>
         </div>
+        <div>
+          <label class="label" for="measurement-metric">Grafiek</label>
+          <select id="measurement-metric" class="input" bind:value={measurementMetric}>
+            {#each Object.entries(MEASUREMENT_METRICS) as [value, metric]}<option {value}>{metric.label}{metric.unit ? ` (${metric.unit})` : ''}</option>{/each}
+          </select>
+        </div>
+        {#if bodyChart.points.length}
+          <svg viewBox="0 0 500 180" class="h-auto w-full text-gray-600 dark:text-gray-300" role="img" aria-label={`${MEASUREMENT_METRICS[measurementMetric].label} over de gekozen periode`}>
+            <line x1="55" y1="30" x2="55" y2="140" stroke="currentColor" opacity="0.3" />
+            <line x1="55" y1="140" x2="475" y2="140" stroke="currentColor" opacity="0.3" />
+            {#if bodyChart.min === bodyChart.max}
+              <text x="48" y="89" text-anchor="end" fill="currentColor" font-size="12">{bodyChart.min}</text>
+            {:else}
+              <text x="48" y="34" text-anchor="end" fill="currentColor" font-size="12">{bodyChart.max}</text>
+              <text x="48" y="144" text-anchor="end" fill="currentColor" font-size="12">{bodyChart.min}</text>
+            {/if}
+            <polyline fill="none" stroke="#f97316" stroke-width="3" stroke-linejoin="round" points={bodyChart.points.map((point) => `${point.x},${point.y}`).join(' ')} />
+            {#each bodyChart.points as point}
+              <circle cx={point.x} cy={point.y} r="4" fill="#f97316"><title>{measurementDateLabel(point.date)}: {point.value} {MEASUREMENT_METRICS[measurementMetric].unit}</title></circle>
+            {/each}
+            <text x="55" y="165" fill="currentColor" font-size="12">{measurementDateLabel(bodyChart.points[0].date)}</text>
+            {#if bodyChart.points.length > 1}
+              <text x="475" y="165" text-anchor="end" fill="currentColor" font-size="12">{measurementDateLabel(bodyChart.points[bodyChart.points.length - 1].date)}</text>
+            {/if}
+          </svg>
+          {#if bodyChart.points.length === 1}<p class="text-sm text-gray-600 dark:text-gray-300">Eén meting; voeg meer metingen toe om een trend te zien.</p>{/if}
+        {:else}
+          <p class="text-sm text-gray-600 dark:text-gray-300">Geen metingen voor {MEASUREMENT_METRICS[measurementMetric].label.toLowerCase()} in deze periode.</p>
+        {/if}
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
             <thead><tr><th class="py-2">Datum</th><th>Gewicht</th><th>BMI</th></tr></thead>
@@ -117,7 +148,7 @@
         </div>
         <p class="text-sm text-gray-600 dark:text-gray-300">BMI is een grove indicatie, geen diagnose. De verandering vergelijkt de eerste en laatste meting binnen de gekozen periode.</p>
       {:else}
-        <p class="text-gray-600 dark:text-gray-300">Nog geen lichaamsmetingen in deze periode. Voeg ze toe via je profiel, ook zonder voltooide trainingen.</p>
+        <p class="text-gray-600 dark:text-gray-300">Nog geen lichaamsmetingen in deze periode. Voeg ze toe onder Health → Metingen, ook zonder voltooide trainingen.</p>
       {/if}
     </section>
   {/if}

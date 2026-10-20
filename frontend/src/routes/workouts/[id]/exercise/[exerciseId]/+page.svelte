@@ -239,7 +239,7 @@
           </button>
         </div>
       {/each}
-      <button type="button" class="btn-secondary w-full" on:click={addSet}><Plus size={18} /> Set toevoegen</button>
+      <button type="button" class="btn-secondary w-full" aria-label="Nieuwe set" on:click={addSet}><Plus size={18} /> Nieuw</button>
       <p class="text-sm text-gray-600 dark:text-gray-300">Houd bij elke herhaling het tempo {record.tempo ?? DEFAULT_STRENGTH_TEMPO} aan en rust {record.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS} seconden tussen de sets.</p>
       <p class="text-sm text-gray-600 dark:text-gray-300">Progressie: +{record.weight_increment} kg zodra alle sets {record.reps_max} reps halen.</p>
       {#if suggestion !== null}<p class="rounded-xl bg-emerald-500/15 p-3 font-semibold text-emerald-700 dark:text-emerald-300">Volgende keer: {suggestion} kg</p>{/if}

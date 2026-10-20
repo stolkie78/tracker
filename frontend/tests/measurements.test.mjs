@@ -11,7 +11,7 @@ const server = await createServer({
   appType: 'custom'
 });
 after(() => server.close());
-const { calculateBMI, measurementDateLabel, measurementStats } = await server.ssrLoadModule('/src/lib/measurements.ts');
+const { calculateBMI, measurementChart, measurementDateLabel, measurementStats } = await server.ssrLoadModule('/src/lib/measurements.ts');
 
 test('measurement labels preserve the calendar day in extreme timezones', () => {
   const timezone = process.env.TZ;
@@ -68,4 +68,37 @@ test('historical BMI uses each recorded height and same-day measurements use cre
   assert.equal(calculateBMI(stats.entries[0].weight_kg, stats.entries[0].height_cm), 20);
   assert.equal(stats.bmi, 25);
   assert.equal(stats.weightChange, 1);
+});
+
+test('measurement chart uses actual dates and values, sorted without mutating the input', () => {
+  const entries = [
+    { ...measurement(0, 80), measured_at: '2026-10-20 12:00:00Z' },
+    { ...measurement(0, 90), measured_at: '2026-10-10 12:00:00Z' },
+    { ...measurement(0, 85), measured_at: '2026-10-12 12:00:00Z' }
+  ];
+  const chart = measurementChart(entries, 'weight');
+  assert.equal(chart.min, 80);
+  assert.equal(chart.max, 90);
+  assert.deepEqual(chart.points.map(({ x, y }) => ({ x, y })), [
+    { x: 55, y: 30 }, { x: 139, y: 85 }, { x: 475, y: 140 }
+  ]);
+  assert.equal(entries[0].weight_kg, 80);
+});
+
+test('chart handles empty, single and constant values without invalid coordinates', () => {
+  assert.deepEqual(measurementChart([], 'weight'), { min: 0, max: 0, points: [] });
+  const single = measurementChart([measurement(1, 80)], 'weight');
+  assert.equal(single.points[0].x, 265);
+  assert.equal(single.points[0].y, 85);
+  const flat = measurementChart([measurement(1, 80), measurement(2, 80)], 'weight');
+  assert.ok(flat.points.every((point) => point.y === 85 && Number.isFinite(point.x)));
+});
+
+test('chart uses historic BMI and omits absent waist values instead of plotting zero', () => {
+  const entries = [
+    { ...measurement(2, 80, 200), waist_cm: 90 },
+    { ...measurement(1, 81, 180), waist_cm: 0 }
+  ];
+  assert.deepEqual(measurementChart(entries, 'bmi').points.map((point) => point.value), [20, 25]);
+  assert.deepEqual(measurementChart(entries, 'waist').points.map((point) => point.value), [90]);
 });

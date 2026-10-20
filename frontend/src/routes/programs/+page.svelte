@@ -309,7 +309,7 @@
           <h3 class="text-xl font-black">Mijn programma’s</h3>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{plans.length} programma’s · {activePlanCount} actief</p>
         </div>
-        <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw programma</button>
+        <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw</button>
       </div>
       {#if plans.length === 0}
         <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen programma’s. Maak een programma om bouwblokken op je tijdlijn te plannen.</div>
@@ -424,7 +424,7 @@
               <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={items.length === 1} on:click={() => (items = items.filter((_, i) => i !== index))}>✕</button>
             </div>
           {/each}
-          <button class="btn-secondary w-full" type="button" on:click={() => (items = [...items, { template: '', count: 1 }])}>+ Bouwblok toevoegen</button>
+          <button class="btn-secondary w-full" type="button" aria-label="Nieuw bouwblok" on:click={() => (items = [...items, { template: '', count: 1 }])}>+ Nieuw</button>
         {:else}
         {#each slots as slot, index}
           <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-[7rem_1fr]">
@@ -440,7 +440,7 @@
                   <button class="btn-secondary" type="button" aria-label="Verwijderen" on:click={() => (slots[index] = { templates: slot.templates.filter((_, i) => i !== order) })}>✕</button>
                 </div>
               {/each}
-              <button class="btn-secondary w-full" type="button" on:click={() => (slots[index] = { templates: [...slot.templates, ''] })}>+ Training toevoegen</button>
+              <button class="btn-secondary w-full" type="button" aria-label="Nieuwe training" on:click={() => (slots[index] = { templates: [...slot.templates, ''] })}>+ Nieuw</button>
             </div>
           </div>
         {/each}

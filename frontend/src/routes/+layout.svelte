@@ -5,6 +5,7 @@
   import { page } from '$app/stores';
   import { ChartNoAxesCombined, Dumbbell, HeartPulse, Settings, UserRound } from '@lucide/svelte';
   import { darkTheme } from '$lib/stores/theme';
+  import { aiAvailability, loadAIAvailability } from '$lib/stores/ai';
   import { currentUser, isAuthenticated } from '$lib/stores/auth';
   import { loadUserRoles, rolesLoaded } from '$lib/stores/role';
   import { getStravaStatus, syncStrava } from '$lib/pocketbase';
@@ -26,11 +27,12 @@
     { href: '/', label: 'Tijdlijn' },
     { href: '/library', label: 'Bibliotheek' },
     { href: '/programs', label: 'Programma' },
-    { href: '/planner', label: 'AI-planner' }
+    { href: '/planner', label: 'AI-planner', ai: true }
   ];
   const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
 
   const healthNav = [
+    { href: '/health/measurements', label: 'Metingen' },
     { href: '/health/fasting', label: 'Fasting' },
     { href: '/health/mindfulness', label: 'Mindfulness' },
     { href: '/health/braintraining', label: 'Braintraining' }
@@ -38,7 +40,7 @@
 
   $: inTraining = nav[0].match($page.url.pathname);
   $: inHealth = nav[1].match($page.url.pathname);
-  $: subNav = inHealth ? healthNav : inTraining ? trainingNav : [];
+  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
@@ -51,6 +53,10 @@
     loadUserRoles().catch((error) => {
       roleLoadError = error instanceof Error ? error.message : 'Je profiel kon niet worden geladen.';
     });
+  }
+
+  $: if (browser && $isAuthenticated && !isLogin && $aiAvailability.user !== $currentUser?.id) {
+    loadAIAvailability();
   }
 
   let stravaUser = '';
@@ -148,8 +154,28 @@
       </nav>
     {/if}
     <main class="mx-auto max-w-4xl px-4 py-5 pb-28 sm:py-8 lg:pb-8">
+      {#if $aiAvailability.error}
+        <div role="alert" class="card mb-4 space-y-2 text-red-700 dark:text-red-300">
+          <p>Beschikbaarheid AI-planner kon niet worden gecontroleerd: {$aiAvailability.error}</p>
+          <button type="button" class="btn-secondary" on:click={loadAIAvailability}>Opnieuw proberen</button>
+        </div>
+      {/if}
       {#key $currentUser?.id}
-        <slot />
+        {#if $page.url.pathname.startsWith('/planner') && !$aiAvailability.enabled}
+          <div class="card space-y-3">
+            {#if $aiAvailability.loading || $aiAvailability.user !== $currentUser?.id}
+              <p>AI-instellingen laden...</p>
+            {:else if $aiAvailability.error}
+              <p>De AI-planner is niet beschikbaar zolang de instellingen niet kunnen worden gecontroleerd.</p>
+            {:else}
+              <h2 class="text-xl font-bold">AI-planner niet ingesteld</h2>
+              <p>Stel eerst je eigen API-sleutel in om de AI-planner te gebruiken.</p>
+              <a class="btn-primary" href="/settings">Naar Instellingen</a>
+            {/if}
+          </div>
+        {:else}
+          <slot />
+        {/if}
       {/key}
     </main>
     <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 lg:hidden" aria-label="Snelmenu">

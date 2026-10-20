@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
-  import { CalendarPlus, LoaderCircle, Play, Plus, Trash2 } from '@lucide/svelte';
+  import { CalendarPlus, LoaderCircle, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import {
-    createTemplate,
-    createTemplateExercise,
+    saveTemplate,
     deleteTemplate,
     getExercises,
     getTemplates,
@@ -35,8 +34,8 @@
     type WorkoutType
   } from '$lib/types';
 
-  type Entry = { muscle: string; exercise: string; equipment: ExerciseEquipment | ''; sets: number; repsMin: number; repsMax: number; weight: number; increment: number };
-  const emptyEntry = (): Entry => ({ muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5 });
+  type Entry = { muscle: string; exercise: string; equipment: ExerciseEquipment | ''; sets: number; repsMin: number; repsMax: number; weight: number; increment: number; rest: number; tempo: string };
+  const emptyEntry = (): Entry => ({ muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5, rest: DEFAULT_STRENGTH_REST_SECONDS, tempo: DEFAULT_STRENGTH_TEMPO });
   const toInputDate = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
@@ -48,6 +47,7 @@
   let error = '';
   let success = '';
   let showForm = false;
+  let editing: string | null = null;
   let planDates: Record<string, string> = {};
 
   let type: WorkoutType = 'strength';
@@ -69,6 +69,13 @@
   onMount(async () => {
     try {
       [templates, exercises] = await Promise.all([getTemplates(), getExercises()]);
+      for (const template of templates) {
+        for (const entry of template.expand?.template_exercises_via_template ?? []) {
+          if (entry.expand?.exercise && !exercises.some((exercise) => exercise.id === entry.exercise)) {
+            exercises = [...exercises, entry.expand.exercise];
+          }
+        }
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Bibliotheek kon niet worden geladen.';
     } finally {
@@ -84,12 +91,55 @@
   };
 
   const resetForm = () => {
+    editing = null;
+    type = 'strength';
     title = '';
     notes = '';
     goal = '';
     tags = '';
     distance = 0;
+    duration = 60;
+    level = 'beginner';
+    cardioMode = 'running';
+    intervalWork = 30;
+    intervalRest = 60;
+    intervalRounds = 8;
+    recoveryActivity = 'mobility';
+    sportActivity = 'indoor_volleyball';
     entries = [emptyEntry()];
+  };
+
+  const edit = (template: WorkoutTemplate) => {
+    editing = template.id;
+    type = template.type;
+    title = template.title;
+    duration = template.duration_minutes;
+    notes = template.notes;
+    level = template.level ?? 'beginner';
+    goal = template.goal ?? '';
+    tags = template.tags ?? '';
+    cardioMode = template.cardio_mode ?? 'running';
+    distance = template.distance_km ?? 0;
+    intervalWork = template.interval_work_seconds ?? 30;
+    intervalRest = template.interval_rest_seconds ?? 60;
+    intervalRounds = template.interval_rounds ?? 8;
+    recoveryActivity = template.recovery_activity ?? 'mobility';
+    sportActivity = template.sport_activity ?? 'indoor_volleyball';
+    entries = [...(template.expand?.template_exercises_via_template ?? [])]
+      .sort((a, b) => a.set_order - b.set_order)
+      .map((entry) => ({
+        muscle: entry.expand?.exercise?.muscle_group ?? '',
+        exercise: entry.exercise, equipment: entry.equipment ?? '',
+        sets: entry.target_sets, repsMin: entry.reps_min, repsMax: entry.reps_max,
+        weight: entry.starting_weight, increment: entry.weight_increment,
+        rest: entry.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS,
+        tempo: entry.tempo ?? DEFAULT_STRENGTH_TEMPO
+      }));
+    if (!entries.length) entries = [emptyEntry()];
+    showForm = true;
+    error = '';
+    success = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const detailsOf = (template: WorkoutTemplate) => {
@@ -118,7 +168,8 @@
     }
     saving = true;
     try {
-      const created = await createTemplate({
+      const wasEditing = !!editing;
+      const created = await saveTemplate(editing, {
         title: title.trim(),
         type,
         duration_minutes: duration,
@@ -126,32 +177,29 @@
         level,
         goal: goal.trim(),
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(','),
-        ...(type === 'cardio' ? { cardio_mode: cardioMode, distance_km: distance } : {}),
-        ...(type === 'interval' ? { cardio_mode: cardioMode, interval_work_seconds: intervalWork, interval_rest_seconds: intervalRest, interval_rounds: intervalRounds } : {}),
-        ...(type === 'recovery' ? { recovery_activity: recoveryActivity } : {}),
-        ...(type === 'sport' ? { sport_activity: sportActivity } : {})
-      });
-      if (type === 'strength') {
-        for (const [index, entry] of entries.entries()) {
-          await createTemplateExercise({
-            template: created.id,
-            exercise: entry.exercise,
-            ...(entry.equipment ? { equipment: entry.equipment } : {}),
-            set_order: index + 1,
-            target_sets: entry.sets,
-            reps_min: entry.repsMin,
-            reps_max: entry.repsMax,
-            starting_weight: entry.weight,
-            weight_increment: entry.increment,
-            rest_seconds: DEFAULT_STRENGTH_REST_SECONDS,
-            tempo: DEFAULT_STRENGTH_TEMPO
-          });
-        }
-      }
-      templates = await getTemplates();
-      success = `“${created.title}” is toegevoegd aan je bibliotheek.`;
+        cardio_mode: type === 'cardio' || type === 'interval' ? cardioMode : undefined,
+        distance_km: type === 'cardio' ? distance : 0,
+        interval_work_seconds: type === 'interval' ? intervalWork : 0,
+        interval_rest_seconds: type === 'interval' ? intervalRest : 0,
+        interval_rounds: type === 'interval' ? intervalRounds : 0,
+        recovery_activity: type === 'recovery' ? recoveryActivity : undefined,
+        sport_activity: type === 'sport' ? sportActivity : undefined
+      }, type === 'strength' ? entries.map((entry, index) => ({
+        exercise: entry.exercise,
+        ...(entry.equipment ? { equipment: entry.equipment } : {}),
+        set_order: index + 1,
+        target_sets: entry.sets,
+        reps_min: entry.repsMin,
+        reps_max: entry.repsMax,
+        starting_weight: entry.weight,
+        weight_increment: entry.increment,
+        rest_seconds: entry.rest,
+        tempo: entry.tempo
+      })) : []);
       resetForm();
       showForm = false;
+      templates = await getTemplates();
+      success = wasEditing ? `“${created.title}” is bijgewerkt. Bestaande trainingen zijn niet gewijzigd.` : `“${created.title}” is toegevoegd aan je bibliotheek.`;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Bouwblok kon niet worden opgeslagen.';
     } finally {
@@ -192,6 +240,10 @@
     try {
       await deleteTemplate(template.id);
       templates = templates.filter((entry) => entry.id !== template.id);
+      if (editing === template.id) {
+        resetForm();
+        showForm = false;
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Verwijderen is mislukt.';
     } finally {
@@ -212,7 +264,7 @@
         <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">programma</a>.
       </p>
     </div>
-    <button class="btn-primary shrink-0" type="button" on:click={() => (showForm = !showForm)}><Plus size={18} /> Nieuw</button>
+    <button class="btn-primary shrink-0" type="button" disabled={saving || !!busyId} on:click={() => { resetForm(); showForm = true; }}><Plus size={18} /> Nieuw</button>
   </div>
 
   {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
@@ -220,6 +272,9 @@
 
   {#if showForm}
     <form class="card space-y-4" on:submit|preventDefault={save}>
+      <h3 class="text-xl font-bold">{editing ? 'Bouwblok bewerken' : 'Nieuw bouwblok'}</h3>
+      {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Wijzigingen gelden voor nieuwe trainingen. Reeds ingeplande en uitgevoerde trainingen blijven ongewijzigd.</p>{/if}
+      <fieldset disabled={saving} class="space-y-4">
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="tpl-type">Type</label>
@@ -233,7 +288,7 @@
         </div>
         <div>
           <label class="label" for="tpl-duration">Duur (min)</label>
-          <input id="tpl-duration" class="input" type="number" min="1" max="600" bind:value={duration} />
+          <input id="tpl-duration" class="input" type="number" required min="1" max="600" bind:value={duration} />
         </div>
         {#if type === 'cardio' || type === 'interval'}
           <div>
@@ -307,23 +362,30 @@
                 {#each optionsFor(entry.exercise) as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
               </select>
               <div class="grid grid-cols-4 gap-2 sm:col-span-2">
-                <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" min="1" bind:value={entry.sets} /></div>
-                <div><label class="label" for="e-min-{index}">Reps min</label><input id="e-min-{index}" class="input" type="number" min="1" bind:value={entry.repsMin} /></div>
-                <div><label class="label" for="e-max-{index}">Reps max</label><input id="e-max-{index}" class="input" type="number" min="1" bind:value={entry.repsMax} /></div>
-                <div><label class="label" for="e-w-{index}">Kg</label><input id="e-w-{index}" class="input" type="number" min="0" step="0.5" bind:value={entry.weight} /></div>
+                <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" required min="1" bind:value={entry.sets} /></div>
+                <div><label class="label" for="e-min-{index}">Reps min</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>
+                <div><label class="label" for="e-max-{index}">Reps max</label><input id="e-max-{index}" class="input" type="number" required min="1" bind:value={entry.repsMax} /></div>
+                <div><label class="label" for="e-w-{index}">Kg</label><input id="e-w-{index}" class="input" type="number" required min="0" step="0.1" bind:value={entry.weight} /></div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 sm:col-span-2">
+                <div><label class="label" for="e-increment-{index}">Stap (kg)</label><input id="e-increment-{index}" class="input" type="number" min="0.1" step="0.1" required bind:value={entry.increment} /></div>
+                <div><label class="label" for="e-rest-{index}">Rust (sec)</label><input id="e-rest-{index}" class="input" type="number" min="0" required bind:value={entry.rest} /></div>
+                <div><label class="label" for="e-tempo-{index}">Tempo</label><input id="e-tempo-{index}" class="input" maxlength="100" bind:value={entry.tempo} /></div>
               </div>
               {#if entries.length > 1}
                 <button class="btn-secondary sm:col-span-2" type="button" on:click={() => (entries = entries.filter((_, i) => i !== index))}><Trash2 size={16} /> Verwijderen</button>
               {/if}
             </div>
           {/each}
-          <button class="btn-secondary w-full" type="button" on:click={() => (entries = [...entries, emptyEntry()])}><Plus size={16} /> Oefening toevoegen</button>
+          <button class="btn-secondary w-full" type="button" aria-label="Nieuwe oefening" on:click={() => (entries = [...entries, emptyEntry()])}><Plus size={16} /> Nieuw</button>
         </fieldset>
       {/if}
 
       <button class="btn-primary w-full" type="submit" disabled={saving}>
-        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}Opslaan in bibliotheek{/if}
+        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}Opslaan{/if}
       </button>
+      <button class="btn-secondary w-full" type="button" on:click={() => { showForm = false; resetForm(); }}>Annuleren</button>
+      </fieldset>
     </form>
   {/if}
 
@@ -349,10 +411,11 @@
           {/if}
           {#if template.notes}<p class="text-sm text-gray-500 dark:text-gray-400">{template.notes}</p>{/if}
           <div class="flex flex-wrap items-center gap-2">
-            <button class="btn-primary" type="button" disabled={busyId === template.id} on:click={() => start(template)}><Play size={16} /> Start nu</button>
+            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => edit(template)}><Pencil size={16} /> Bewerken</button>
+            <button class="btn-primary" type="button" disabled={saving || !!busyId} on:click={() => start(template)}><Play size={16} /> Start nu</button>
             <input class="input !w-auto" type="date" aria-label="Datum inplannen" bind:value={planDates[template.id]} placeholder={toInputDate(new Date())} />
-            <button class="btn-secondary" type="button" disabled={busyId === template.id} on:click={() => schedule(template)}><CalendarPlus size={16} /> Inplannen</button>
-            <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={busyId === template.id} on:click={() => remove(template)}><Trash2 size={16} /></button>
+            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => schedule(template)}><CalendarPlus size={16} /> Inplannen</button>
+            <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={saving || !!busyId} on:click={() => remove(template)}><Trash2 size={16} /></button>
           </div>
         </article>
       {/each}

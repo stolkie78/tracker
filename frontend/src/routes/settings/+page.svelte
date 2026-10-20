@@ -3,7 +3,8 @@
   import { ArrowLeft, KeyRound, RefreshCw, Save } from '@lucide/svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { connectStrava, disconnectStrava, getAISettings, getCalendarFeed, resetCalendarFeed, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
+  import { setAIAvailability } from '$lib/stores/ai';
+  import { connectStrava, currentUserId, disconnectStrava, getAISettings, getCalendarFeed, resetCalendarFeed, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
   import type { StravaStatus, StravaSyncCounts } from '$lib/types';
 
   const defaultEndpoint = 'https://api.openai.com/v1';
@@ -114,10 +115,12 @@
   };
 
   onMount(async () => {
+    const user = currentUserId();
     loadStrava();
     loadCalendar();
     try {
       const settings = await getAISettings();
+      setAIAvailability(settings?.api_key_set === true, user);
       if (settings) {
         endpoint = settings.endpoint || defaultEndpoint;
         model = settings.model || model;
@@ -131,12 +134,14 @@
   });
 
   const save = async () => {
+    const user = currentUserId();
     saving = true;
     error = '';
     success = '';
     try {
       const saved = await saveAISettings({ endpoint, model, api_key: apiKey });
       keyConfigured = saved.api_key_set;
+      setAIAvailability(saved.api_key_set, user);
       apiKey = '';
       success = 'AI-instellingen opgeslagen. De API-sleutel wordt niet teruggestuurd naar de browser.';
     } catch (err) {
@@ -192,7 +197,7 @@
       <div class="flex flex-wrap gap-2">
         <button class="btn-primary" type="button" on:click={copyCalendar}>Kopieer link</button>
         <a class="btn-secondary" href={calendarUrl.replace(/^https?:/, 'webcal:')}>Abonneren</a>
-        <button class="btn-secondary" type="button" on:click={resetCalendar}>Nieuwe link</button>
+        <button class="btn-secondary" type="button" aria-label="Nieuwe agenda-link" on:click={resetCalendar}>Nieuw</button>
       </div>
     {/if}
     {#if calendarError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{calendarError}</p>{/if}

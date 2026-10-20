@@ -211,7 +211,7 @@
           <div><label class="label" for="protein">Eiwit (g)</label><input id="protein" class="input" type="number" min="0" step="5" bind:value={protein} /></div>
         </div>
         <p class="text-sm text-gray-600 dark:text-gray-300">Je krijgt een weekmenu als startpunt, een reekstracker en dagelijkse motivatie.</p>
-        <button class="btn-primary w-full" disabled={saving} on:click={startProgram}>Programma starten</button>
+        <button class="btn-primary w-full" aria-label="Nieuw fastingprogramma" disabled={saving} on:click={startProgram}>Nieuw</button>
       </section>
     {/if}
   {/if}
