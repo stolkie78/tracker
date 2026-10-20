@@ -46,6 +46,8 @@ Regressietests: `cd frontend && npm test` controleert BMI, meetgrafieken, period
 
 ### Workouts, losse sessies en programma's
 
+Op de trainingsdetailpagina kies je **Overgeslagen** via dezelfde statuswisselaar als de andere keuzes, zonder aparte knop Overslaan. De training blijft zichtbaar in de tijdlijn en telt niet mee als voltooide training in Insights. Via de statuswisselaar kun je deze weer op Gepland zetten. Alleen losse trainingen hebben een knop Verwijderen; trainingen en reeksen die aan een programma zijn gekoppeld beheer je vanuit Programma’s, via **Programma beheren**.
+
 **Workouts** is de nieuwe naam van Bibliotheek; het extra kopje Bouwblokken vervalt. De URL `/library` blijft behouden voor bestaande links.
 
 Vaste keuzes zoals type, niveau, activiteit, materiaal, dagdeel en cyclusduur zijn klikschakelaars: elke klik kiest de volgende waarde en na de laatste begint de reeks opnieuw. De knop toont de huidige waarde; het ronde-pijlenicoon en de tooltip geven aan dat je kunt wisselen. Ook met Tab en Enter of spatie te bedienen. Oefeningen en workouts blijven dropdowns. Instellingen met één beschikbare keuze zijn niet wisselbaar; knoppen blijven geblokkeerd tijdens opslaan of een lopende ademhalingsoefening.
@@ -92,6 +94,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.19.1 | Workoutstatus gebruikt dezelfde compacte switcher als andere keuzes, inclusief Overgeslagen, zonder zichtbare preview of losse knop Overslaan. Programmatrainingen en gekoppelde reeksen hebben geen verwijderknop op de trainingspagina; beheer verloopt via Programma beheren. Statusacties zijn geblokkeerd tijdens opslaan. |
 | 0.19.0 | Bibliotheek heet Workouts; het kopje Bouwblokken vervalt en menu's en meldingen gebruiken dezelfde naam. Vaste keuzes zijn klikschakelaars die per klik naar de volgende waarde gaan en na de laatste opnieuw beginnen. Oefeningen en workouts blijven dropdowns. Bestaande URL's en gegevens blijven behouden. |
 | 0.18.0 | Vaste cycli van 1, 2 of 3 weken vanaf de gekozen startdatum vervangen de flexibele cyclus. Meerdere bouwblokken per ochtend, middag en avond, met instelbare volgorde en dezelfde dagdeelindeling in de tijdlijn. Bieb-formulier in twee stappen: type kiezen en relevante velden invullen, zonder Doel en met ingeklapte extra opties. Workoutlijst verborgen tijdens aanmaken en bewerken. Voer pb-setup uit voor workouts.day_part en herstart PocketBase. |
 | 0.17.0 | AI-planner alleen zichtbaar met een opgeslagen API-sleutel. Bouwblokken in de Bieb volledig en atomair bewerken zonder bestaande trainingen te wijzigen. Metingen verplaatst van Profiel naar Health met grafieken voor gewicht, BMI en taille in Insights. Aanmaakknoppen consequent Nieuw. Herstart PocketBase voor de nieuwe templates-hook. |

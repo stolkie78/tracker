@@ -3,7 +3,7 @@
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
+  import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
@@ -22,6 +22,7 @@
     RECOVERY_ACTIVITY_OPTIONS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
+    WORKOUT_STATUS_OPTIONS,
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
     type Exercise,
@@ -38,6 +39,7 @@
   let exerciseLogs: ExerciseLog[] = [];
   let loading = true;
   let error = '';
+  let statusSaving = false;
 
   $: workoutDate = workout
     ? new Intl.DateTimeFormat('nl-NL', {
@@ -160,7 +162,9 @@
   });
 
   const changeStatus = async (status: Workout['status']) => {
-    if (!workout) return;
+    if (!workout || statusSaving) return;
+    statusSaving = true;
+    error = '';
     try {
       if (status === 'completed' && workout.status !== 'completed' && workout.series_id) {
         for (const exercise of exerciseLogs) {
@@ -179,6 +183,8 @@
       });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Training kon niet worden aangepast.';
+    } finally {
+      statusSaving = false;
     }
   };
 
@@ -244,6 +250,10 @@
 
   const removeWorkout = async () => {
     if (!workout) return;
+    if (workout.plan) {
+      error = 'Beheer deze training vanuit het programma.';
+      return;
+    }
     if (!confirm('Weet je zeker dat je deze training wilt verwijderen?')) return;
     try {
       await deleteWorkout(workout.id);
@@ -255,6 +265,10 @@
 
   const removeSeries = async () => {
     if (!workout?.series_id) return;
+    if (workout.plan) {
+      error = 'Beheer deze reeks vanuit het programma.';
+      return;
+    }
     if (!confirm('Alle nog geplande trainingen in deze reeks verwijderen?')) return;
     try {
       await deleteFutureSeries(workout.series_id);
@@ -268,11 +282,6 @@
   const isDone = (exercise: ExerciseLog) => exercise.sets.length > 0 && doneSets(exercise) === exercise.sets.length;
   $: finishedCount = exerciseLogs.filter(isDone).length;
 
-  const STATUS_CYCLE: Workout['status'][] = ['planned', 'in_progress', 'completed', 'skipped'];
-  const cycleStatus = () => {
-    if (!workout) return;
-    changeStatus(STATUS_CYCLE[(STATUS_CYCLE.indexOf(workout.status) + 1) % STATUS_CYCLE.length]);
-  };
 
   const startWorkout = () => changeStatus('in_progress');
   const finishWorkout = async () => {
@@ -308,7 +317,7 @@
       </div>
       <div class="flex flex-wrap gap-2">
         <button class="btn-secondary" type="button" on:click={() => (editing ? (editing = false) : openEdit())}><Pencil size={17} /> {editing ? 'Annuleren' : 'Bewerken'}</button>
-        <button class="btn-danger" on:click={removeWorkout}><Trash2 size={17} /> Verwijderen</button>
+        {#if !workout.plan}<button class="btn-danger" on:click={removeWorkout}><Trash2 size={17} /> Verwijderen</button>{/if}
       </div>
     </div>
     {#if editing}
@@ -371,13 +380,19 @@
     </div>
     {#if workout.notes}<div class="mt-4 rounded-xl bg-gray-50 p-4 dark:bg-gray-800"><p class="text-sm font-semibold text-gray-500 dark:text-gray-400">Notities</p><p class="mt-1 whitespace-pre-wrap">{workout.notes}</p></div>{/if}
     <div class="mt-5">
-      <p class="label">Status</p>
-      <button type="button" class="btn-secondary min-w-[14rem] justify-between" on:click={cycleStatus} aria-label="Status wijzigen, nu {WORKOUT_STATUS_LABELS[workout.status]}">
-        <span class="font-bold">{WORKOUT_STATUS_LABELS[workout.status]}</span>
-        <span class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300"><RefreshCw size={16} /> Volgende: {WORKOUT_STATUS_LABELS[STATUS_CYCLE[(STATUS_CYCLE.indexOf(workout.status) + 1) % STATUS_CYCLE.length]]}</span>
-      </button>
+      <label class="label" for="workout-status">Status</label>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="w-full sm:w-64">
+          <CycleChoice id="workout-status" label="Status" value={workout.status} options={WORKOUT_STATUS_OPTIONS}
+            disabled={statusSaving} onChange={changeStatus} />
+        </div>
+      </div>
     </div>
-    {#if workout.series_id}<button class="btn-secondary mt-4" type="button" on:click={removeSeries}>Geplande reeks verwijderen</button>{/if}
+    {#if workout.plan}
+      <a class="btn-secondary mt-4" href="/programs">Programma beheren</a>
+    {:else if workout.series_id}
+      <button class="btn-secondary mt-4" type="button" on:click={removeSeries}>Geplande reeks verwijderen</button>
+    {/if}
   </article>
 
   {#if workout.type === 'strength'}
@@ -459,16 +474,16 @@
           {/each}
         </ul>
         {#if workout.status === 'planned'}
-          <button class="btn-primary w-full" on:click={startWorkout}><Play size={18} /> Training starten</button>
+          <button class="btn-primary w-full" disabled={statusSaving} on:click={startWorkout}><Play size={18} /> Training starten</button>
         {:else if workout.status === 'in_progress'}
-          <button class="btn-primary w-full" on:click={finishWorkout}><Check size={18} /> Training afronden</button>
+          <button class="btn-primary w-full" disabled={statusSaving} on:click={finishWorkout}><Check size={18} /> Training afronden</button>
         {/if}
       {/if}
     </section>
   {:else if workout.status === 'planned'}
-    <button class="btn-primary w-full" on:click={startWorkout}><Play size={18} /> Training starten</button>
+    <button class="btn-primary w-full" disabled={statusSaving} on:click={startWorkout}><Play size={18} /> Training starten</button>
   {:else if workout.status === 'in_progress'}
-    <button class="btn-primary w-full" on:click={finishWorkout}><Check size={18} /> Training afronden</button>
+    <button class="btn-primary w-full" disabled={statusSaving} on:click={finishWorkout}><Check size={18} /> Training afronden</button>
   {/if}
   {#if error && workout.type !== 'strength'}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
 </div>
