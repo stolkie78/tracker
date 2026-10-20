@@ -32,6 +32,13 @@ Zet `GOOGLE_CLIENT_ID` en `GOOGLE_CLIENT_SECRET` in het env-bestand (beide of ge
 
 Elke gebruiker ziet alleen eigen data: alle gebruikersdata (workouts, oefeningen in training, sets, plannen, AI-instellingen) heeft een `owner` en de API-regels laten alleen `owner = @request.auth.id` toe; eigenaar wijzigen via update is geblokkeerd. De oefeningencatalogus is gedeeld: iedereen kan lezen en toevoegen, alleen een app-admin kan wijzigen of verwijderen.
 
+### Bouwblokken, losse sessies en programma's
+
+- **Bibliotheek** (`/library`): standaard trainingen (bouwblokken) per type (kracht, cardio, interval, herstel) met niveau, doel en tags. Een bouwblok start je direct of plan je als losse sessie op een datum.
+- **Programma** (`/programs`): plant bouwblokken uit de bibliotheek in vaste weekdagen (ma–zo, N weken) of een flexibele cyclus (bijv. 10 of 21 dagen) die N keer herhaald wordt. Opslaan maakt een `training_plans`-record en geplande trainingen in de tijdlijn.
+- Losse sessies en programma-trainingen staan op dezelfde tijdlijn; programma-trainingen zijn herkenbaar aan het programmalabel.
+- Draai na een update `docker compose run --rm pb-setup` voor de nieuwe collecties en velden.
+
 ### AI-trainingsplanner
 
 Open **Instellingen** in de app en vul een OpenAI-compatibele endpoint-URL, modelnaam en je eigen API-sleutel in. Standaard staan de OpenAI-URL en `gpt-4o-mini` ingevuld; een andere compatibele provider kan ook. De API-sleutel wordt via een geauthenticeerde PocketBase-hook server-side in een verborgen veld opgeslagen. De private collectie heeft geen directe browser-API-regels; de hook geeft alleen endpoint, model en de status van de sleutel terug. De PocketBase-hook stuurt de planningsvraag server-side naar de provider en valideert de periode, beschikbare dagen en opgegeven mix per week voordat resultaten aan de frontend worden teruggegeven. Externe endpoints moeten HTTPS gebruiken; voor lokale modelservers is localhost toegestaan.
@@ -67,6 +74,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 | Versie | Wijzigingen |
 |---|---|
+| 0.12.0 | Bouwblokken en programma's: een bibliotheek met standaard trainingen (kracht, cardio, interval, herstel; met niveau, doel en tags) die je direct start, als losse sessie inplant of in een programma gebruikt. Programma's werken met vaste weekdagen of een flexibele cyclus (bijv. 10 of 21 dagen) waarin de bouwblokken in willekeurige volgorde worden afgerond, met voortgang per cyclus. Programma-trainingen zijn herkenbaar op de tijdlijn; het formulier "Losse training" is vervallen. Nieuwe collecties `workout_templates` en `template_exercises`, nieuwe velden op `training_plans` en `workouts`; `deploy.sh` kent `SEED_DEMO_OVERRIDE`. |
 | 0.11.0 | Strava-koppeling: hardloopactiviteiten worden automatisch geïmporteerd (elke 30 minuten en bij openen van de app), gekoppeld aan een geplande hardlooptraining van dezelfde dag en bijgewerkt bij wijzigingen. Statistieken tonen hardloopafstand, tempo, hoogtemeters en hartslag. Sets worden direct per set opgeslagen en er is een rusttimer. |
 | 0.10.9 | Krachtoefeningen bevatten nu instelbare rust tussen sets en tempo, standaard 90 seconden rust en tempo 3-1-1-0; de waarden zijn zichtbaar bij het trainingsschema en tijdens de oefening. |
 | 0.10.8 | Dashboard licht actieve trainingen en trainingen van vandaag uit, toont de actieve en eerstvolgende training apart en markeert de eerstvolgende training extra. |

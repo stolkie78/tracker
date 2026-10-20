@@ -8,6 +8,12 @@ export type UserRole = 'admin' | 'coach' | 'athlete';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' | 'machine' | 'bodyweight' | 'band' | 'other';
 
+export const EXPERIENCE_LEVEL_LABELS: Record<ExperienceLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Gemiddeld',
+  advanced: 'Gevorderd'
+};
+
 export const DEFAULT_STRENGTH_REST_SECONDS = 90;
 export const DEFAULT_STRENGTH_TEMPO = '3-1-1-0';
 
@@ -73,6 +79,8 @@ export interface Exercise extends BaseRecord {
 export interface Workout extends BaseRecord {
   owner: ID;
   plan?: ID;
+  template?: ID;
+  due_date?: string;
   title: string;
   type: WorkoutType;
   status: WorkoutStatus;
@@ -103,6 +111,65 @@ export interface TrainingPlan extends BaseRecord {
   end_date: string;
   weeks: number;
   summary: string;
+  schedule_mode?: ScheduleMode;
+  cycle_days?: number;
+  cycles?: number;
+  cycle_pattern?: string;
+}
+
+export type ScheduleMode = 'fixed_weekdays' | 'flexible_cycle';
+
+export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
+  fixed_weekdays: 'Vaste weekdagen',
+  flexible_cycle: 'Flexibele cyclus'
+};
+
+export interface CycleSlot {
+  template: ID;
+}
+
+// Flexibele cyclus: bouwblokken die binnen de periode (n keer) uitgevoerd moeten worden, in willekeurige volgorde.
+export interface CycleItem {
+  template: ID;
+  count: number;
+}
+
+export interface WorkoutTemplate extends BaseRecord {
+  owner: ID;
+  title: string;
+  type: WorkoutType;
+  duration_minutes: number;
+  notes: string;
+  level?: ExperienceLevel;
+  goal?: string;
+  tags?: string;
+  cardio_mode?: CardioMode;
+  distance_km?: number;
+  interval_work_seconds?: number;
+  interval_rest_seconds?: number;
+  interval_rounds?: number;
+  recovery_activity?: RecoveryActivity;
+  expand?: {
+    template_exercises_via_template?: TemplateExercise[];
+  };
+}
+
+export interface TemplateExercise extends BaseRecord {
+  owner: ID;
+  template: ID;
+  exercise: ID;
+  equipment?: ExerciseEquipment;
+  rest_seconds?: number;
+  tempo?: string;
+  set_order: number;
+  target_sets: number;
+  reps_min: number;
+  reps_max: number;
+  starting_weight: number;
+  weight_increment: number;
+  expand?: {
+    exercise?: Exercise;
+  };
 }
 
 export interface AISettings extends BaseRecord {
