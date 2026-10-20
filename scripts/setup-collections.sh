@@ -138,7 +138,10 @@ PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson end "$(date_field end_date true)" \
   --argjson weeks "$(number_field weeks true)" \
   --argjson summary "$(text_field summary)" \
-  '[$owner,$title,$goal,$start,$end,$weeks,$summary]')"
+  --argjson mode "$(select_field schedule_mode '["fixed_weekdays","flexible_cycle"]')" \
+  --argjson cycle_days "$(number_field cycle_days)" --argjson cycles "$(number_field cycles)" \
+  --argjson pattern "$(text_field cycle_pattern)" \
+  '[$owner,$title,$goal,$start,$end,$weeks,$summary,$mode,$cycle_days,$cycles,$pattern]')"
 ensure_collection training_plans base "$PLAN_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
@@ -161,8 +164,38 @@ ensure_collection strava_connections base "$STRAVA_FIELDS" \
   __locked__ __locked__ __locked__ __locked__ __locked__
 
 PLAN_ID="$(collection_id training_plans)"
+EXERCISE_ID="$(collection_id exercises)"
+TEMPLATE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson title "$(text_field title true)" \
+  --argjson type "$(select_field type '["strength","cardio","interval","recovery"]' true)" \
+  --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
+  --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","other"]')" \
+  --argjson distance "$(number_field distance_km)" \
+  --argjson interval_work "$(number_field interval_work_seconds)" --argjson interval_rest "$(number_field interval_rest_seconds)" \
+  --argjson rounds "$(number_field interval_rounds)" \
+  --argjson recovery "$(select_field recovery_activity '["rest","mobility","yoga","walking","stretching","other"]')" \
+  --argjson level "$(select_field level '["beginner","intermediate","advanced"]')" \
+  --argjson goal "$(text_field goal)" --argjson tags "$(text_field tags)" \
+  '[$owner,$title,$type,$duration,$notes,$cardio,$distance,$interval_work,$interval_rest,$rounds,$recovery,$level,$goal,$tags]')"
+ensure_collection workout_templates base "$TEMPLATE_FIELDS" \
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
+
+TEMPLATE_ID="$(collection_id workout_templates)"
+TEMPLATE_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson template "$(relation_field template "$TEMPLATE_ID" true)" \
+  --argjson exercise "$(relation_field exercise "$EXERCISE_ID" true)" \
+  --argjson order "$(number_field set_order true)" --argjson sets "$(number_field target_sets true)" \
+  --argjson min "$(number_field reps_min true)" --argjson max "$(number_field reps_max true)" \
+  --argjson start "$(number_field starting_weight)" --argjson increment "$(number_field weight_increment true)" \
+  --argjson rest "$(number_field rest_seconds)" --argjson tempo "$(text_field tempo)" \
+  --argjson equipment "$(select_field equipment '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]')" \
+  '[$owner,$template,$exercise,$order,$sets,$min,$max,$start,$increment,$equipment,$rest,$tempo]')"
+ensure_collection template_exercises base "$TEMPLATE_EXERCISE_FIELDS" \
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson plan "$(relation_field plan "$PLAN_ID")" \
+  --argjson template "$(relation_field template "$TEMPLATE_ID")" \
+  --argjson due "$(date_field due_date)" \
   --argjson title "$(text_field title true)" \
   --argjson type "$(select_field type '["strength","cardio","interval","recovery"]' true)" \
   --argjson status "$(select_field status '["planned","in_progress","completed","skipped"]' true)" \
@@ -175,12 +208,11 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson recovery "$(select_field recovery_activity '["rest","mobility","yoga","walking","stretching","other"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$effort,$series,$strava,$elevation]')"
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$effort,$series,$strava,$elevation,$template,$due]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 WORKOUT_ID="$(collection_id workouts)"
-EXERCISE_ID="$(collection_id exercises)"
 WORKOUT_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson workout "$(relation_field workout "$WORKOUT_ID" true)" \
   --argjson exercise "$(relation_field exercise "$EXERCISE_ID" true)" \
@@ -222,6 +254,8 @@ HEALTH_CHECKIN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection health_checkins base "$HEALTH_CHECKIN_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
+ensure_select_values workout_templates level '["beginner","intermediate","advanced"]'
+ensure_select_values training_plans schedule_mode '["fixed_weekdays","flexible_cycle"]'
 ensure_select_values workouts type '["strength","cardio","interval","recovery"]'
 ensure_select_values workouts status '["planned","in_progress","completed","skipped"]'
 ensure_select_values exercises category '["compound","isolation","bodyweight","other"]'
@@ -411,7 +445,69 @@ ensure_google_oauth() {
   api -X PATCH "$PB_URL/api/collections/$users_id" -H 'Content-Type: application/json' --data "$payload" >/dev/null
 }
 
+# Standaard bouwblokken voor de bibliotheek van het app-adminaccount (alleen als die nog leeg is).
+seed_template() { # title type duration level goal tags notes extra-json
+  local owner="$1" payload
+  payload="$(jq -n --arg o "$owner" --arg t "$2" --arg ty "$3" --argjson d "$4" --arg l "$5" --arg g "$6" --arg tags "$7" --arg n "$8" --argjson x "$9" \
+    '{owner:$o,title:$t,type:$ty,duration_minutes:$d,level:$l,goal:$g,tags:$tags,notes:$n} + $x')"
+  api -X POST "$PB_URL/api/collections/$(collection_id workout_templates)/records" \
+    -H 'Content-Type: application/json' --data "$payload" | jq -er '.id'
+}
+
+seed_template_exercise() { # owner template exercise-name order sets min max weight increment equipment
+  local exercise_id payload
+  exercise_id="$(api --get --data-urlencode "filter=name=\"$3\"" --data-urlencode perPage=1 \
+    "$PB_URL/api/collections/$(collection_id exercises)/records" | jq -er '.items[0].id')"
+  payload="$(jq -n --arg o "$1" --arg t "$2" --arg e "$exercise_id" --argjson ord "$4" --argjson s "$5" --argjson mn "$6" --argjson mx "$7" \
+    --argjson w "$8" --argjson inc "$9" --arg eq "${10}" \
+    '{owner:$o,template:$t,exercise:$e,set_order:$ord,target_sets:$s,reps_min:$mn,reps_max:$mx,starting_weight:$w,weight_increment:$inc,equipment:$eq,rest_seconds:90,tempo:"3-1-1-0"}')"
+  api -X POST "$PB_URL/api/collections/$(collection_id template_exercises)/records" \
+    -H 'Content-Type: application/json' --data "$payload" >/dev/null
+}
+
+seed_library() {
+  [ -n "$PB_ADMIN_USER_EMAIL" ] || return 0
+  local owner tid
+  owner="$(api --get --data-urlencode "filter=email=\"$PB_ADMIN_USER_EMAIL\"" --data-urlencode perPage=1 \
+    "$PB_URL/api/collections/$(collection_id users)/records" | jq -er '.items[0].id')"
+  if [ "$(api --get --data-urlencode "filter=owner=\"$owner\"" --data-urlencode perPage=1 \
+    "$PB_URL/api/collections/$(collection_id workout_templates)/records" | jq '.totalItems')" -gt 0 ]; then
+    echo "Bibliotheek heeft al bouwblokken, overslaan."
+    return 0
+  fi
+
+  tid="$(seed_template "$owner" "Upper body" strength 60 intermediate "Spiermassa" "bovenlichaam,duwen,trekken" "Standaard bovenlichaamtraining." '{}')"
+  seed_template_exercise "$owner" "$tid" "Bench press" 1 3 6 10 40 2.5 barbell
+  seed_template_exercise "$owner" "$tid" "Row" 2 3 8 12 30 2.5 barbell
+  seed_template_exercise "$owner" "$tid" "Overhead press" 3 3 8 12 20 2.5 dumbbell
+  seed_template_exercise "$owner" "$tid" "Lat pulldown" 4 3 8 12 40 2.5 cable
+  seed_template_exercise "$owner" "$tid" "Curl" 5 2 10 15 10 1 dumbbell
+  seed_template_exercise "$owner" "$tid" "Tricep pushdown" 6 2 10 15 20 2.5 cable
+
+  tid="$(seed_template "$owner" "Lower body" strength 60 intermediate "Kracht" "onderlichaam,benen" "Standaard onderlichaamtraining." '{}')"
+  seed_template_exercise "$owner" "$tid" "Squat" 1 4 5 8 60 2.5 barbell
+  seed_template_exercise "$owner" "$tid" "Romanian deadlift" 2 3 8 12 50 2.5 barbell
+  seed_template_exercise "$owner" "$tid" "Lunge" 3 3 10 12 12 2 dumbbell
+  seed_template_exercise "$owner" "$tid" "Leg curl" 4 3 10 15 30 2.5 machine
+  seed_template_exercise "$owner" "$tid" "Calf raise" 5 3 12 20 40 5 machine
+
+  tid="$(seed_template "$owner" "Full body kettlebell" strength 45 beginner "Conditie en kracht" "full body,kettlebell" "Compacte training met één kettlebell." '{}')"
+  seed_template_exercise "$owner" "$tid" "Swing" 1 4 10 15 16 2 kettlebell
+  seed_template_exercise "$owner" "$tid" "Clean and press" 2 3 6 8 12 2 kettlebell
+  seed_template_exercise "$owner" "$tid" "Turkish get-up" 3 2 3 5 8 2 kettlebell
+
+  seed_template "$owner" "10K hardlopen" cardio 60 intermediate "Duurconditie" "hardlopen,duur" "Rustig tempo, praatsnelheid." '{"cardio_mode":"running","distance_km":10}' >/dev/null
+  seed_template "$owner" "5K hardlopen" cardio 30 beginner "Conditie" "hardlopen" "Rustig opbouwen." '{"cardio_mode":"running","distance_km":5}' >/dev/null
+  seed_template "$owner" "Fietstocht 30 km" cardio 75 beginner "Duurconditie" "fietsen,duur" "Constant tempo." '{"cardio_mode":"cycling","distance_km":30}' >/dev/null
+  seed_template "$owner" "Intervallen 8 × 30/60" interval 30 intermediate "Snelheid en VO2max" "interval,hardlopen" "8 rondes: 30 sec hard, 60 sec rustig." '{"cardio_mode":"running","interval_work_seconds":30,"interval_rest_seconds":60,"interval_rounds":8}' >/dev/null
+  seed_template "$owner" "Mobiliteit" recovery 20 beginner "Herstel" "mobiliteit,herstel" "Rustige mobiliteitsoefeningen." '{"recovery_activity":"mobility"}' >/dev/null
+  seed_template "$owner" "Wandelen herstel" recovery 40 beginner "Herstel" "wandelen,herstel" "Actief herstel." '{"recovery_activity":"walking"}' >/dev/null
+  echo "Standaard bouwblokken toegevoegd aan de bibliotheek."
+}
+
+
 ensure_google_oauth
 ensure_admin_user
+seed_library
 
 echo "PocketBase collections are ready."

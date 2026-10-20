@@ -12,7 +12,7 @@
   let dark = true;
   let roleLoadError = '';
 
-  const TRAINING_PATHS = ['/workouts', '/stats', '/planner'];
+  const TRAINING_PATHS = ['/workouts', '/stats', '/planner', '/programs', '/library'];
   const nav = [
     { href: '/', label: 'Training', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
     { href: '/health', label: 'Health', icon: HeartPulse, match: (path: string) => path.startsWith('/health') },
@@ -21,7 +21,8 @@
 
   const trainingNav = [
     { href: '/', label: 'Tijdlijn' },
-    { href: '/workouts/new', label: 'Training toevoegen' },
+    { href: '/library', label: 'Bibliotheek' },
+    { href: '/programs', label: 'Programma' },
     { href: '/stats', label: 'Statistieken' },
     { href: '/planner', label: 'AI-planner' }
   ];

@@ -12,8 +12,10 @@ import {
   type Profile,
   type StravaStatus,
   type StravaSyncCounts,
+  type TemplateExercise,
   type TrainingPlan,
   type Workout,
+  type WorkoutTemplate,
   type WorkoutExercise,
   type WorkoutSet
 } from '$lib/types';
@@ -289,3 +291,89 @@ export const saveHealthCheckin = async (programId: ID, date: string, data: { fas
   existing
     ? pb.collection('health_checkins').update<HealthCheckin>(existing.id, data)
     : pb.collection('health_checkins').create<HealthCheckin>({ ...data, program: programId, date, owner: currentUserId() });
+
+const TEMPLATE_EXPAND = 'template_exercises_via_template,template_exercises_via_template.exercise';
+
+export const getTemplates = () =>
+  pb.collection('workout_templates').getFullList<WorkoutTemplate>({
+    filter: ownerFilter(),
+    sort: 'type,title',
+    expand: TEMPLATE_EXPAND,
+    requestKey: null
+  });
+
+export const createTemplate = (data: Omit<WorkoutTemplate, 'id' | 'created' | 'updated' | 'owner' | 'expand'>) =>
+  pb.collection('workout_templates').create<WorkoutTemplate>({ ...data, owner: currentUserId() });
+
+export const createTemplateExercise = (data: Omit<TemplateExercise, 'id' | 'created' | 'updated' | 'owner' | 'expand'>) =>
+  pb.collection('template_exercises').create<TemplateExercise>({ ...data, owner: currentUserId() });
+
+export const deleteTemplate = async (id: ID) => {
+  const entries = await pb.collection('template_exercises').getFullList<TemplateExercise>({
+    filter: `${ownerFilter()} && template = "${id}"`,
+    requestKey: null
+  });
+  await Promise.all(entries.map((entry) => pb.collection('template_exercises').delete(entry.id)));
+  await pb.collection('workout_templates').delete(id);
+};
+
+// Maakt een uitvoerbare training (incl. oefeningen en sets) op basis van een bouwblok.
+export const instantiateTemplate = async (
+  template: WorkoutTemplate,
+  performedAt: Date,
+  options: { status?: Workout['status']; plan?: ID; notes?: string; dueDate?: string } = {}
+) => {
+  const created = await createWorkout({
+    template: template.id,
+    ...(options.plan ? { plan: options.plan } : {}),
+    ...(options.dueDate ? { due_date: options.dueDate } : {}),
+    title: template.title,
+    type: template.type,
+    status: options.status ?? 'planned',
+    performed_at: performedAt.toISOString(),
+    duration_minutes: template.duration_minutes,
+    notes: options.notes ?? template.notes ?? '',
+    ...(template.cardio_mode ? { cardio_mode: template.cardio_mode } : {}),
+    ...(template.distance_km ? { distance_km: template.distance_km } : {}),
+    ...(template.interval_work_seconds ? { interval_work_seconds: template.interval_work_seconds } : {}),
+    ...(template.interval_rest_seconds ? { interval_rest_seconds: template.interval_rest_seconds } : {}),
+    ...(template.interval_rounds ? { interval_rounds: template.interval_rounds } : {}),
+    ...(template.recovery_activity ? { recovery_activity: template.recovery_activity } : {})
+  });
+
+  const entries = [...(template.expand?.template_exercises_via_template ?? [])].sort((a, b) => a.set_order - b.set_order);
+  for (const entry of entries) {
+    const workoutExercise = await createWorkoutExercise({
+      owner: created.owner,
+      workout: created.id,
+      exercise: entry.exercise,
+      ...(entry.equipment ? { equipment: entry.equipment } : {}),
+      set_order: entry.set_order,
+      target_sets: entry.target_sets,
+      reps_min: entry.reps_min,
+      reps_max: entry.reps_max,
+      starting_weight: entry.starting_weight,
+      weight_increment: entry.weight_increment,
+      rest_seconds: entry.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS,
+      tempo: entry.tempo ?? DEFAULT_STRENGTH_TEMPO
+    });
+    for (let index = 0; index < entry.target_sets; index += 1) {
+      await createWorkoutSet({
+        owner: created.owner,
+        workout_exercise: workoutExercise.id,
+        set_order: index + 1,
+        reps: 0,
+        weight: entry.starting_weight,
+        completed: false
+      });
+    }
+  }
+  return created;
+};
+
+export const getPlanWorkouts = (planId: ID) =>
+  pb.collection('workouts').getFullList<Workout>({
+    filter: `${ownerFilter()} && plan = "${planId}"`,
+    sort: 'performed_at',
+    requestKey: null
+  });
