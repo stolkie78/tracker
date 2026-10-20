@@ -248,6 +248,12 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   recovery: 'Herstel'
 };
 
+// Voorvoegsel voor bouwblokken in keuzelijsten: bij cardio de activiteit (Hardlopen), anders het type (Kracht).
+export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode }) => {
+  const prefix = template.type === 'cardio' && template.cardio_mode ? CARDIO_MODE_LABELS[template.cardio_mode] : WORKOUT_TYPE_LABELS[template.type];
+  return `${prefix} · ${template.title}`;
+};
+
 export const WORKOUT_STATUS_LABELS: Record<WorkoutStatus, string> = {
   planned: 'Gepland',
   in_progress: 'Bezig',

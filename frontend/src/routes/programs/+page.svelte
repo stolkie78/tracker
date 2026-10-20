@@ -4,7 +4,7 @@
   import { createTrainingPlan, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate } from '$lib/pocketbase';
   import {
     SCHEDULE_MODE_LABELS,
-    WORKOUT_TYPE_LABELS,
+    templateLabel,
     WORKOUT_TYPE_STYLES,
     type CycleItem,
     type CycleSlot,
@@ -259,7 +259,7 @@
             <div class="grid grid-cols-[1fr_5rem_auto] items-center gap-2">
               <select class="input" aria-label="Bouwblok" bind:value={item.template}>
                 <option value="">Kies bouwblok…</option>
-                {#each templates as template}<option value={template.id}>{template.title} · {WORKOUT_TYPE_LABELS[template.type]}</option>{/each}
+                {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
               </select>
               <input class="input" type="number" min="1" max="20" aria-label="Aantal keer" bind:value={item.count} />
               <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={items.length === 1} on:click={() => (items = items.filter((_, i) => i !== index))}>✕</button>
@@ -272,7 +272,7 @@
             <p class="font-bold">{slotLabel(index)}</p>
             <select class="input" aria-label="Bouwblok voor {slotLabel(index)}" bind:value={slot.template}>
               <option value="">Rustdag</option>
-              {#each templates as template}<option value={template.id}>{template.title} · {WORKOUT_TYPE_LABELS[template.type]}</option>{/each}
+              {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
             </select>
           </div>
         {/each}
