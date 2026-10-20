@@ -1,9 +1,10 @@
 export type ID = string;
 
-export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery';
+export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport';
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
 export type CardioMode = 'running' | 'cycling' | 'rowing' | 'swimming' | 'walking' | 'other';
 export type RecoveryActivity = 'rest' | 'mobility' | 'yoga' | 'walking' | 'stretching' | 'other';
+export type SportActivity = 'indoor_volleyball' | 'beach_volleyball' | 'pickleball' | 'football' | 'tennis' | 'basketball';
 export type UserRole = 'admin' | 'coach' | 'athlete';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' | 'machine' | 'bodyweight' | 'band' | 'other';
@@ -94,6 +95,7 @@ export interface Workout extends BaseRecord {
   interval_rest_seconds?: number;
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
+  sport_activity?: SportActivity;
   perceived_effort?: number;
   series_id?: string;
   strava_id?: string;
@@ -124,8 +126,9 @@ export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
   flexible_cycle: 'Flexibele cyclus'
 };
 
+// Een weekdag bevat nul (rustdag), een of meer bouwblokken in volgorde.
 export interface CycleSlot {
-  template: ID;
+  templates: ID[];
 }
 
 // Flexibele cyclus: bouwblokken die binnen de periode (n keer) uitgevoerd moeten worden, in willekeurige volgorde.
@@ -149,6 +152,7 @@ export interface WorkoutTemplate extends BaseRecord {
   interval_rest_seconds?: number;
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
+  sport_activity?: SportActivity;
   expand?: {
     template_exercises_via_template?: TemplateExercise[];
   };
@@ -205,6 +209,7 @@ export interface GeneratedWorkout {
   interval_rest_seconds?: number;
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
+  sport_activity?: SportActivity;
 }
 
 export interface GeneratedPlan {
@@ -245,12 +250,18 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   strength: 'Kracht',
   cardio: 'Cardio',
   interval: 'Interval',
-  recovery: 'Herstel'
+  recovery: 'Herstel',
+  sport: 'Sporten'
 };
 
 // Voorvoegsel voor bouwblokken in keuzelijsten: bij cardio de activiteit (Hardlopen), anders het type (Kracht).
-export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode }) => {
-  const prefix = template.type === 'cardio' && template.cardio_mode ? CARDIO_MODE_LABELS[template.cardio_mode] : WORKOUT_TYPE_LABELS[template.type];
+export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode; sport_activity?: SportActivity }) => {
+  const prefix =
+    template.type === 'cardio' && template.cardio_mode
+      ? CARDIO_MODE_LABELS[template.cardio_mode]
+      : template.type === 'sport' && template.sport_activity
+        ? SPORT_ACTIVITY_LABELS[template.sport_activity]
+        : WORKOUT_TYPE_LABELS[template.type];
   return `${prefix} · ${template.title}`;
 };
 
@@ -277,6 +288,15 @@ export const RECOVERY_ACTIVITY_LABELS: Record<RecoveryActivity, string> = {
   walking: 'Wandelen',
   stretching: 'Rekken',
   other: 'Anders'
+};
+
+export const SPORT_ACTIVITY_LABELS: Record<SportActivity, string> = {
+  indoor_volleyball: 'Zaalvolleybal',
+  beach_volleyball: 'Beachvolleybal',
+  pickleball: 'Pickleball',
+  football: 'Voetbal',
+  tennis: 'Tennis',
+  basketball: 'Basketbal'
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -337,6 +357,11 @@ export const RECOVERY_ACTIVITY_OPTIONS = Object.entries(RECOVERY_ACTIVITY_LABELS
   label
 }));
 
+export const SPORT_ACTIVITY_OPTIONS = Object.entries(SPORT_ACTIVITY_LABELS).map(([value, label]) => ({
+  value: value as SportActivity,
+  label
+}));
+
 export const WORKOUT_STATUS_OPTIONS = Object.entries(WORKOUT_STATUS_LABELS).map(([value, label]) => ({
   value: value as WorkoutStatus,
   label
@@ -359,7 +384,8 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, { icon: string; badge: str
   strength: { icon: 'bg-orange-500 text-white', badge: 'bg-orange-500 text-white' },
   cardio: { icon: 'bg-sky-500 text-white', badge: 'bg-sky-500 text-white' },
   interval: { icon: 'bg-rose-500 text-white', badge: 'bg-rose-500 text-white' },
-  recovery: { icon: 'bg-emerald-500 text-white', badge: 'bg-emerald-500 text-white' }
+  recovery: { icon: 'bg-emerald-500 text-white', badge: 'bg-emerald-500 text-white' },
+  sport: { icon: 'bg-violet-500 text-white', badge: 'bg-violet-500 text-white' }
 };
 
 export const exerciseLabel = (name: string, equipment?: ExerciseEquipment | '') =>

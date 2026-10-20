@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ArrowLeft, Check, ChevronRight, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
+  import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
   import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
@@ -13,6 +13,10 @@
     getTopProtocol,
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
+    SPORT_ACTIVITY_LABELS,
+    SPORT_ACTIVITY_OPTIONS,
+    CARDIO_MODE_OPTIONS,
+    RECOVERY_ACTIVITY_OPTIONS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
@@ -174,6 +178,63 @@
     }
   };
 
+  let editing = false;
+  let saving = false;
+  let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball' };
+
+  const toLocalInput = (iso: string) => {
+    const date = new Date(iso);
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
+
+  const openEdit = () => {
+    if (!workout) return;
+    edit = {
+      title: workout.title,
+      when: toLocalInput(workout.performed_at),
+      duration: workout.duration_minutes ?? 0,
+      notes: workout.notes ?? '',
+      cardio: workout.cardio_mode ?? 'running',
+      distance: workout.distance_km ?? 0,
+      work: workout.interval_work_seconds ?? 30,
+      rest: workout.interval_rest_seconds ?? 60,
+      rounds: workout.interval_rounds ?? 8,
+      recovery: workout.recovery_activity ?? 'mobility',
+      sport: workout.sport_activity ?? 'indoor_volleyball'
+    };
+    editing = true;
+  };
+
+  const saveEdit = async () => {
+    if (!workout) return;
+    if (!edit.title.trim() || !edit.when) {
+      error = 'Titel en datum zijn verplicht.';
+      return;
+    }
+    saving = true;
+    error = '';
+    try {
+      const type = workout.type;
+      const updated = await updateWorkout(workout.id, {
+        title: edit.title.trim(),
+        performed_at: new Date(edit.when).toISOString(),
+        duration_minutes: edit.duration,
+        notes: edit.notes,
+        ...(type === 'cardio' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
+        ...(type === 'interval' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], interval_work_seconds: edit.work, interval_rest_seconds: edit.rest, interval_rounds: edit.rounds } : {}),
+        ...(type === 'recovery' ? { recovery_activity: edit.recovery as Workout['recovery_activity'] } : {}),
+        ...(type === 'sport' ? { sport_activity: edit.sport as Workout['sport_activity'] } : {})
+      });
+      workout = { ...workout, ...updated, expand: workout.expand };
+      editing = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Opslaan is mislukt.';
+    } finally {
+      saving = false;
+    }
+  };
+
   const removeWorkout = async () => {
     if (!workout) return;
     if (!confirm('Weet je zeker dat je deze training wilt verwijderen?')) return;
@@ -238,8 +299,46 @@
         <h2 class="mt-3 text-3xl font-black">{workout.title}</h2>
         <p class="mt-2 capitalize text-gray-600 dark:text-gray-300">{workoutDate}</p>
       </div>
-      <button class="btn-danger" on:click={removeWorkout}><Trash2 size={17} /> Verwijderen</button>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-secondary" type="button" on:click={() => (editing ? (editing = false) : openEdit())}><Pencil size={17} /> {editing ? 'Annuleren' : 'Bewerken'}</button>
+        <button class="btn-danger" on:click={removeWorkout}><Trash2 size={17} /> Verwijderen</button>
+      </div>
     </div>
+    {#if editing}
+      <form class="mt-5 grid gap-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:grid-cols-2" on:submit|preventDefault={saveEdit}>
+        <div><label class="label" for="edit-title">Titel</label><input id="edit-title" class="input" bind:value={edit.title} maxlength="120" required /></div>
+        <div><label class="label" for="edit-when">Datum en tijd</label><input id="edit-when" class="input" type="datetime-local" bind:value={edit.when} required /></div>
+        <div><label class="label" for="edit-duration">Duur (minuten)</label><input id="edit-duration" class="input" type="number" min="0" bind:value={edit.duration} /></div>
+        {#if workout.type === 'cardio' || workout.type === 'interval'}
+          <div>
+            <label class="label" for="edit-cardio">Activiteit</label>
+            <select id="edit-cardio" class="input" bind:value={edit.cardio}>{#each CARDIO_MODE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+          </div>
+        {/if}
+        {#if workout.type === 'cardio'}
+          <div><label class="label" for="edit-distance">Afstand (km)</label><input id="edit-distance" class="input" type="number" min="0" step="0.1" bind:value={edit.distance} /></div>
+        {/if}
+        {#if workout.type === 'interval'}
+          <div><label class="label" for="edit-work">Werk (sec)</label><input id="edit-work" class="input" type="number" min="0" bind:value={edit.work} /></div>
+          <div><label class="label" for="edit-rest">Rust (sec)</label><input id="edit-rest" class="input" type="number" min="0" bind:value={edit.rest} /></div>
+          <div><label class="label" for="edit-rounds">Rondes</label><input id="edit-rounds" class="input" type="number" min="1" bind:value={edit.rounds} /></div>
+        {/if}
+        {#if workout.type === 'recovery'}
+          <div>
+            <label class="label" for="edit-recovery">Activiteit</label>
+            <select id="edit-recovery" class="input" bind:value={edit.recovery}>{#each RECOVERY_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+          </div>
+        {/if}
+        {#if workout.type === 'sport'}
+          <div>
+            <label class="label" for="edit-sport">Sport</label>
+            <select id="edit-sport" class="input" bind:value={edit.sport}>{#each SPORT_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+          </div>
+        {/if}
+        <div class="sm:col-span-2"><label class="label" for="edit-notes">Notities</label><textarea id="edit-notes" class="input" rows="3" bind:value={edit.notes}></textarea></div>
+        <button class="btn-primary sm:col-span-2" type="submit" disabled={saving}>{saving ? 'Opslaan...' : 'Wijzigingen opslaan'}</button>
+      </form>
+    {/if}
     <div class="mt-5 grid gap-3 sm:grid-cols-2">
       {#if workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Duur</span><p class="font-bold">{workout.duration_minutes} minuten</p></div>{/if}
       {#if workout.type === 'cardio'}
@@ -253,6 +352,8 @@
         <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Interval</span><p class="font-bold">{workout.interval_rounds} rondes · {workout.interval_work_seconds}s werk / {workout.interval_rest_seconds}s rust</p></div>
       {:else if workout.type === 'recovery' && workout.recovery_activity}
         <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activiteit</span><p class="font-bold">{RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]}</p></div>
+      {:else if workout.type === 'sport' && workout.sport_activity}
+        <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Sport</span><p class="font-bold">{SPORT_ACTIVITY_LABELS[workout.sport_activity]}</p></div>
       {/if}
       {#if workout.perceived_effort}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Ervaren inspanning</span><p class="font-bold">{workout.perceived_effort} / 10</p></div>{/if}
     </div>

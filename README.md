@@ -73,6 +73,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.14.0 | Nieuwe categorie Sporten (zaalvolleybal, beachvolleybal, pickleball, voetbal, tennis, basketbal) als bouwblok en training. In een programma met vaste weekdagen kun je meerdere trainingen op één dag plannen. Programma's kunnen achteraf worden bewerkt (toekomstige trainingen worden opnieuw ingepland, uitgevoerde blijven staan) of verwijderd, en een training is te bewerken (titel, datum, duur, details, notities). Nieuw veld `sport_activity` en type `sport`. |
 | 0.13.2 | Nieuwe schouderoefeningen: Front raise, Pike push-up, Dips, Upright row, Rear delt fly, Cable cross rear delt pull en Inverted row. |
 | 0.13.1 | Bij het maken van een kracht-bouwblok kun je de oefeningen filteren op spiergroep, zodat je niet meer één lange lijst hebt. |
 |---|---|

@@ -20,6 +20,8 @@
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     RECOVERY_ACTIVITY_OPTIONS,
+    SPORT_ACTIVITY_LABELS,
+    SPORT_ACTIVITY_OPTIONS,
     WORKOUT_TYPE_LABELS,
     WORKOUT_TYPE_OPTIONS,
     WORKOUT_TYPE_STYLES,
@@ -28,6 +30,7 @@
     type ExperienceLevel,
     type ExerciseEquipment,
     type RecoveryActivity,
+    type SportActivity,
     type WorkoutTemplate,
     type WorkoutType
   } from '$lib/types';
@@ -60,6 +63,7 @@
   let intervalRest = 60;
   let intervalRounds = 8;
   let recoveryActivity: RecoveryActivity = 'mobility';
+  let sportActivity: SportActivity = 'indoor_volleyball';
   let entries: Entry[] = [emptyEntry()];
 
   onMount(async () => {
@@ -96,6 +100,7 @@
       if (template.distance_km) parts.push(`${template.distance_km} km`);
     }
     if (template.type === 'interval') parts.push(`${template.interval_rounds} × ${template.interval_work_seconds}s / ${template.interval_rest_seconds}s`);
+    if (template.type === 'sport' && template.sport_activity) parts.push(SPORT_ACTIVITY_LABELS[template.sport_activity]);
     if (template.type === 'recovery' && template.recovery_activity) parts.push(RECOVERY_ACTIVITY_LABELS[template.recovery_activity]);
     return parts.join(' · ');
   };
@@ -123,7 +128,8 @@
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(','),
         ...(type === 'cardio' ? { cardio_mode: cardioMode, distance_km: distance } : {}),
         ...(type === 'interval' ? { cardio_mode: cardioMode, interval_work_seconds: intervalWork, interval_rest_seconds: intervalRest, interval_rounds: intervalRounds } : {}),
-        ...(type === 'recovery' ? { recovery_activity: recoveryActivity } : {})
+        ...(type === 'recovery' ? { recovery_activity: recoveryActivity } : {}),
+        ...(type === 'sport' ? { sport_activity: sportActivity } : {})
       });
       if (type === 'strength') {
         for (const [index, entry] of entries.entries()) {
@@ -247,6 +253,14 @@
           <div><label class="label" for="tpl-work">Werk (sec)</label><input id="tpl-work" class="input" type="number" min="1" bind:value={intervalWork} /></div>
           <div><label class="label" for="tpl-rest">Rust (sec)</label><input id="tpl-rest" class="input" type="number" min="0" bind:value={intervalRest} /></div>
           <div><label class="label" for="tpl-rounds">Rondes</label><input id="tpl-rounds" class="input" type="number" min="1" bind:value={intervalRounds} /></div>
+        {/if}
+        {#if type === 'sport'}
+          <div>
+            <label class="label" for="tpl-sport">Sport</label>
+            <select id="tpl-sport" class="input" bind:value={sportActivity}>
+              {#each SPORT_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
+            </select>
+          </div>
         {/if}
         {#if type === 'recovery'}
           <div>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CalendarDays, Dumbbell, Footprints, HeartPulse, Plus, Timer } from '@lucide/svelte';
-  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse };
+  import { CalendarDays, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
+  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy };
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
@@ -9,6 +9,7 @@
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
+    SPORT_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
@@ -165,6 +166,9 @@
     }
     if (workout.type === 'recovery' && workout.recovery_activity) {
       details.push(RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]);
+    }
+    if (workout.type === 'sport' && workout.sport_activity) {
+      details.push(SPORT_ACTIVITY_LABELS[workout.sport_activity]);
     }
     if (workout.duration_minutes) details.push(`${workout.duration_minutes} min`);
     return details.join(' · ') || 'Geen extra details';
