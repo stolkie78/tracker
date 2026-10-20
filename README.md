@@ -73,6 +73,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.13.1 | Bij het maken van een kracht-bouwblok kun je de oefeningen filteren op spiergroep, zodat je niet meer één lange lijst hebt. |
 |---|---|
 | 0.12.1 | Bouwblokken in de keuzelijsten van het programma beginnen met hun type (Kracht, Hardlopen, Interval, Herstel), zodat het type niet meer in de naam hoeft. |
 | 0.12.0 | Bouwblokken en programma's: een bibliotheek met standaard trainingen (kracht, cardio, interval, herstel; met niveau, doel en tags) die je direct start, als losse sessie inplant of in een programma gebruikt. Programma's werken met vaste weekdagen of een flexibele cyclus (bijv. 10 of 21 dagen) waarin de bouwblokken in willekeurige volgorde worden afgerond, met voortgang per cyclus. Programma-trainingen zijn herkenbaar op de tijdlijn; het formulier "Losse training" is vervallen. Nieuwe collecties `workout_templates` en `template_exercises`, nieuwe velden op `training_plans` en `workouts`; `deploy.sh` kent `SEED_DEMO_OVERRIDE`. |

@@ -17,6 +17,7 @@
     DEFAULT_STRENGTH_TEMPO,
     EXERCISE_EQUIPMENT_LABELS,
     EXPERIENCE_LEVEL_LABELS,
+    MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     RECOVERY_ACTIVITY_OPTIONS,
     WORKOUT_TYPE_LABELS,
@@ -31,8 +32,8 @@
     type WorkoutType
   } from '$lib/types';
 
-  type Entry = { exercise: string; equipment: ExerciseEquipment | ''; sets: number; repsMin: number; repsMax: number; weight: number; increment: number };
-  const emptyEntry = (): Entry => ({ exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5 });
+  type Entry = { muscle: string; exercise: string; equipment: ExerciseEquipment | ''; sets: number; repsMin: number; repsMax: number; weight: number; increment: number };
+  const emptyEntry = (): Entry => ({ muscle: '', exercise: '', equipment: '', sets: 3, repsMin: 8, repsMax: 12, weight: 0, increment: 2.5 });
   const toInputDate = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
@@ -280,9 +281,13 @@
           <legend class="label">Oefeningen</legend>
           {#each entries as entry, index}
             <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-2">
+              <select class="input" aria-label="Spiergroep" value={entry.muscle} on:change={(event) => (entries[index] = { ...entry, muscle: event.currentTarget.value, exercise: '', equipment: '' })}>
+                <option value="">Alle spiergroepen</option>
+                {#each MUSCLE_GROUP_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
+              </select>
               <select class="input" aria-label="Oefening" value={entry.exercise} on:change={(event) => pickExercise(index, event.currentTarget.value)}>
                 <option value="">Kies oefening…</option>
-                {#each exercises as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
+                {#each exercises.filter((item) => !entry.muscle || item.muscle_group === entry.muscle) as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
               </select>
               <select class="input" aria-label="Materiaal" bind:value={entry.equipment}>
                 {#each optionsFor(entry.exercise) as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
