@@ -112,3 +112,7 @@ Onder **Health** staan leefstijlprogramma's los van trainingen, met drie onderde
 - **Braintraining**: cijfergeheugenspel met persoonlijk record (lokaal opgeslagen).
 
 Dit is geen medisch advies.
+
+### Agenda-feed (iCal)
+
+Onder **Instellingen → Agenda (iCal)** staat een persoonlijke, geheime abonnement-link (`/api/top-trainer/calendar/<token>/timeline.ics`). Voeg die toe in een agenda-app (Apple Agenda, Google Agenda, Outlook, ...): elke training uit je tijdlijn (laatste 90 dagen en alles daarna, behalve overgeslagen) wordt een afspraak met in de omschrijving en het URL-veld een directe link naar de training (`/workouts/<id>`). Met "Nieuwe link" maak je een nieuw token en vervalt de oude. Stel `APP_URL` in als de publieke URL afwijkt; draai na een update `docker compose run --rm pb-setup` voor de `calendar_feeds`-collectie.

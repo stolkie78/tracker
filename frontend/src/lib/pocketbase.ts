@@ -86,6 +86,12 @@ export const saveAISettings = (settings: Pick<AISettings, 'endpoint' | 'model'> 
     requestKey: null
   });
 
+export const getCalendarFeed = () =>
+  pb.send<{ url: string }>('/api/top-trainer/calendar', { method: 'GET', requestKey: null });
+
+export const resetCalendarFeed = () =>
+  pb.send<{ url: string }>('/api/top-trainer/calendar/reset', { method: 'POST', requestKey: null });
+
 export const getStravaStatus = () =>
   pb.send<StravaStatus>('/api/top-trainer/strava', { method: 'GET', requestKey: null });
 

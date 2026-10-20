@@ -7,6 +7,7 @@ services:
       PB_ADMIN_PASSWORD: ${PB_SUPERUSER_PASSWORD:?Set PB_SUPERUSER_PASSWORD in .env}
       STRAVA_CLIENT_ID: ${STRAVA_CLIENT_ID:-}
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
+      APP_URL: ${APP_URL:-http://localhost:3000}
     ports:
       - "${PB_PORT:-8090}:8090"
     volumes:
