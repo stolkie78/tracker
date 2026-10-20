@@ -64,6 +64,19 @@ export const longestStreak = (checkins: HealthCheckin[]) => {
   return best;
 };
 
+export const healthInsights = (checkins: HealthCheckin[], start: Date | null, today = toDateKey(new Date())) => {
+  const startDay = start ? toDateKey(start) : '';
+  const entries = checkins.filter((entry) => entry.date >= startDay && entry.date <= today);
+  const loggedDays = new Set(entries.map((entry) => entry.date)).size;
+  const fastedDays = new Set(entries.filter((entry) => entry.fasted).map((entry) => entry.date)).size;
+  return {
+    loggedDays,
+    fastedDays,
+    completion: loggedDays ? Math.round((fastedDays / loggedDays) * 100) : null,
+    longestStreak: longestStreak(entries)
+  };
+};
+
 export const FASTING_PROTOCOLS: Record<HealthProgramKind, { label: string; eatHours: number; description: string; defaultStart: string }> = {
   omad: { label: 'OMAD', eatHours: 1, defaultStart: '18:00', description: 'One Meal A Day: vast door de dag en eet één voedzame maaltijd.' },
   '16_8': { label: '16:8', eatHours: 8, defaultStart: '12:00', description: '16 uur vasten en een eetvenster van 8 uur.' },

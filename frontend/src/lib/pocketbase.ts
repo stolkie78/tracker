@@ -326,9 +326,9 @@ export const createHealthProgram = (data: Omit<HealthProgram, 'id' | 'created' |
 export const updateHealthProgram = (id: ID, data: Partial<HealthProgram>) =>
   pb.collection('health_programs').update<HealthProgram>(id, data);
 
-export const getHealthCheckins = (programId: ID) =>
+export const getHealthCheckins = (programId?: ID) =>
   pb.collection('health_checkins').getFullList<HealthCheckin>({
-    filter: `${ownerFilter()} && program = "${programId}"`,
+    filter: programId ? `${ownerFilter()} && program = "${programId}"` : ownerFilter(),
     sort: '-date',
     requestKey: null
   });

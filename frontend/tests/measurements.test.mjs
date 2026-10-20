@@ -7,7 +7,7 @@ const server = await createServer({
   configFile: false,
   resolve: { alias: { $lib: fileURLToPath(new URL('../src/lib', import.meta.url)) } },
   optimizeDeps: { noDiscovery: true, include: [] },
-  server: { middlewareMode: true },
+  server: { middlewareMode: true, ws: false },
   appType: 'custom'
 });
 after(() => server.close());

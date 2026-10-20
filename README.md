@@ -30,6 +30,8 @@ Zet `GOOGLE_CLIENT_ID` en `GOOGLE_CLIENT_SECRET` in het env-bestand (beide of ge
 
 ### Gegevensisolatie
 
+De hoofdnavigatie toont **Training**, **Health** en **Insights**. Instellingen en Profiel zijn herkenbaar aan hun icoon; onder Profiel staan de themawissel en uitloggen. **Insights** (`/stats`, bestaande links blijven werken) combineert trainingsresultaten, lichaamsmetingen en fasting-check-ins binnen dezelfde periode. Fastingdagen worden over alle programma's per kalenderdag ontdubbeld. Mindfulness-sessies worden nog niet opgeslagen; het lokale braintrainingrecord blijft onder Health.
+
 Elke gebruiker ziet alleen eigen data: alle gebruikersdata (workouts, oefeningen in training, sets, plannen, AI-instellingen) heeft een `owner` en de API-regels laten alleen `owner = @request.auth.id` toe; eigenaar wijzigen via update is geblokkeerd. De standaard oefeningencatalogus is gedeeld en alleen een app-admin kan deze wijzigen of verwijderen. Nieuw toegevoegde oefeningen zijn persoonlijk, ook voor de AI-planner. Bestaande catalogusoefeningen zonder eigenaar blijven gedeeld omdat hun oorspronkelijke maker niet is vastgelegd.
 
 **Profiel** (`/profile`) bevat een eigen naam, optionele geboortedatum, telefoonnummer, trainingsdoelen en lengte. Een profielfoto (JPG, PNG of WebP, maximaal 5 MB) is een beschermd bestand: ook de bestands-URL vereist autorisatie als eigenaar. Profielen zijn uniek per gebruiker; gebruikers kunnen hun eigenaar of rol niet wijzigen. De rollen `coach` en `admin` geven geen toegang tot persoonlijke gegevens van anderen; trainer/clientdeling is nog niet ingeschakeld. Accountrecords zijn alleen voor het eigen account leesbaar.
@@ -83,6 +85,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.16.0 | Training, Health en Insights als duidelijke hoofdfuncties; Instellingen en Profiel als iconen. Themawissel en uitloggen verplaatst naar Profiel. Insights combineert trainingsresultaten, lichaamsmetingen en fasting-check-ins met een gezamenlijk periodefilter. |
 | 0.15.0 | Persoonlijke profielpagina met beschermde profielfoto, persoonsgegevens en lengte. Gedateerde lichaamsmetingen met gewicht, BMI, tailleomtrek en gewichtsverandering in statistieken. Aangescherpte eigenaars- en relatieregels, persoonlijke nieuwe oefeningen en gescheiden browsergegevens per account. Trainer/clienttoegang blijft uitgeschakeld. Voer het setupscript opnieuw uit en herstart PocketBase. |
 | 0.14.0 | Nieuwe categorie Sporten (zaalvolleybal, beachvolleybal, pickleball, voetbal, tennis, basketbal) als bouwblok en training. In een programma met vaste weekdagen kun je meerdere trainingen op één dag plannen. Programma's kunnen achteraf worden bewerkt (toekomstige trainingen worden opnieuw ingepland, uitgevoerde blijven staan) of verwijderd, en een training is te bewerken (titel, datum, duur, details, notities). Nieuw veld `sport_activity` en type `sport`. |
 | 0.13.2 | Nieuwe schouderoefeningen: Front raise, Pike push-up, Dips, Upright row, Rear delt fly, Cable cross rear delt pull en Inverted row. |

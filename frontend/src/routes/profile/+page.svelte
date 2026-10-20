@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { LogOut, Moon, Sun } from '@lucide/svelte';
+  import { darkTheme } from '$lib/stores/theme';
   import { currentUser } from '$lib/stores/auth';
-  import { profile as profileStore } from '$lib/stores/role';
+  import { clearUserRoles, profile as profileStore } from '$lib/stores/role';
   import {
     createBodyMeasurement, deleteBodyMeasurement, getBodyMeasurements,
-    getOrCreateMyProfile, getProfilePhotoUrl, saveMyProfile
+    getOrCreateMyProfile, getProfilePhotoUrl, logout, saveMyProfile
   } from '$lib/pocketbase';
   import { calculateBMI, measurementDateLabel } from '$lib/measurements';
   import type { BodyMeasurement, Profile } from '$lib/types';
@@ -30,6 +33,12 @@
   let measurementHeight: number | undefined;
   let waist: number | undefined;
   let deleting = '';
+
+  const signOut = () => {
+    logout();
+    clearUserRoles();
+    goto('/login');
+  };
 
   function localDate() {
     const now = new Date();
@@ -132,6 +141,15 @@
     <h2 class="text-3xl font-black">Mijn profiel</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">Je persoonlijke gegevens, foto en metingen zijn alleen voor jou zichtbaar. Trainers hebben geen toegang.</p>
   </div>
+  <section class="card space-y-3" aria-label="Weergave en account">
+    <h3 class="text-xl font-bold">Weergave en account</h3>
+    <div class="flex flex-wrap gap-3">
+      <button type="button" class="btn-secondary gap-2" on:click={() => darkTheme.update((dark) => !dark)}>
+        {#if $darkTheme}<Sun size={20} /> Licht thema{:else}<Moon size={20} /> Donker thema{/if}
+      </button>
+      <button type="button" class="btn-secondary gap-2" on:click={signOut}><LogOut size={20} /> Uitloggen</button>
+    </div>
+  </section>
   {#if error}<p role="alert" class="card text-red-700 dark:text-red-300">{error}</p>{/if}
   {#if success}<p role="status" class="card text-emerald-700 dark:text-emerald-300">{success}</p>{/if}
   {#if loading}
@@ -178,7 +196,7 @@
     </form>
 
     <section class="card space-y-3">
-      <div class="flex items-center justify-between gap-3"><h3 class="text-xl font-bold">Meetgeschiedenis</h3><a class="font-bold text-overload-signal" href="/stats">Statistieken</a></div>
+      <div class="flex items-center justify-between gap-3"><h3 class="text-xl font-bold">Meetgeschiedenis</h3><a class="font-bold text-overload-signal" href="/stats">Insights</a></div>
       {#if !measurements.length}
         <p>Nog geen metingen toegevoegd.</p>
       {:else}

@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { ArrowDown, ArrowUp, Minus } from '@lucide/svelte';
-  import { getBodyMeasurements, getWorkouts } from '$lib/pocketbase';
+  import { getBodyMeasurements, getHealthCheckins, getWorkouts } from '$lib/pocketbase';
+  import { healthInsights } from '$lib/health';
   import { calculateBMI, measurementDateLabel, measurementStats } from '$lib/measurements';
-  import type { BodyMeasurement } from '$lib/types';
-  import { computeStats, PERIOD_OPTIONS, type ExerciseProgress, type PeriodKey } from '$lib/stats';
+  import type { BodyMeasurement, HealthCheckin } from '$lib/types';
+  import { computeStats, periodStart, PERIOD_OPTIONS, type ExerciseProgress, type PeriodKey } from '$lib/stats';
   import { CARDIO_MODE_LABELS, formatPace, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_STYLES, type CardioMode, type Workout, type WorkoutType } from '$lib/types';
 
   let workouts: Workout[] = [];
   let measurements: BodyMeasurement[] = [];
+  let checkins: HealthCheckin[] = [];
+  let healthLoading = true;
+  let healthError = '';
   let loading = true;
   let error = '';
   let period: PeriodKey = '12w';
@@ -16,6 +20,7 @@
 
   $: stats = computeStats(workouts, period);
   $: body = measurementStats(measurements, period);
+  $: health = healthInsights(checkins, periodStart(period));
   $: if (stats.exercises.length && !stats.exercises.some((exercise) => exercise.id === selected)) selected = stats.exercises[0].id;
   $: current = stats.exercises.find((exercise) => exercise.id === selected);
   $: hours = Math.floor(stats.totalMinutes / 60);
@@ -25,9 +30,19 @@
     try {
       [workouts, measurements] = await Promise.all([getWorkouts('status = "completed"'), getBodyMeasurements()]);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Statistieken konden niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Insights konden niet worden geladen.';
     } finally {
       loading = false;
+    }
+  });
+
+  onMount(async () => {
+    try {
+      checkins = await getHealthCheckins();
+    } catch (err) {
+      healthError = err instanceof Error ? err.message : 'Health-gegevens konden niet worden geladen.';
+    } finally {
+      healthLoading = false;
     }
   });
 
@@ -48,13 +63,13 @@
   $: points = current ? chart(current) : [];
 </script>
 
-<svelte:head><title>Statistieken · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>Insights · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-5">
   <div>
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Voortgang</p>
-    <h2 class="mt-1 text-3xl font-black">Statistieken</h2>
-    <p class="mt-1 text-gray-600 dark:text-gray-300">Alleen voltooide trainingen tellen mee.</p>
+    <h2 class="mt-1 text-3xl font-black">Insights</h2>
+    <p class="mt-1 text-gray-600 dark:text-gray-300">Training en Health komen hier samen: je beweging, lichaamsmetingen en leefstijl. Voor trainingscijfers tellen alleen voltooide trainingen mee.</p>
   </div>
 
   <div class="flex flex-wrap gap-2" role="group" aria-label="Periode">
@@ -62,6 +77,26 @@
       <button type="button" class="touch-target rounded-xl px-4 text-sm font-bold transition {period === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}" aria-pressed={period === option.value} on:click={() => (period = option.value)}>{option.label}</button>
     {/each}
   </div>
+
+  <section class="card space-y-3" aria-labelledby="health-insights">
+    <div class="flex items-center justify-between gap-3"><h3 id="health-insights" class="text-xl font-bold">Health · Fasting</h3><a class="font-bold text-overload-signal" href="/health/fasting">Naar Fasting</a></div>
+    {#if healthLoading}
+      <p>Health-gegevens laden...</p>
+    {:else if healthError}
+      <p role="alert" class="text-red-700 dark:text-red-300">{healthError}</p>
+    {:else if health.loggedDays}
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div><p class="label">Check-in dagen</p><p class="text-2xl font-black">{health.loggedDays}</p></div>
+        <div><p class="label">Gevaste dagen</p><p class="text-2xl font-black">{health.fastedDays}</p></div>
+        <div><p class="label">Afgerond</p><p class="text-2xl font-black">{health.completion}%</p></div>
+        <div><p class="label">Langste reeks</p><p class="text-2xl font-black">{health.longestStreak} dagen</p></div>
+      </div>
+      <p class="text-sm text-gray-600 dark:text-gray-300">Binnen de gekozen periode, over alle fastingprogramma's. Elke kalenderdag telt maximaal eenmaal; afgerond is het aandeel check-in dagen waarop je hebt gevast.</p>
+    {:else}
+      <p class="text-gray-600 dark:text-gray-300">Nog geen fasting-check-ins in deze periode. Houd ze bij onder Health.</p>
+    {/if}
+    <p class="text-sm text-gray-600 dark:text-gray-300">Mindfulness-sessies worden nog niet opgeslagen; het braintrainingrecord staat lokaal onder Health.</p>
+  </section>
 
   {#if !loading && !error}
     <section class="card space-y-3">
@@ -88,7 +123,7 @@
   {/if}
 
   {#if loading}
-    <div class="card animate-pulse">Statistieken laden...</div>
+    <div class="card animate-pulse">Insights laden...</div>
   {:else if error}
     <p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>
   {:else if stats.total === 0}
