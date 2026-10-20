@@ -306,6 +306,13 @@ seed_exercise "Curl" isolation biceps barbell,dumbbell,cable
 seed_exercise "Tricep extension" isolation triceps dumbbell,cable
 seed_exercise "Tricep pushdown" isolation triceps cable
 seed_exercise "Face pull" isolation shoulders cable
+seed_exercise "Front raise" isolation shoulders dumbbell,cable
+seed_exercise "Pike push-up" compound shoulders bodyweight
+seed_exercise "Dips" compound triceps bodyweight,machine
+seed_exercise "Upright row" compound shoulders dumbbell,cable,barbell
+seed_exercise "Rear delt fly" isolation shoulders dumbbell,machine,cable
+seed_exercise "Cable cross rear delt pull" isolation shoulders cable
+seed_exercise "Inverted row" compound back bodyweight,barbell
 seed_exercise "Pull-through" compound glutes cable
 seed_exercise "Woodchop" compound core cable
 seed_exercise "Straight-arm pulldown" isolation back cable
