@@ -41,6 +41,7 @@
 
   $: cycleLength = clamp(cycleDays, 2, 120);
   $: showForm = isCreating || editingPlan !== null;
+  $: activePlanCount = plans.filter((plan) => planState(plan) === 'active').length;
   $: templateById = new Map(templates.map((template) => [template.id, template]));
   $: schedule = buildSchedule(mode, startDate, weeks, cycleLength, cycles, slots, items, templateById);
 
@@ -113,6 +114,13 @@
     new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }).format(
       typeof value === 'string' ? new Date(`${value.slice(0, 10)}T12:00:00`) : value
     );
+
+  const planState = (plan: TrainingPlan): 'upcoming' | 'active' | 'ended' => {
+    const today = toInputDate(new Date());
+    if (today < plan.start_date.slice(0, 10)) return 'upcoming';
+    if (today > plan.end_date.slice(0, 10)) return 'ended';
+    return 'active';
+  };
 
   const slotLabel = (index: number) => WEEKDAYS[index];
 
@@ -297,7 +305,10 @@
   {:else}
     <section class="space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
-        <h3 class="text-xl font-black">Mijn programma’s</h3>
+        <div>
+          <h3 class="text-xl font-black">Mijn programma’s</h3>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{plans.length} programma’s · {activePlanCount} actief</p>
+        </div>
         <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw programma</button>
       </div>
       {#if plans.length === 0}
@@ -306,7 +317,16 @@
         {#each plans as plan}
           <div class="card">
             <div class="flex items-start justify-between gap-3">
-              <p class="font-bold">{plan.title}</p>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-bold">{plan.title}</p>
+                {#if planState(plan) === 'active'}
+                  <span class="badge bg-emerald-600 text-white">Actief</span>
+                {:else if planState(plan) === 'upcoming'}
+                  <span class="badge bg-sky-600 text-white">Gepland</span>
+                {:else}
+                  <span class="badge bg-gray-500 text-white">Afgelopen</span>
+                {/if}
+              </div>
               <div class="flex gap-2">
                 <button class="btn-secondary" type="button" aria-label="Programma bewerken" on:click={() => startEdit(plan)}><Pencil size={16} /> Bewerken</button>
                 <button class="btn-danger" type="button" aria-label="Programma verwijderen" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
