@@ -163,6 +163,13 @@ STRAVA_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection strava_connections base "$STRAVA_FIELDS" \
   __locked__ __locked__ __locked__ __locked__ __locked__
 
+CALENDAR_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson token "$(secret_field token)" \
+  '[$owner,$token]')"
+# Alleen toegankelijk via de server-hooks (geheim agenda-token per gebruiker).
+ensure_collection calendar_feeds base "$CALENDAR_FIELDS" \
+  __locked__ __locked__ __locked__ __locked__ __locked__
+
 PLAN_ID="$(collection_id training_plans)"
 EXERCISE_ID="$(collection_id exercises)"
 TEMPLATE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \

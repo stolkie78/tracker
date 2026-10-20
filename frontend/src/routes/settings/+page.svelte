@@ -3,7 +3,7 @@
   import { ArrowLeft, KeyRound, RefreshCw, Save } from '@lucide/svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { connectStrava, disconnectStrava, getAISettings, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
+  import { connectStrava, disconnectStrava, getAISettings, getCalendarFeed, resetCalendarFeed, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
   import type { StravaStatus, StravaSyncCounts } from '$lib/types';
 
   const defaultEndpoint = 'https://api.openai.com/v1';
@@ -57,6 +57,33 @@
     window.location.href = `https://www.strava.com/oauth/authorize?${params}`;
   };
 
+  let calendarUrl = '';
+  let calendarError = '';
+  let calendarMessage = '';
+
+  const loadCalendar = async () => {
+    try {
+      calendarUrl = (await getCalendarFeed()).url;
+    } catch (err) {
+      calendarError = err instanceof Error ? err.message : 'Agenda-link kon niet worden geladen.';
+    }
+  };
+
+  const copyCalendar = async () => {
+    await navigator.clipboard.writeText(calendarUrl);
+    calendarMessage = 'Link gekopieerd.';
+  };
+
+  const resetCalendar = async () => {
+    if (!confirm('Nieuwe agenda-link aanmaken? De oude link werkt dan niet meer.')) return;
+    try {
+      calendarUrl = (await resetCalendarFeed()).url;
+      calendarMessage = 'Nieuwe link aangemaakt. Abonneer je agenda opnieuw.';
+    } catch (err) {
+      calendarError = err instanceof Error ? err.message : 'Link vernieuwen mislukt.';
+    }
+  };
+
   const runStravaSync = async () => {
     stravaBusy = true;
     stravaError = '';
@@ -88,6 +115,7 @@
 
   onMount(async () => {
     loadStrava();
+    loadCalendar();
     try {
       const settings = await getAISettings();
       if (settings) {
@@ -154,6 +182,21 @@
     {/if}
     {#if stravaError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaError}</p>{/if}
     {#if stravaMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaMessage}</p>{/if}
+  </section>
+
+  <section class="card space-y-3">
+    <h3 class="text-xl font-bold">Agenda (iCal)</h3>
+    <p class="text-gray-600 dark:text-gray-300">Abonneer je agenda-app (Apple, Google, Outlook) op deze link. Elke training verschijnt als afspraak met een directe link om te starten. Deel de link niet: wie hem heeft, kan je tijdlijn zien.</p>
+    {#if calendarUrl}
+      <input class="input" readonly value={calendarUrl} on:focus={(e) => e.currentTarget.select()} aria-label="iCal-link" />
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" type="button" on:click={copyCalendar}>Kopieer link</button>
+        <a class="btn-secondary" href={calendarUrl.replace(/^https?:/, 'webcal:')}>Abonneren</a>
+        <button class="btn-secondary" type="button" on:click={resetCalendar}>Nieuwe link</button>
+      </div>
+    {/if}
+    {#if calendarError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{calendarError}</p>{/if}
+    {#if calendarMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{calendarMessage}</p>{/if}
   </section>
 
   {#if loading}
