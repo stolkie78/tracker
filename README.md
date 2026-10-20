@@ -74,6 +74,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 
 | Versie | Wijzigingen |
 |---|---|
+| 0.12.1 | Bouwblokken in de keuzelijsten van het programma beginnen met hun type (Kracht, Hardlopen, Interval, Herstel), zodat het type niet meer in de naam hoeft. |
 | 0.12.0 | Bouwblokken en programma's: een bibliotheek met standaard trainingen (kracht, cardio, interval, herstel; met niveau, doel en tags) die je direct start, als losse sessie inplant of in een programma gebruikt. Programma's werken met vaste weekdagen of een flexibele cyclus (bijv. 10 of 21 dagen) waarin de bouwblokken in willekeurige volgorde worden afgerond, met voortgang per cyclus. Programma-trainingen zijn herkenbaar op de tijdlijn; het formulier "Losse training" is vervallen. Nieuwe collecties `workout_templates` en `template_exercises`, nieuwe velden op `training_plans` en `workouts`; `deploy.sh` kent `SEED_DEMO_OVERRIDE`. |
 | 0.11.0 | Strava-koppeling: hardloopactiviteiten worden automatisch geïmporteerd (elke 30 minuten en bij openen van de app), gekoppeld aan een geplande hardlooptraining van dezelfde dag en bijgewerkt bij wijzigingen. Statistieken tonen hardloopafstand, tempo, hoogtemeters en hartslag. Sets worden direct per set opgeslagen en er is een rusttimer. |
 | 0.10.9 | Krachtoefeningen bevatten nu instelbare rust tussen sets en tempo, standaard 90 seconden rust en tempo 3-1-1-0; de waarden zijn zichtbaar bij het trainingsschema en tijdens de oefening. |
