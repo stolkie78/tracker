@@ -6,7 +6,7 @@ const storageKey = 'top-trainer-timeline-type';
 const initialValue = (): WorkoutType | '' => {
   if (!browser) return '';
   const saved = localStorage.getItem(storageKey);
-  return saved === 'strength' || saved === 'cardio' || saved === 'interval' || saved === 'recovery' ? saved : '';
+  return saved === 'strength' || saved === 'cardio' || saved === 'interval' || saved === 'recovery' || saved === 'sport' ? saved : '';
 };
 
 export const activeWorkoutType = writable<WorkoutType | ''>(initialValue());

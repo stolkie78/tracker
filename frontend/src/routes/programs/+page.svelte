@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CalendarDays, Check, LoaderCircle, Repeat } from '@lucide/svelte';
-  import { createTrainingPlan, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate } from '$lib/pocketbase';
+  import { CalendarDays, Check, LoaderCircle, Pencil, Repeat, Trash2 } from '@lucide/svelte';
+  import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
   import {
     SCHEDULE_MODE_LABELS,
     templateLabel,
@@ -18,7 +18,7 @@
   const MAX_WORKOUTS = 200;
   const toInputDate = (date: Date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-  const emptySlot = (): CycleSlot => ({ template: '' });
+  const emptySlot = (): CycleSlot => ({ templates: [] });
 
   let title = '';
   let goal = '';
@@ -33,6 +33,7 @@
   let plans: TrainingPlan[] = [];
   let templates: WorkoutTemplate[] = [];
   let pageLoading = true;
+  let editingPlan: TrainingPlan | null = null;
   let saving = false;
   let error = '';
   let success = '';
@@ -80,8 +81,10 @@
         const date = new Date(monday);
         date.setDate(monday.getDate() + offset);
         if (date < first) continue;
-        const template = lookup.get(pattern[offset % 7]?.template);
-        if (template) result.push({ date, template, cycle: Math.floor(offset / 7) + 1, day: offset % 7, seq: 0, total: 0 });
+        (pattern[offset % 7]?.templates ?? []).forEach((id, order) => {
+          const template = lookup.get(id);
+          if (template) result.push({ date, template, cycle: Math.floor(offset / 7) + 1, day: offset % 7, seq: order + 1, total: 0 });
+        });
       }
     } else {
       for (let cycle = 0; cycle < clamp(cycleCount, 1, 52); cycle += 1) {
@@ -141,12 +144,27 @@
     }
 
     saving = true;
-    let planId = '';
+    let planId = editingPlan?.id ?? '';
     let created = 0;
     try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let entries = schedule;
+      let kept = 0;
+      if (editingPlan) {
+        // Uitgevoerde trainingen en cycli die al gestart zijn blijven staan; de rest wordt opnieuw gepland.
+        const existing = await getPlanWorkouts(editingPlan.id);
+        const touched = new Set(existing.filter((workout) => workout.status !== 'planned' && workout.due_date).map((workout) => workout.due_date!.slice(0, 10)));
+        const removable = existing.filter((workout) =>
+          workout.status === 'planned' && (workout.due_date ? !touched.has(workout.due_date.slice(0, 10)) && new Date(workout.due_date) >= today : new Date(workout.performed_at) >= today)
+        );
+        for (const workout of removable) await deleteWorkout(workout.id);
+        kept = existing.length - removable.length;
+        entries = schedule.filter((entry) => (entry.due ? !touched.has(toInputDate(entry.due)) && entry.due >= today : entry.date >= today));
+      }
       const lastDate = schedule[schedule.length - 1].due ?? schedule[schedule.length - 1].date;
       const totalDays = mode === 'fixed_weekdays' ? clamp(weeks, 1, 52) * 7 : clamp(cycles, 1, 52) * cycleLength;
-      const plan = await createTrainingPlan({
+      const data = {
         title: title.trim(),
         goal: goal.trim() || title.trim(),
         start_date: new Date(`${startDate}T12:00:00`).toISOString(),
@@ -157,9 +175,10 @@
         cycle_days: mode === 'fixed_weekdays' ? 7 : cycleLength,
         cycles: mode === 'fixed_weekdays' ? clamp(weeks, 1, 52) : clamp(cycles, 1, 52),
         cycle_pattern: JSON.stringify(mode === 'fixed_weekdays' ? slots : items)
-      });
+      };
+      const plan = editingPlan ? await updateTrainingPlan(editingPlan.id, data) : await createTrainingPlan(data);
       planId = plan.id;
-      for (const entry of schedule) {
+      for (const entry of entries) {
         const when = new Date(`${toInputDate(entry.date)}T09:00:00`);
         when.setMinutes(when.getMinutes() + entry.seq);
         await instantiateTemplate(entry.template, when, {
@@ -169,15 +188,73 @@
         });
         created += 1;
       }
-      plans = [plan, ...plans];
-      success = `Programma opgeslagen met ${created} geplande trainingen in je tijdlijn.`;
+      if (editingPlan) {
+        plans = plans.map((item) => (item.id === plan.id ? plan : item));
+        if (mode === 'flexible_cycle') progress = { ...progress, [plan.id]: await getPlanWorkouts(plan.id) };
+        success = `Programma bijgewerkt: ${created} trainingen opnieuw gepland, ${kept} bestaande behouden.`;
+        editingPlan = null;
+      } else {
+        plans = [plan, ...plans];
+        if (mode === 'flexible_cycle') progress = { ...progress, [plan.id]: await getPlanWorkouts(plan.id) };
+        success = `Programma opgeslagen met ${created} geplande trainingen in je tijdlijn.`;
+      }
       title = '';
       goal = '';
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'Opslaan is mislukt.';
-      error = planId ? `Programma aangemaakt, maar slechts ${created} van de ${schedule.length} trainingen zijn opgeslagen. ${reason}` : reason;
+      error = planId ? `Programma opgeslagen, maar slechts ${created} trainingen zijn aangemaakt. ${reason}` : reason;
     } finally {
       saving = false;
+    }
+  };
+
+  const normalizeSlots = (raw: unknown): CycleSlot[] => {
+    const parsed = Array.isArray(raw) ? raw : [];
+    return Array.from({ length: 7 }, (_, index) => {
+      const slot = parsed[index] as { templates?: string[]; template?: string } | undefined;
+      return { templates: slot?.templates ?? (slot?.template ? [slot.template] : []) };
+    });
+  };
+
+  const startEdit = (plan: TrainingPlan) => {
+    let pattern: unknown = [];
+    try {
+      pattern = JSON.parse(plan.cycle_pattern || '[]');
+    } catch {
+      pattern = [];
+    }
+    editingPlan = plan;
+    success = '';
+    error = '';
+    title = plan.title;
+    goal = plan.goal === plan.title ? '' : plan.goal;
+    mode = plan.schedule_mode ?? 'fixed_weekdays';
+    startDate = plan.start_date.slice(0, 10);
+    if (mode === 'fixed_weekdays') {
+      weeks = plan.cycles ?? 4;
+      slots = normalizeSlots(pattern);
+    } else {
+      cycleDays = plan.cycle_days ?? 10;
+      cycles = plan.cycles ?? 3;
+      items = Array.isArray(pattern) && pattern.length > 0 ? (pattern as CycleItem[]) : [{ template: '', count: 1 }];
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const cancelEdit = () => {
+    editingPlan = null;
+    title = '';
+    goal = '';
+  };
+
+  const removePlan = async (plan: TrainingPlan) => {
+    if (!confirm(`Programma “${plan.title}” verwijderen? Nog geplande trainingen worden verwijderd, uitgevoerde blijven bewaard.`)) return;
+    try {
+      await deleteTrainingPlan(plan.id);
+      plans = plans.filter((item) => item.id !== plan.id);
+      if (editingPlan?.id === plan.id) cancelEdit();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Verwijderen is mislukt.';
     }
   };
 </script>
@@ -189,7 +266,7 @@
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Meerdere trainingen</p>
     <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programma maken</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
-      Een programma plant bouwblokken uit je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">bibliotheek</a> (kracht, cardio, interval, herstel) in een herhaalbare cyclus.
+      Een programma plant bouwblokken uit je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">bibliotheek</a> (kracht, cardio, interval, herstel, sporten) in een herhaalbare cyclus.
     </p>
   </div>
 
@@ -197,6 +274,7 @@
     <div class="card animate-pulse">Laden...</div>
   {:else}
     <form class="card space-y-5" on:submit|preventDefault={save}>
+      {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Je bewerkt “{editingPlan.title}”. Uitgevoerde trainingen en reeds gestarte cycli blijven staan; geplande trainingen vanaf vandaag worden opnieuw ingepland.</p>{/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="prog-title">Naam</label>
@@ -268,12 +346,21 @@
           <button class="btn-secondary w-full" type="button" on:click={() => (items = [...items, { template: '', count: 1 }])}>+ Bouwblok toevoegen</button>
         {:else}
         {#each slots as slot, index}
-          <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-[7rem_1fr] sm:items-center">
+          <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-[7rem_1fr]">
             <p class="font-bold">{slotLabel(index)}</p>
-            <select class="input" aria-label="Bouwblok voor {slotLabel(index)}" bind:value={slot.template}>
-              <option value="">Rustdag</option>
-              {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
-            </select>
+            <div class="space-y-2">
+              {#if slot.templates.length === 0}<p class="text-sm text-gray-500 dark:text-gray-400">Rustdag</p>{/if}
+              {#each slot.templates as _, order}
+                <div class="grid grid-cols-[1fr_auto] items-center gap-2">
+                  <select class="input" aria-label="Bouwblok {order + 1} voor {slotLabel(index)}" bind:value={slot.templates[order]}>
+                    <option value="">Kies bouwblok…</option>
+                    {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
+                  </select>
+                  <button class="btn-secondary" type="button" aria-label="Verwijderen" on:click={() => (slots[index] = { templates: slot.templates.filter((_, i) => i !== order) })}>✕</button>
+                </div>
+              {/each}
+              <button class="btn-secondary w-full" type="button" on:click={() => (slots[index] = { templates: [...slot.templates, ''] })}>+ Training toevoegen</button>
+            </div>
           </div>
         {/each}
         {/if}
@@ -297,8 +384,9 @@
       {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
       {#if success}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{success}</p>{/if}
       <button class="btn-primary w-full" type="submit" disabled={saving}>
-        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}<Check size={18} /> Programma opslaan in mijn tijdlijn{/if}
+        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}<Check size={18} /> {editingPlan ? 'Wijzigingen opslaan en toekomstige trainingen herplannen' : 'Programma opslaan in mijn tijdlijn'}{/if}
       </button>
+      {#if editingPlan}<button class="btn-secondary w-full" type="button" on:click={cancelEdit}>Bewerken annuleren</button>{/if}
     </form>
 
     <section class="space-y-3">
@@ -311,7 +399,13 @@
       {:else}
         {#each plans as plan}
           <div class="card">
-            <p class="font-bold">{plan.title}</p>
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-bold">{plan.title}</p>
+              <div class="flex gap-2">
+                <button class="btn-secondary" type="button" aria-label="Programma bewerken" on:click={() => startEdit(plan)}><Pencil size={16} /> Bewerken</button>
+                <button class="btn-danger" type="button" aria-label="Programma verwijderen" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
+              </div>
+            </div>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {plan.schedule_mode ? SCHEDULE_MODE_LABELS[plan.schedule_mode] : ''}{plan.schedule_mode === 'flexible_cycle' ? ` · ${plan.cycle_days} dagen × ${plan.cycles} cycli` : ''} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
             </p>

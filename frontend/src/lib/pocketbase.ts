@@ -127,6 +127,16 @@ export const generateTrainingPlan = (input: {
 export const createTrainingPlan = (data: Omit<TrainingPlan, 'id' | 'created' | 'updated' | 'owner'>) =>
   pb.collection('training_plans').create<TrainingPlan>({ ...data, owner: currentUserId() });
 
+export const updateTrainingPlan = (id: ID, data: Partial<TrainingPlan>) =>
+  pb.collection('training_plans').update<TrainingPlan>(id, data);
+
+// Verwijdert een programma en de nog geplande trainingen; uitgevoerde trainingen blijven bewaard.
+export const deleteTrainingPlan = async (id: ID) => {
+  const planned = (await getPlanWorkouts(id)).filter((workout) => workout.status === 'planned');
+  for (const workout of planned) await deleteWorkout(workout.id);
+  await pb.collection('training_plans').delete(id);
+};
+
 export const getTrainingPlans = () =>
   pb.collection('training_plans').getFullList<TrainingPlan>({
     filter: ownerFilter(),
@@ -344,7 +354,8 @@ export const instantiateTemplate = async (
     ...(template.interval_work_seconds ? { interval_work_seconds: template.interval_work_seconds } : {}),
     ...(template.interval_rest_seconds ? { interval_rest_seconds: template.interval_rest_seconds } : {}),
     ...(template.interval_rounds ? { interval_rounds: template.interval_rounds } : {}),
-    ...(template.recovery_activity ? { recovery_activity: template.recovery_activity } : {})
+    ...(template.recovery_activity ? { recovery_activity: template.recovery_activity } : {}),
+    ...(template.sport_activity ? { sport_activity: template.sport_activity } : {})
   });
 
   const entries = [...(template.expand?.template_exercises_via_template ?? [])].sort((a, b) => a.set_order - b.set_order);
