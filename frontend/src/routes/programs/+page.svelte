@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CalendarDays, Check, LoaderCircle, Pencil, Repeat, Trash2 } from '@lucide/svelte';
+  import { Check, LoaderCircle, Pencil, Plus, Repeat, Trash2 } from '@lucide/svelte';
   import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
   import {
     SCHEDULE_MODE_LABELS,
@@ -34,11 +34,13 @@
   let templates: WorkoutTemplate[] = [];
   let pageLoading = true;
   let editingPlan: TrainingPlan | null = null;
+  let isCreating = false;
   let saving = false;
   let error = '';
   let success = '';
 
   $: cycleLength = clamp(cycleDays, 2, 120);
+  $: showForm = isCreating || editingPlan !== null;
   $: templateById = new Map(templates.map((template) => [template.id, template]));
   $: schedule = buildSchedule(mode, startDate, weeks, cycleLength, cycles, slots, items, templateById);
 
@@ -193,10 +195,12 @@
         if (mode === 'flexible_cycle') progress = { ...progress, [plan.id]: await getPlanWorkouts(plan.id) };
         success = `Programma bijgewerkt: ${created} trainingen opnieuw gepland, ${kept} bestaande behouden.`;
         editingPlan = null;
+        isCreating = false;
       } else {
         plans = [plan, ...plans];
         if (mode === 'flexible_cycle') progress = { ...progress, [plan.id]: await getPlanWorkouts(plan.id) };
         success = `Programma opgeslagen met ${created} geplande trainingen in je tijdlijn.`;
+        isCreating = false;
       }
       title = '';
       goal = '';
@@ -238,13 +242,31 @@
       cycles = plan.cycles ?? 3;
       items = Array.isArray(pattern) && pattern.length > 0 ? (pattern as CycleItem[]) : [{ template: '', count: 1 }];
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.setTimeout(() => document.getElementById('program-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   const cancelEdit = () => {
     editingPlan = null;
+    isCreating = false;
     title = '';
     goal = '';
+  };
+
+  const startCreate = () => {
+    editingPlan = null;
+    isCreating = true;
+    success = '';
+    error = '';
+    title = '';
+    goal = '';
+    mode = 'fixed_weekdays';
+    startDate = toInputDate(new Date());
+    weeks = 4;
+    cycleDays = 10;
+    cycles = 3;
+    slots = Array.from({ length: 7 }, emptySlot);
+    items = [{ template: '', count: 1 }];
+    window.setTimeout(() => document.getElementById('program-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   const removePlan = async (plan: TrainingPlan) => {
@@ -264,7 +286,7 @@
 <div class="space-y-6">
   <div>
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Meerdere trainingen</p>
-    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programma maken</h2>
+    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programma’s</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
       Een programma plant bouwblokken uit je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">bibliotheek</a> (kracht, cardio, interval, herstel, sporten) in een herhaalbare cyclus.
     </p>
@@ -273,7 +295,46 @@
   {#if pageLoading}
     <div class="card animate-pulse">Laden...</div>
   {:else}
-    <form class="card space-y-5" on:submit|preventDefault={save}>
+    <section class="space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <h3 class="text-xl font-black">Mijn programma’s</h3>
+        <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw programma</button>
+      </div>
+      {#if plans.length === 0}
+        <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen programma’s. Maak een programma om bouwblokken op je tijdlijn te plannen.</div>
+      {:else}
+        {#each plans as plan}
+          <div class="card">
+            <div class="flex items-start justify-between gap-3">
+              <p class="font-bold">{plan.title}</p>
+              <div class="flex gap-2">
+                <button class="btn-secondary" type="button" aria-label="Programma bewerken" on:click={() => startEdit(plan)}><Pencil size={16} /> Bewerken</button>
+                <button class="btn-danger" type="button" aria-label="Programma verwijderen" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {plan.schedule_mode ? SCHEDULE_MODE_LABELS[plan.schedule_mode] : ''}{plan.schedule_mode === 'flexible_cycle' ? ` · ${plan.cycle_days} dagen × ${plan.cycles} cycli` : ''} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
+            </p>
+            {#if plan.schedule_mode === 'flexible_cycle'}
+              <ul class="mt-3 space-y-1 text-sm">
+                {#each cycleStats(plan.id) as [, stat], index}
+                  <li class="flex items-center justify-between gap-3">
+                    <span>Cyclus {index + 1} · t/m {formatDate(stat.due)}</span>
+                    <span class="font-bold {stat.done === stat.total ? 'text-emerald-600' : ''}">{stat.done}/{stat.total} uitgevoerd</span>
+                  </li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/each}
+      {/if}
+    </section>
+
+    {#if error && !showForm}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
+    {#if success}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{success}</p>{/if}
+
+    {#if showForm}
+    <form id="program-form" class="card scroll-mt-4 space-y-5" on:submit|preventDefault={save}>
       {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Je bewerkt “{editingPlan.title}”. Uitgevoerde trainingen en reeds gestarte cycli blijven staan; geplande trainingen vanaf vandaag worden opnieuw ingepland.</p>{/if}
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
@@ -388,40 +449,6 @@
       </button>
       {#if editingPlan}<button class="btn-secondary w-full" type="button" on:click={cancelEdit}>Bewerken annuleren</button>{/if}
     </form>
-
-    <section class="space-y-3">
-      <div class="flex items-center gap-2">
-        <CalendarDays size={20} class="text-overload-signal" />
-        <h3 class="text-xl font-black">Mijn programma’s</h3>
-      </div>
-      {#if plans.length === 0}
-        <div class="card text-sm text-gray-600 dark:text-gray-300">Opgeslagen programma’s verschijnen hier.</div>
-      {:else}
-        {#each plans as plan}
-          <div class="card">
-            <div class="flex items-start justify-between gap-3">
-              <p class="font-bold">{plan.title}</p>
-              <div class="flex gap-2">
-                <button class="btn-secondary" type="button" aria-label="Programma bewerken" on:click={() => startEdit(plan)}><Pencil size={16} /> Bewerken</button>
-                <button class="btn-danger" type="button" aria-label="Programma verwijderen" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
-              </div>
-            </div>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {plan.schedule_mode ? SCHEDULE_MODE_LABELS[plan.schedule_mode] : ''}{plan.schedule_mode === 'flexible_cycle' ? ` · ${plan.cycle_days} dagen × ${plan.cycles} cycli` : ''} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
-            </p>
-            {#if plan.schedule_mode === 'flexible_cycle'}
-              <ul class="mt-3 space-y-1 text-sm">
-                {#each cycleStats(plan.id) as [, stat], index}
-                  <li class="flex items-center justify-between gap-3">
-                    <span>Cyclus {index + 1} · t/m {formatDate(stat.due)}</span>
-                    <span class="font-bold {stat.done === stat.total ? 'text-emerald-600' : ''}">{stat.done}/{stat.total} uitgevoerd</span>
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          </div>
-        {/each}
-      {/if}
-    </section>
+    {/if}
   {/if}
 </div>
