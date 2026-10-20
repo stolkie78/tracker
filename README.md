@@ -30,7 +30,17 @@ Zet `GOOGLE_CLIENT_ID` en `GOOGLE_CLIENT_SECRET` in het env-bestand (beide of ge
 
 ### Gegevensisolatie
 
-Elke gebruiker ziet alleen eigen data: alle gebruikersdata (workouts, oefeningen in training, sets, plannen, AI-instellingen) heeft een `owner` en de API-regels laten alleen `owner = @request.auth.id` toe; eigenaar wijzigen via update is geblokkeerd. De oefeningencatalogus is gedeeld: iedereen kan lezen en toevoegen, alleen een app-admin kan wijzigen of verwijderen.
+Elke gebruiker ziet alleen eigen data: alle gebruikersdata (workouts, oefeningen in training, sets, plannen, AI-instellingen) heeft een `owner` en de API-regels laten alleen `owner = @request.auth.id` toe; eigenaar wijzigen via update is geblokkeerd. De standaard oefeningencatalogus is gedeeld en alleen een app-admin kan deze wijzigen of verwijderen. Nieuw toegevoegde oefeningen zijn persoonlijk, ook voor de AI-planner. Bestaande catalogusoefeningen zonder eigenaar blijven gedeeld omdat hun oorspronkelijke maker niet is vastgelegd.
+
+**Profiel** (`/profile`) bevat een eigen naam, optionele geboortedatum, telefoonnummer, trainingsdoelen en lengte. Een profielfoto (JPG, PNG of WebP, maximaal 5 MB) is een beschermd bestand: ook de bestands-URL vereist autorisatie als eigenaar. Profielen zijn uniek per gebruiker; gebruikers kunnen hun eigenaar of rol niet wijzigen. De rollen `coach` en `admin` geven geen toegang tot persoonlijke gegevens van anderen; trainer/clientdeling is nog niet ingeschakeld. Accountrecords zijn alleen voor het eigen account leesbaar.
+
+Bij **Lichaamsmetingen** voeg je gedateerde metingen van gewicht, lengte en optionele tailleomtrek toe of verwijder je een foutieve meting. **Statistieken** toont gewicht, BMI, gewichtsverandering en meetgeschiedenis binnen de gekozen periode, ook zonder voltooide trainingen. BMI wordt berekend met de lengte van die specifieke meting; een latere profielwijziging verandert historische BMI's niet. BMI is geen diagnose.
+
+Persoonlijke relaties (zoals sets naar oefeningen en trainingen naar programma's) worden bij aanmaken op dezelfde eigenaar gecontroleerd en kunnen achteraf niet naar een ander record worden verplaatst. Bij een accountwissel wordt de pagina opnieuw geladen en worden profiel- en rolgegevens gewist. Lokale tijdlijnfilters, braintrainingrecords en Strava-synchronisatiestatus zijn per account gescheiden; oude, ongescheiden browserwaarden worden niet overgenomen.
+
+Draai na deze update `docker compose run --rm pb-setup` en herstart PocketBase om de nieuwe profielvelden, beschermde foto's, collectie `body_measurements`, unieke profielindex, validatiehooks en aangescherpte regels te activeren. Als bestaande profielen dubbel zijn voor dezelfde gebruiker, stopt de indexmigratie expliciet; los die duplicaten eerst op zonder persoonlijke gegevens te verliezen.
+
+Regressietests: `cd frontend && npm test` controleert BMI en periodeberekeningen. `PB_TEST_URL=... PB_TEST_SUPERUSER_EMAIL=... PB_TEST_SUPERUSER_PASSWORD=... node --test scripts/user-isolation.test.mjs` test de API-regels, relaties, metingen en beschermde foto's met drie accounts (atleet, coach, admin). Gebruik uitsluitend een wegwerp-PocketBase met het setupscript en de hooks; de test maakt tijdelijke records en ruimt die weer op.
 
 ### Bouwblokken, losse sessies en programma's
 
@@ -73,6 +83,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.15.0 | Persoonlijke profielpagina met beschermde profielfoto, persoonsgegevens en lengte. Gedateerde lichaamsmetingen met gewicht, BMI, tailleomtrek en gewichtsverandering in statistieken. Aangescherpte eigenaars- en relatieregels, persoonlijke nieuwe oefeningen en gescheiden browsergegevens per account. Trainer/clienttoegang blijft uitgeschakeld. Voer het setupscript opnieuw uit en herstart PocketBase. |
 | 0.14.0 | Nieuwe categorie Sporten (zaalvolleybal, beachvolleybal, pickleball, voetbal, tennis, basketbal) als bouwblok en training. In een programma met vaste weekdagen kun je meerdere trainingen op één dag plannen. Programma's kunnen achteraf worden bewerkt (toekomstige trainingen worden opnieuw ingepland, uitgevoerde blijven staan) of verwijderd, en een training is te bewerken (titel, datum, duur, details, notities). Nieuw veld `sport_activity` en type `sport`. |
 | 0.13.2 | Nieuwe schouderoefeningen: Front raise, Pike push-up, Dips, Upright row, Rear delt fly, Cable cross rear delt pull en Inverted row. |
 | 0.13.1 | Bij het maken van een kracht-bouwblok kun je de oefeningen filteren op spiergroep, zodat je niet meer één lange lijst hebt. |

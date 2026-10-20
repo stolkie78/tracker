@@ -1,9 +1,10 @@
-import PocketBase from 'pocketbase';
+import PocketBase, { ClientResponseError } from 'pocketbase';
 import {
   DEFAULT_STRENGTH_REST_SECONDS,
   DEFAULT_STRENGTH_TEMPO,
   nextSuggestedWeight,
   type AISettings,
+  type BodyMeasurement,
   type Exercise,
   type GeneratedPlan,
   type HealthCheckin,
@@ -58,11 +59,19 @@ export const getOrCreateMyProfile = async (displayName?: string) => {
   });
   if (records[0]) return records[0];
   const name = displayName || String(pb.authStore.model?.name ?? pb.authStore.model?.email ?? 'Atleet');
-  return pb.collection('profiles').create<Profile>({
-    user: userId,
-    display_name: name,
-    role: 'athlete'
-  });
+  try {
+    return await pb.collection('profiles').create<Profile>({
+      user: userId,
+      display_name: name,
+      role: 'athlete'
+    });
+  } catch (error) {
+    if (!(error instanceof ClientResponseError) || error.status !== 400 || error.response.data?.user?.code !== 'validation_not_unique') throw error;
+    // Een andere tab kan het unieke profiel gelijktijdig hebben aangemaakt.
+    const existing = await getMyProfile();
+    if (!existing) throw error;
+    return existing;
+  }
 };
 
 export const getMyProfile = async () => {
@@ -72,6 +81,27 @@ export const getMyProfile = async () => {
   });
   return records[0] ?? null;
 };
+
+export const saveMyProfile = (id: ID, data: FormData) =>
+  pb.collection('profiles').update<Profile>(id, data);
+
+export const getProfilePhotoUrl = async (record: Profile) => {
+  if (!record.photo) return '';
+  const token = await pb.files.getToken();
+  return pb.files.getURL({ id: record.id, collectionName: 'profiles' }, record.photo, { token });
+};
+
+export const getBodyMeasurements = () =>
+  pb.collection('body_measurements').getFullList<BodyMeasurement>({
+    filter: ownerFilter(),
+    sort: '-measured_at,-created',
+    requestKey: null
+  });
+
+export const createBodyMeasurement = (data: Omit<BodyMeasurement, 'id' | 'owner' | 'created' | 'updated'>) =>
+  pb.collection('body_measurements').create<BodyMeasurement>({ ...data, owner: currentUserId() });
+
+export const deleteBodyMeasurement = (id: ID) => pb.collection('body_measurements').delete(id);
 
 export const getAISettings = () =>
   pb.send<Pick<AISettings, 'endpoint' | 'model' | 'api_key_set'> | null>('/api/top-trainer/ai-settings', {
@@ -152,7 +182,7 @@ export const getExercises = () =>
   });
 
 export const createExercise = (data: Pick<Exercise, 'name' | 'category' | 'muscle_group' | 'equipment_options'>) =>
-  pb.collection('exercises').create<Exercise>({ ...data, active: true });
+  pb.collection('exercises').create<Exercise>({ ...data, owner: currentUserId(), active: true });
 
 export const getWorkouts = (filter = '') =>
   pb.collection('workouts').getFullList<Workout>({

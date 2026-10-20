@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { Brain } from '@lucide/svelte';
+  import { currentUserId } from '$lib/pocketbase';
 
   type Phase = 'idle' | 'show' | 'input' | 'result';
 
-  const STORAGE_KEY = 'braintraining-best';
+  const STORAGE_KEY = `braintraining-best:${currentUserId()}`;
   let phase: Phase = 'idle';
   let level = 3;
   let sequence = '';

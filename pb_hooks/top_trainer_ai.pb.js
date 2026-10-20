@@ -176,7 +176,7 @@ routerAdd(
       fail(400, "Gebruik een HTTPS-endpoint of een lokaal endpoint op localhost.");
     }
 
-    var exercises = $app.findRecordsByFilter("exercises", "active = true", "name", 500, 0);
+    var exercises = $app.findRecordsByFilter("exercises", 'active = true && (owner = "" || owner = {:owner})', "name", 500, 0, { owner: e.auth.id });
     if (exercises.length === 0) {
       fail(400, "Er zijn nog geen oefeningen beschikbaar. Voeg oefeningen toe en probeer opnieuw.");
     }

@@ -57,6 +57,23 @@ collection_id() {
 ensure_collection() {
   local name="$1" type="$2" fields="$3" list_rule="$4" view_rule="$5" create_rule="$6" update_rule="$7" delete_rule="$8"
   local existing_id payload
+  if [ "$type" = base ]; then
+    [ "$list_rule" = __locked__ ] || list_rule="@request.auth.id != \"\" && ($list_rule)"
+    [ "$view_rule" = __locked__ ] || view_rule="@request.auth.id != \"\" && ($view_rule)"
+    [ "$create_rule" = __locked__ ] || create_rule="@request.auth.id != \"\" && ($create_rule)"
+    [ "$update_rule" = __locked__ ] || update_rule="@request.auth.id != \"\" && ($update_rule)"
+    [ "$delete_rule" = __locked__ ] || delete_rule="@request.auth.id != \"\" && ($delete_rule)"
+    # Relaties naar persoonlijke records mogen nooit naar een andere gebruiker wijzen.
+    local relation
+    for relation in $(printf '%s' "$fields" | jq -r '.[] | select(.type == "relation" and .name != "owner" and .name != "user" and .name != "exercise") | .name'); do
+      create_rule="$create_rule && ($relation = \"\" || $relation.owner = @request.auth.id)"
+      update_rule="$update_rule && (@request.body.$relation:isset = false || @request.body.$relation = $relation)"
+    done
+    if printf '%s' "$fields" | jq -e '.[] | select(.type == "relation" and .name == "exercise")' >/dev/null; then
+      create_rule="$create_rule && (exercise.owner = \"\" || exercise.owner = @request.auth.id)"
+      update_rule="$update_rule && (@request.body.exercise:isset = false || @request.body.exercise = exercise)"
+    fi
+  fi
   existing_id="$(api "$PB_URL/api/collections?filter=$(printf 'name%%3D%%22%s%%22' "$name")&perPage=1" | jq -r '.items[0].id // empty')"
   payload="$(jq -n \
     --arg name "$name" \
@@ -119,17 +136,43 @@ secret_field() {
 OWNER_FIELD="$(relation_field owner _pb_users_auth_ true)"
 PROFILE_FIELDS="$(jq -cn --argjson user "$(relation_field user _pb_users_auth_ true)" \
   --argjson display "$(text_field display_name true)" \
+  --argjson birth "$(date_field birth_date)" \
+  --argjson phone "$(text_field phone)" --argjson bio "$(text_field bio)" \
+  --argjson height '{"name":"height_cm","type":"number","min":0,"max":300}' \
+  --argjson photo '{"name":"photo","type":"file","maxSelect":1,"maxSize":5242880,"mimeTypes":["image/jpeg","image/png","image/webp"],"protected":true}' \
   --argjson role "$(select_field role '["admin","coach","athlete"]' true)" \
-  '[$user,$display,$role]')"
+  '[$user,$display,$role,$birth,$phone,$bio,$height,$photo]')"
 ensure_collection profiles base "$PROFILE_FIELDS" \
-  'user = @request.auth.id' 'user = @request.auth.id' 'user = @request.auth.id && @request.body.role = "athlete"' 'user = @request.auth.id && @request.body.role:isset = false' 'user = @request.auth.id'
+  'user = @request.auth.id' 'user = @request.auth.id' 'user = @request.auth.id && @request.body.role = "athlete"' 'user = @request.auth.id && (@request.body.user:isset = false || @request.body.user = @request.auth.id) && @request.body.role:isset = false' '__locked__'
+
+PROFILE_ID="$(collection_id profiles)"
+PROFILE_INDEXES="$(api "$PB_URL/api/collections/$PROFILE_ID" | jq -c \
+  '{indexes: ((.indexes // []) + ["CREATE UNIQUE INDEX idx_profiles_user ON profiles (user)"] | unique)}')"
+api -X PATCH "$PB_URL/api/collections/$PROFILE_ID" -H 'Content-Type: application/json' \
+  --data "$PROFILE_INDEXES" >/dev/null
+
+MEASUREMENT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
+  --argjson date "$(date_field measured_at true)" \
+  --argjson weight '{"name":"weight_kg","type":"number","required":true,"min":1,"max":700}' \
+  --argjson height '{"name":"height_cm","type":"number","required":true,"min":30,"max":300}' \
+  --argjson waist '{"name":"waist_cm","type":"number","min":0,"max":400}' \
+  '[$owner,$date,$weight,$height,$waist,
+    {name:"created",type:"autodate",onCreate:true,onUpdate:false},
+    {name:"updated",type:"autodate",onCreate:true,onUpdate:true}]')"
+ensure_collection body_measurements base "$MEASUREMENT_FIELDS" \
+  'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' \
+  'owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)' 'owner = @request.auth.id'
 
 EXERCISE_FIELDS="$(jq -cn --argjson name "$(text_field name true)" \
+  --argjson owner "$(relation_field owner _pb_users_auth_)" \
   --argjson category "$(select_field category '["compound","isolation","bodyweight","other"]' true)" \
   --argjson muscle "$(select_field muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]')" \
   --argjson equipment "$(jq -cn --argjson values '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]' '{name:"equipment_options",type:"select",required:false,maxSelect:8,values:$values}')" \
-  --argjson active "$(bool_field active true)" '[$name,$category,$muscle,$equipment,$active]')"
-ensure_collection exercises base "$EXERCISE_FIELDS" '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != ""' '@request.auth.id != "" && @collection.profiles.user ?= @request.auth.id && @collection.profiles.role ?= "admin"' '@request.auth.id != "" && @collection.profiles.user ?= @request.auth.id && @collection.profiles.role ?= "admin"'
+  --argjson active "$(bool_field active true)" '[$name,$category,$muscle,$equipment,$active,$owner]')"
+EXERCISE_EDIT_RULE='owner = @request.auth.id || (owner = "" && @collection.profiles:admin.user ?= @request.auth.id && @collection.profiles:admin.role ?= "admin")'
+ensure_collection exercises base "$EXERCISE_FIELDS" \
+  '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' 'owner = @request.auth.id' \
+  "($EXERCISE_EDIT_RULE) && (@request.body.owner:isset = false || @request.body.owner = owner)" "$EXERCISE_EDIT_RULE"
 
 PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson title "$(text_field title true)" \
@@ -278,7 +321,7 @@ seed_exercise() {
   local name="$1" category="$2" muscle="$3" equipment="$4"
   local existing exercise_collection_id payload
   exercise_collection_id="$(collection_id exercises)"
-  existing="$(api --get --data-urlencode "filter=name=\"$name\"" --data-urlencode perPage=1 \
+  existing="$(api --get --data-urlencode "filter=name=\"$name\" && owner=\"\"" --data-urlencode perPage=1 \
     "$PB_URL/api/collections/$exercise_collection_id/records" | jq -r '.items[0].id // empty')"
   payload="$(jq -n --arg name "$name" --arg category "$category" --arg muscle "$muscle" --arg equipment "$equipment" \
     '{name:$name,category:$category,muscle_group:$muscle,equipment_options:($equipment|split(",")),active:true}')"
@@ -337,10 +380,10 @@ migrate_legacy_exercise() {
   local exercises_id workout_exercises_id old_id new_id entry_id
   exercises_id="$(collection_id exercises)"
   workout_exercises_id="$(collection_id workout_exercises)"
-  old_id="$(api --get --data-urlencode "filter=name=\"$old_name\"" --data-urlencode perPage=1 \
+  old_id="$(api --get --data-urlencode "filter=name=\"$old_name\" && owner=\"\"" --data-urlencode perPage=1 \
     "$PB_URL/api/collections/$exercises_id/records" | jq -r '.items[0].id // empty')"
   [ -n "$old_id" ] || return 0
-  new_id="$(api --get --data-urlencode "filter=name=\"$new_name\"" --data-urlencode perPage=1 \
+  new_id="$(api --get --data-urlencode "filter=name=\"$new_name\" && owner=\"\"" --data-urlencode perPage=1 \
     "$PB_URL/api/collections/$exercises_id/records" | jq -er '.items[0].id')"
   api --get --data-urlencode "filter=exercise=\"$old_id\" && equipment=\"\"" --data-urlencode perPage=500 \
     "$PB_URL/api/collections/$workout_exercises_id/records" | jq -r '.items[].id' | while read -r entry_id; do
@@ -474,7 +517,7 @@ seed_template() { # title type duration level goal tags notes extra-json
 
 seed_template_exercise() { # owner template exercise-name order sets min max weight increment equipment
   local exercise_id payload
-  exercise_id="$(api --get --data-urlencode "filter=name=\"$3\"" --data-urlencode perPage=1 \
+  exercise_id="$(api --get --data-urlencode "filter=name=\"$3\" && owner=\"\"" --data-urlencode perPage=1 \
     "$PB_URL/api/collections/$(collection_id exercises)/records" | jq -er '.items[0].id')"
   payload="$(jq -n --arg o "$1" --arg t "$2" --arg e "$exercise_id" --argjson ord "$4" --argjson s "$5" --argjson mn "$6" --argjson mx "$7" \
     --argjson w "$8" --argjson inc "$9" --arg eq "${10}" \
@@ -525,6 +568,8 @@ seed_library() {
 
 
 ensure_google_oauth
+api -X PATCH "$PB_URL/api/collections/$(collection_id users)" -H 'Content-Type: application/json' \
+  --data '{"listRule":"@request.auth.id != \"\" && id = @request.auth.id","viewRule":"@request.auth.id != \"\" && id = @request.auth.id","createRule":"","updateRule":"@request.auth.id != \"\" && id = @request.auth.id","deleteRule":null,"manageRule":null}' >/dev/null
 ensure_admin_user
 seed_library
 

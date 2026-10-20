@@ -1,17 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { ArrowDown, ArrowUp, Minus } from '@lucide/svelte';
-  import { getWorkouts } from '$lib/pocketbase';
+  import { getBodyMeasurements, getWorkouts } from '$lib/pocketbase';
+  import { calculateBMI, measurementDateLabel, measurementStats } from '$lib/measurements';
+  import type { BodyMeasurement } from '$lib/types';
   import { computeStats, PERIOD_OPTIONS, type ExerciseProgress, type PeriodKey } from '$lib/stats';
   import { CARDIO_MODE_LABELS, formatPace, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_STYLES, type CardioMode, type Workout, type WorkoutType } from '$lib/types';
 
   let workouts: Workout[] = [];
+  let measurements: BodyMeasurement[] = [];
   let loading = true;
   let error = '';
   let period: PeriodKey = '12w';
   let selected = '';
 
   $: stats = computeStats(workouts, period);
+  $: body = measurementStats(measurements, period);
   $: if (stats.exercises.length && !stats.exercises.some((exercise) => exercise.id === selected)) selected = stats.exercises[0].id;
   $: current = stats.exercises.find((exercise) => exercise.id === selected);
   $: hours = Math.floor(stats.totalMinutes / 60);
@@ -19,7 +23,7 @@
 
   onMount(async () => {
     try {
-      workouts = await getWorkouts('status = "completed"');
+      [workouts, measurements] = await Promise.all([getWorkouts('status = "completed"'), getBodyMeasurements()]);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Statistieken konden niet worden geladen.';
     } finally {
@@ -58,6 +62,30 @@
       <button type="button" class="touch-target rounded-xl px-4 text-sm font-bold transition {period === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}" aria-pressed={period === option.value} on:click={() => (period = option.value)}>{option.label}</button>
     {/each}
   </div>
+
+  {#if !loading && !error}
+    <section class="card space-y-3">
+      <div class="flex items-center justify-between gap-3"><h3 class="text-xl font-bold">Lichaamsmetingen</h3><a class="font-bold text-overload-signal" href="/profile">Meting toevoegen</a></div>
+      {#if body.latest}
+        <p class="text-sm text-gray-600 dark:text-gray-300">Laatste meting in deze periode: {measurementDateLabel(body.latest.measured_at)}</p>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div><p class="label">Gewicht</p><p class="text-2xl font-black">{body.latest.weight_kg} kg</p></div>
+          <div><p class="label">BMI</p><p class="text-2xl font-black">{body.bmi ?? '—'}</p></div>
+          <div><p class="label">Verandering</p><p class="text-2xl font-black">{body.weightChange === null ? '—' : `${sign(body.weightChange)} kg`}</p></div>
+          <div><p class="label">Taille</p><p class="text-2xl font-black">{body.latest.waist_cm ? `${body.latest.waist_cm} cm` : '—'}</p></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead><tr><th class="py-2">Datum</th><th>Gewicht</th><th>BMI</th></tr></thead>
+            <tbody>{#each [...body.entries].reverse() as entry}<tr class="border-t border-gray-200 dark:border-gray-700"><td class="py-2">{measurementDateLabel(entry.measured_at)}</td><td>{entry.weight_kg} kg</td><td>{calculateBMI(entry.weight_kg, entry.height_cm) ?? '—'}</td></tr>{/each}</tbody>
+          </table>
+        </div>
+        <p class="text-sm text-gray-600 dark:text-gray-300">BMI is een grove indicatie, geen diagnose. De verandering vergelijkt de eerste en laatste meting binnen de gekozen periode.</p>
+      {:else}
+        <p class="text-gray-600 dark:text-gray-300">Nog geen lichaamsmetingen in deze periode. Voeg ze toe via je profiel, ook zonder voltooide trainingen.</p>
+      {/if}
+    </section>
+  {/if}
 
   {#if loading}
     <div class="card animate-pulse">Statistieken laden...</div>

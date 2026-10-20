@@ -17,7 +17,7 @@ q() { jq -rn --arg v "$1" '$v|@uri'; }
 OWNER="$(api "$PB_URL/api/collections/users/records?perPage=1&filter=$(q "email=\"$PB_ADMIN_USER_EMAIL\"")" | jq -er '.items[0].id')"
 
 exercise_id() {
-  api "$PB_URL/api/collections/exercises/records?perPage=1&filter=$(q "name=\"$1\"")" | jq -er '.items[0].id'
+  api "$PB_URL/api/collections/exercises/records?perPage=1&filter=$(q "name=\"$1\" && owner=\"\"")" | jq -er '.items[0].id'
 }
 
 create() { api -X POST "$PB_URL/api/collections/$1/records" --data "$2"; }

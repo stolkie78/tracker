@@ -67,9 +67,23 @@ export interface Profile extends BaseRecord {
   user: ID;
   display_name: string;
   role: UserRole;
+  birth_date?: string;
+  phone?: string;
+  bio?: string;
+  height_cm?: number;
+  photo?: string;
+}
+
+export interface BodyMeasurement extends BaseRecord {
+  owner: ID;
+  measured_at: string;
+  weight_kg: number;
+  height_cm: number;
+  waist_cm?: number;
 }
 
 export interface Exercise extends BaseRecord {
+  owner?: ID;
   name: string;
   category: string;
   muscle_group?: MuscleGroup;

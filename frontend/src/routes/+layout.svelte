@@ -3,8 +3,8 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { Dumbbell, HeartPulse, LogOut, Menu, Moon, Settings, Sun, X } from '@lucide/svelte';
-  import { isAuthenticated } from '$lib/stores/auth';
+  import { Dumbbell, HeartPulse, LogOut, Menu, Moon, Settings, Sun, UserRound, X } from '@lucide/svelte';
+  import { currentUser, isAuthenticated } from '$lib/stores/auth';
   import { loadUserRoles, rolesLoaded, clearUserRoles } from '$lib/stores/role';
   import { getStravaStatus, logout, syncStrava } from '$lib/pocketbase';
 
@@ -16,7 +16,8 @@
   const nav = [
     { href: '/', label: 'Training', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
     { href: '/health', label: 'Health', icon: HeartPulse, match: (path: string) => path.startsWith('/health') },
-    { href: '/settings', label: 'Instellingen', icon: Settings, match: (path: string) => path.startsWith('/settings') }
+    { href: '/settings', label: 'Instellingen', icon: Settings, match: (path: string) => path.startsWith('/settings') },
+    { href: '/profile', label: 'Profiel', icon: UserRound, match: (path: string) => path.startsWith('/profile') }
   ];
 
   const trainingNav = [
@@ -51,12 +52,14 @@
     });
   }
 
-  let stravaChecked = false;
-  $: if (browser && $isAuthenticated && !isLogin && !stravaChecked) {
-    stravaChecked = true;
-    const last = Number(sessionStorage.getItem('strava-sync') ?? 0);
+  let stravaUser = '';
+  $: if (!$isAuthenticated) stravaUser = '';
+  $: if (browser && $isAuthenticated && !isLogin && stravaUser !== $currentUser?.id) {
+    stravaUser = $currentUser?.id ?? '';
+    const syncKey = `strava-sync:${stravaUser}`;
+    const last = Number(sessionStorage.getItem(syncKey) ?? 0);
     if (Date.now() - last > 10 * 60_000) {
-      sessionStorage.setItem('strava-sync', String(Date.now()));
+      sessionStorage.setItem(syncKey, String(Date.now()));
       getStravaStatus()
         .then((status) => (status.connected ? syncStrava() : null))
         .catch(() => undefined);
@@ -162,10 +165,12 @@
       </nav>
     {/if}
     <main class="mx-auto max-w-4xl px-4 py-5 pb-28 sm:py-8 lg:pb-8">
-      <slot />
+      {#key $currentUser?.id}
+        <slot />
+      {/key}
     </main>
     <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 lg:hidden" aria-label="Snelmenu">
-      <div class="mx-auto grid max-w-4xl grid-cols-3">
+      <div class="mx-auto grid max-w-4xl grid-cols-4">
         {#each nav as tab}
           <a href={tab.href} class="flex min-h-[60px] flex-col items-center justify-center gap-1 text-xs font-bold {tab.match($page.url.pathname) ? 'text-overload-signal' : 'text-gray-600 dark:text-gray-300'}" aria-current={tab.match($page.url.pathname) ? 'page' : undefined}>
             <svelte:component this={tab.icon} size={22} strokeWidth={2.25} />
