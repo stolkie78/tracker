@@ -59,6 +59,12 @@ test('personal records, relationships and protected photos stay with their owner
     const prescription = { exercise: exercise.id, set_order: 1, target_sets: 3, reps_min: 6, reps_max: 10, weight_increment: 1 };
     const templateExercise = await create('template_exercises', alice.token, { ...prescription, owner: alice.id, template: template.id });
     const workout = await create('workouts', alice.token, { owner: alice.id, plan: plan.id, template: template.id, title: 'Private workout', type: 'strength', status: 'planned', performed_at: date });
+    for (const dayPart of ['morning', 'afternoon', 'evening']) {
+      const updated = await ok(path('workouts', workout.id), alice.token, 'PATCH', { day_part: dayPart });
+      assert.equal(updated.day_part, dayPart);
+      await denied(path('workouts', workout.id), bob.token, 'PATCH', { day_part: dayPart });
+    }
+    await denied(path('workouts', workout.id), alice.token, 'PATCH', { day_part: 'night' });
     const workoutExercise = await create('workout_exercises', alice.token, { ...prescription, owner: alice.id, workout: workout.id });
     const set = await create('workout_sets', alice.token, { owner: alice.id, workout_exercise: workoutExercise.id, set_order: 1, weight: 40 });
     const health = await create('health_programs', alice.token, { owner: alice.id, kind: '16_8', title: 'Private health', start_date: '2026-01-01' });

@@ -78,6 +78,8 @@ function detailLines(w) {
   var lines = [];
   var type = w.getString("type");
   lines.push((TYPE_LABELS[type] || type) + " - " + (STATUS_LABELS[w.getString("status")] || w.getString("status")));
+  var part = { morning: "Ochtend", afternoon: "Middag", evening: "Avond" }[w.getString("day_part")];
+  if (part) lines.push("Dagdeel: " + part);
   if (type === "cardio" && w.getFloat("distance_km")) lines.push("Afstand: " + w.getFloat("distance_km") + " km");
   if (type === "interval" && w.getInt("interval_rounds")) {
     lines.push(

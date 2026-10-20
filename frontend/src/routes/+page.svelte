@@ -6,6 +6,7 @@
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
+  import { groupByDayPart } from '$lib/programs';
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
@@ -81,15 +82,7 @@
     return { start, end };
   };
 
-  // Flexibele-cyclustrainingen mogen op elke dag in de periode: tijdens de periode staan ze op vandaag.
-  const workoutDay = (workout: Workout) => {
-    const planned = dateOnly(new Date(workout.performed_at));
-    if (workout.status === 'planned' && workout.due_date) {
-      const today = dateOnly(new Date());
-      if (planned < today && dateOnly(new Date(workout.due_date)) >= today) return today;
-    }
-    return planned;
-  };
+  const workoutDay = (workout: Workout) => dateOnly(new Date(workout.performed_at));
 
   const workoutsInRange = (records: Workout[], filter: DateRangeFilter) => {
     if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
@@ -249,7 +242,10 @@
             {formatDay(day)}
           </div>
           <div class="space-y-3 border-l-2 border-primary-200 pl-4 dark:border-primary-900">
-            {#each entries as workout (workout.id)}
+            {#each groupByDayPart(entries) as group}
+              <div class="space-y-3" role="group" aria-label={group.label}>
+              <h3 class="pt-2 text-sm font-bold text-gray-600 dark:text-gray-300">{group.label}</h3>
+            {#each group.workouts as workout (workout.id)}
               <a
                 class="card block border-2 p-4 transition hover:shadow-md sm:p-5 {activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800'}"
                 href={`/workouts/${workout.id}`}>
@@ -289,10 +285,12 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{workout.status === 'planned' ? (workout.due_date ? `Uitvoeren t/m ${new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long' }).format(new Date(workout.due_date))}` : 'Tijd niet ingepland') : formatDateTime(workout.performed_at)}</span>
+                  <span>{workout.status === 'planned' ? (workout.day_part ? group.label : 'Tijd niet ingepland') : formatDateTime(workout.performed_at)}</span>
                   <span>Details bekijken →</span>
                 </div>
               </a>
+            {/each}
+              </div>
             {/each}
           </div>
         </section>

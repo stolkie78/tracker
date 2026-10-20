@@ -100,6 +100,7 @@ export interface Workout extends BaseRecord {
   type: WorkoutType;
   status: WorkoutStatus;
   performed_at: string;
+  day_part?: DayPart | '';
   duration_minutes: number;
   notes: string;
   cardio_mode?: CardioMode;
@@ -136,19 +137,22 @@ export interface TrainingPlan extends BaseRecord {
 export type ScheduleMode = 'fixed_weekdays' | 'flexible_cycle';
 
 export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
-  fixed_weekdays: 'Vaste weekdagen',
+  fixed_weekdays: 'Vaste cyclus',
   flexible_cycle: 'Flexibele cyclus'
 };
 
-// Een weekdag bevat nul (rustdag), een of meer bouwblokken in volgorde.
-export interface CycleSlot {
-  templates: ID[];
-}
+export type DayPart = 'morning' | 'afternoon' | 'evening';
 
-// Flexibele cyclus: bouwblokken die binnen de periode (n keer) uitgevoerd moeten worden, in willekeurige volgorde.
-export interface CycleItem {
-  template: ID;
-  count: number;
+export const DAY_PARTS: DayPart[] = ['morning', 'afternoon', 'evening'];
+export const DAY_PART_LABELS: Record<DayPart, string> = {
+  morning: 'Ochtend',
+  afternoon: 'Middag',
+  evening: 'Avond'
+};
+export const DAY_PART_HOURS: Record<DayPart, number> = { morning: 9, afternoon: 14, evening: 19 };
+
+export interface CycleSlot {
+  periods: Record<DayPart, ID[]>;
 }
 
 export interface WorkoutTemplate extends BaseRecord {

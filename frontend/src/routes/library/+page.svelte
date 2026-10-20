@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { CalendarPlus, LoaderCircle, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import {
@@ -14,6 +14,9 @@
     CARDIO_MODE_OPTIONS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
+    DAY_PARTS,
+    DAY_PART_HOURS,
+    DAY_PART_LABELS,
     EXERCISE_EQUIPMENT_LABELS,
     EXPERIENCE_LEVEL_LABELS,
     MUSCLE_GROUP_OPTIONS,
@@ -25,6 +28,7 @@
     WORKOUT_TYPE_OPTIONS,
     WORKOUT_TYPE_STYLES,
     type CardioMode,
+    type DayPart,
     type Exercise,
     type ExperienceLevel,
     type ExerciseEquipment,
@@ -47,8 +51,10 @@
   let error = '';
   let success = '';
   let showForm = false;
+  let wizardStep: 1 | 2 = 1;
   let editing: string | null = null;
   let planDates: Record<string, string> = {};
+  let planParts: Record<string, DayPart> = {};
 
   let type: WorkoutType = 'strength';
   let title = '';
@@ -92,6 +98,7 @@
 
   const resetForm = () => {
     editing = null;
+    wizardStep = 1;
     type = 'strength';
     title = '';
     notes = '';
@@ -107,6 +114,14 @@
     recoveryActivity = 'mobility';
     sportActivity = 'indoor_volleyball';
     entries = [emptyEntry()];
+  };
+
+  const chooseType = async (value: WorkoutType) => {
+    type = value;
+    wizardStep = 2;
+    error = '';
+    await tick();
+    document.getElementById('tpl-title')?.focus();
   };
 
   const edit = (template: WorkoutTemplate) => {
@@ -137,6 +152,7 @@
       }));
     if (!entries.length) entries = [emptyEntry()];
     showForm = true;
+    wizardStep = 2;
     error = '';
     success = '';
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -156,6 +172,7 @@
   };
 
   const save = async () => {
+    if (wizardStep !== 2) return;
     error = '';
     success = '';
     if (!title.trim()) {
@@ -225,8 +242,10 @@
     error = '';
     success = '';
     try {
-      await instantiateTemplate(template, new Date(`${day}T09:00:00`));
-      success = `“${template.title}” is ingepland op ${day}.`;
+      const part = planParts[template.id] ?? 'morning';
+      const hour = String(DAY_PART_HOURS[part]).padStart(2, '0');
+      await instantiateTemplate(template, new Date(`${day}T${hour}:00:00`), { dayPart: part });
+      success = `“${template.title}” is ingepland op ${day} · ${DAY_PART_LABELS[part]}.`;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Inplannen is mislukt.';
     } finally {
@@ -264,7 +283,7 @@
         <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">programma</a>.
       </p>
     </div>
-    <button class="btn-primary shrink-0" type="button" disabled={saving || !!busyId} on:click={() => { resetForm(); showForm = true; }}><Plus size={18} /> Nieuw</button>
+    {#if !showForm}<button class="btn-primary shrink-0" type="button" disabled={pageLoading || saving || !!busyId} on:click={() => { resetForm(); showForm = true; error = ''; success = ''; }}><Plus size={18} /> Nieuw</button>{/if}
   </div>
 
   {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
@@ -274,17 +293,24 @@
     <form class="card space-y-4" on:submit|preventDefault={save}>
       <h3 class="text-xl font-bold">{editing ? 'Bouwblok bewerken' : 'Nieuw bouwblok'}</h3>
       {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Wijzigingen gelden voor nieuwe trainingen. Reeds ingeplande en uitgevoerde trainingen blijven ongewijzigd.</p>{/if}
-      <fieldset disabled={saving} class="space-y-4">
+      <p class="text-sm text-gray-500 dark:text-gray-400">Stap {wizardStep} van 2 · {wizardStep === 1 ? 'Type kiezen' : 'Invullen'}</p>
+      <fieldset disabled={saving} class="min-w-0 space-y-4">
+      {#if wizardStep === 1}
+        <legend class="label">Welk type training wil je maken?</legend>
+        <div class="grid gap-3 sm:grid-cols-2">
+          {#each WORKOUT_TYPE_OPTIONS as option}
+            <button class="btn-secondary justify-start" type="button" on:click={() => chooseType(option.value)}>{option.label}</button>
+          {/each}
+        </div>
+      {:else}
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <span class="badge {WORKOUT_TYPE_STYLES[type].badge}">{WORKOUT_TYPE_LABELS[type]}</span>
+        <button class="btn-secondary" type="button" on:click={() => { wizardStep = 1; error = ''; }}>Type wijzigen</button>
+      </div>
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="label" for="tpl-type">Type</label>
-          <select id="tpl-type" class="input" bind:value={type}>
-            {#each WORKOUT_TYPE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-          </select>
-        </div>
-        <div>
           <label class="label" for="tpl-title">Naam</label>
-          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder="Bijvoorbeeld: 10K hardlopen" required />
+          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'Bijvoorbeeld: Upper body' : type === 'recovery' ? 'Bijvoorbeeld: Mobiliteit' : type === 'sport' ? 'Bijvoorbeeld: Volleybaltraining' : 'Bijvoorbeeld: 10K hardlopen'} required />
         </div>
         <div>
           <label class="label" for="tpl-duration">Duur (min)</label>
@@ -325,15 +351,15 @@
             </select>
           </div>
         {/if}
+      </div>
+      <details class="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+        <summary class="cursor-pointer text-sm font-semibold">Extra opties</summary>
+        <div class="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="tpl-level">Niveau</label>
           <select id="tpl-level" class="input" bind:value={level}>
             {#each Object.entries(EXPERIENCE_LEVEL_LABELS) as [value, label]}<option {value}>{label}</option>{/each}
           </select>
-        </div>
-        <div>
-          <label class="label" for="tpl-goal">Doel</label>
-          <input id="tpl-goal" class="input" bind:value={goal} maxlength="120" placeholder="Bijvoorbeeld: spiermassa" />
         </div>
         <div class="sm:col-span-2">
           <label class="label" for="tpl-tags">Tags (komma-gescheiden)</label>
@@ -343,7 +369,8 @@
           <label class="label" for="tpl-notes">Notities</label>
           <textarea id="tpl-notes" class="input min-h-20 resize-y" bind:value={notes} maxlength="1000"></textarea>
         </div>
-      </div>
+        </div>
+      </details>
 
       {#if type === 'strength'}
         <fieldset class="space-y-3">
@@ -354,24 +381,27 @@
                 <option value="">Alle spiergroepen</option>
                 {#each MUSCLE_GROUP_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
               </select>
-              <select class="input" aria-label="Oefening" value={entry.exercise} on:change={(event) => pickExercise(index, event.currentTarget.value)}>
+              <select class="input" aria-label="Oefening" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
                 <option value="">Kies oefening…</option>
                 {#each exercises.filter((item) => !entry.muscle || item.muscle_group === entry.muscle) as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
               </select>
               <select class="input" aria-label="Materiaal" bind:value={entry.equipment}>
                 {#each optionsFor(entry.exercise) as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
               </select>
-              <div class="grid grid-cols-4 gap-2 sm:col-span-2">
+              <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-4">
                 <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" required min="1" bind:value={entry.sets} /></div>
                 <div><label class="label" for="e-min-{index}">Reps min</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>
                 <div><label class="label" for="e-max-{index}">Reps max</label><input id="e-max-{index}" class="input" type="number" required min="1" bind:value={entry.repsMax} /></div>
                 <div><label class="label" for="e-w-{index}">Kg</label><input id="e-w-{index}" class="input" type="number" required min="0" step="0.1" bind:value={entry.weight} /></div>
               </div>
-              <div class="grid grid-cols-3 gap-2 sm:col-span-2">
+              <details class="sm:col-span-2">
+              <summary class="cursor-pointer text-sm font-semibold">Extra oefenopties</summary>
+              <div class="mt-3 grid gap-2 sm:grid-cols-3">
                 <div><label class="label" for="e-increment-{index}">Stap (kg)</label><input id="e-increment-{index}" class="input" type="number" min="0.1" step="0.1" required bind:value={entry.increment} /></div>
                 <div><label class="label" for="e-rest-{index}">Rust (sec)</label><input id="e-rest-{index}" class="input" type="number" min="0" required bind:value={entry.rest} /></div>
                 <div><label class="label" for="e-tempo-{index}">Tempo</label><input id="e-tempo-{index}" class="input" maxlength="100" bind:value={entry.tempo} /></div>
               </div>
+              </details>
               {#if entries.length > 1}
                 <button class="btn-secondary sm:col-span-2" type="button" on:click={() => (entries = entries.filter((_, i) => i !== index))}><Trash2 size={16} /> Verwijderen</button>
               {/if}
@@ -384,12 +414,11 @@
       <button class="btn-primary w-full" type="submit" disabled={saving}>
         {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}Opslaan{/if}
       </button>
+      {/if}
       <button class="btn-secondary w-full" type="button" on:click={() => { showForm = false; resetForm(); }}>Annuleren</button>
       </fieldset>
     </form>
-  {/if}
-
-  {#if pageLoading}
+  {:else if pageLoading}
     <div class="card animate-pulse">Laden...</div>
   {:else if templates.length === 0}
     <div class="card text-sm text-gray-600 dark:text-gray-300">Je bibliotheek is nog leeg. Maak een eerste bouwblok met “Nieuw”.</div>
@@ -402,10 +431,9 @@
             <span class="badge {WORKOUT_TYPE_STYLES[template.type].badge}">{WORKOUT_TYPE_LABELS[template.type]}</span>
           </div>
           <p class="text-sm text-gray-600 dark:text-gray-300">{detailsOf(template)}</p>
-          {#if template.level || template.goal || template.tags}
+          {#if template.level || template.tags}
             <div class="flex flex-wrap items-center gap-2 text-xs">
               {#if template.level}<span class="badge border border-gray-300 bg-gray-100 text-gray-800 dark:border-gray-600 dark:bg-gray-700 dark:text-white">{EXPERIENCE_LEVEL_LABELS[template.level]}</span>{/if}
-              {#if template.goal}<span class="text-gray-600 dark:text-gray-300">Doel: {template.goal}</span>{/if}
               {#each (template.tags ?? '').split(',').filter(Boolean) as tag}<span class="rounded-full bg-primary-50 px-2 py-0.5 font-semibold text-primary-800 dark:bg-primary-950 dark:text-primary-200">#{tag}</span>{/each}
             </div>
           {/if}
@@ -414,6 +442,12 @@
             <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => edit(template)}><Pencil size={16} /> Bewerken</button>
             <button class="btn-primary" type="button" disabled={saving || !!busyId} on:click={() => start(template)}><Play size={16} /> Start nu</button>
             <input class="input !w-auto" type="date" aria-label="Datum inplannen" bind:value={planDates[template.id]} placeholder={toInputDate(new Date())} />
+            <select class="input !w-auto" aria-label="Dagdeel inplannen" value={planParts[template.id] ?? 'morning'} on:change={(event) => {
+              const part = DAY_PARTS.find((part) => part === event.currentTarget.value);
+              if (part) planParts[template.id] = part;
+            }}>
+              {#each DAY_PARTS as part}<option value={part}>{DAY_PART_LABELS[part]}</option>{/each}
+            </select>
             <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => schedule(template)}><CalendarPlus size={16} /> Inplannen</button>
             <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={saving || !!busyId} on:click={() => remove(template)}><Trash2 size={16} /></button>
           </div>

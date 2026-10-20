@@ -8,6 +8,8 @@
     CARDIO_MODE_LABELS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
+    DAY_PARTS,
+    DAY_PART_LABELS,
     EXERCISE_EQUIPMENT_LABELS,
     formatPace,
     getTopProtocol,
@@ -180,6 +182,7 @@
 
   let editing = false;
   let saving = false;
+  let editDayPart: Workout['day_part'] = '';
   let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball' };
 
   const toLocalInput = (iso: string) => {
@@ -190,6 +193,7 @@
 
   const openEdit = () => {
     if (!workout) return;
+    editDayPart = workout.day_part || '';
     edit = {
       title: workout.title,
       when: toLocalInput(workout.performed_at),
@@ -219,6 +223,7 @@
       const updated = await updateWorkout(workout.id, {
         title: edit.title.trim(),
         performed_at: new Date(edit.when).toISOString(),
+        day_part: editDayPart,
         duration_minutes: edit.duration,
         notes: edit.notes,
         ...(type === 'cardio' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
@@ -297,7 +302,7 @@
           {#if workout.strava_id}<a class="badge bg-orange-600 text-white" href={`https://www.strava.com/activities/${workout.strava_id}`} target="_blank" rel="noopener noreferrer">Strava</a>{/if}
         </div>
         <h2 class="mt-3 text-3xl font-black">{workout.title}</h2>
-        <p class="mt-2 capitalize text-gray-600 dark:text-gray-300">{workoutDate}</p>
+        <p class="mt-2 capitalize text-gray-600 dark:text-gray-300">{workoutDate}{workout.day_part ? ` · ${DAY_PART_LABELS[workout.day_part]}` : ''}</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button class="btn-secondary" type="button" on:click={() => (editing ? (editing = false) : openEdit())}><Pencil size={17} /> {editing ? 'Annuleren' : 'Bewerken'}</button>
@@ -308,6 +313,13 @@
       <form class="mt-5 grid gap-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:grid-cols-2" on:submit|preventDefault={saveEdit}>
         <div><label class="label" for="edit-title">Titel</label><input id="edit-title" class="input" bind:value={edit.title} maxlength="120" required /></div>
         <div><label class="label" for="edit-when">Datum en tijd</label><input id="edit-when" class="input" type="datetime-local" bind:value={edit.when} required /></div>
+        <div>
+          <label class="label" for="edit-day-part">Dagdeel</label>
+          <select id="edit-day-part" class="input" bind:value={editDayPart}>
+            <option value="">Zonder dagdeel</option>
+            {#each DAY_PARTS as part}<option value={part}>{DAY_PART_LABELS[part]}</option>{/each}
+          </select>
+        </div>
         <div><label class="label" for="edit-duration">Duur (minuten)</label><input id="edit-duration" class="input" type="number" min="0" bind:value={edit.duration} /></div>
         {#if workout.type === 'cardio' || workout.type === 'interval'}
           <div>

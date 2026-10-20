@@ -375,12 +375,13 @@ export const deleteTemplate = async (id: ID) => {
 export const instantiateTemplate = async (
   template: WorkoutTemplate,
   performedAt: Date,
-  options: { status?: Workout['status']; plan?: ID; notes?: string; dueDate?: string } = {}
+  options: { status?: Workout['status']; plan?: ID; notes?: string; dueDate?: string; dayPart?: Workout['day_part'] } = {}
 ) => {
   const created = await createWorkout({
     template: template.id,
     ...(options.plan ? { plan: options.plan } : {}),
     ...(options.dueDate ? { due_date: options.dueDate } : {}),
+    ...(options.dayPart ? { day_part: options.dayPart } : {}),
     title: template.title,
     type: template.type,
     status: options.status ?? 'planned',
