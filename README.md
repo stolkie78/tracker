@@ -73,6 +73,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.13.2 | Nieuwe schouderoefeningen: Front raise, Pike push-up, Dips, Upright row, Rear delt fly, Cable cross rear delt pull en Inverted row. |
 | 0.13.1 | Bij het maken van een kracht-bouwblok kun je de oefeningen filteren op spiergroep, zodat je niet meer één lange lijst hebt. |
 |---|---|
 | 0.12.1 | Bouwblokken in de keuzelijsten van het programma beginnen met hun type (Kracht, Hardlopen, Interval, Herstel), zodat het type niet meer in de naam hoeft. |
