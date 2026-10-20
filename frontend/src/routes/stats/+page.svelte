@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { ArrowDown, ArrowUp, Minus } from '@lucide/svelte';
   import { getBodyMeasurements, getHealthCheckins, getWorkouts } from '$lib/pocketbase';
   import { healthInsights } from '$lib/health';
@@ -113,9 +114,8 @@
         </div>
         <div>
           <label class="label" for="measurement-metric">Grafiek</label>
-          <select id="measurement-metric" class="input" bind:value={measurementMetric}>
-            {#each Object.entries(MEASUREMENT_METRICS) as [value, metric]}<option {value}>{metric.label}{metric.unit ? ` (${metric.unit})` : ''}</option>{/each}
-          </select>
+          <CycleChoice id="measurement-metric" label="Grafiek" bind:value={measurementMetric}
+            options={Object.entries(MEASUREMENT_METRICS).map(([value, metric]) => ({ value, label: `${metric.label}${metric.unit ? ` (${metric.unit})` : ''}` }))} />
         </div>
         {#if bodyChart.points.length}
           <svg viewBox="0 0 500 180" class="h-auto w-full text-gray-600 dark:text-gray-300" role="img" aria-label={`${MEASUREMENT_METRICS[measurementMetric].label} over de gekozen periode`}>

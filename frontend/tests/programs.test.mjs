@@ -92,7 +92,7 @@ test('invalid dates, lengths, repeat counts and unavailable blocks produce expli
   assert.throws(() => buildCycleSchedule('2026-10-21', 2, 1, slotsFor(1), templates), /dagschema/);
   const slots = slotsFor(1);
   slots[0].periods.morning = ['missing'];
-  assert.throws(() => buildCycleSchedule('2026-10-21', 1, 1, slots, templates), /beschikbaar bouwblok/);
+  assert.throws(() => buildCycleSchedule('2026-10-21', 1, 1, slots, templates), /beschikbare workout/);
 });
 
 test('saved patterns round-trip and legacy fixed weekday blocks are preserved in the morning', () => {

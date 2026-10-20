@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { Brain, Pause, Play, RotateCcw } from '@lucide/svelte';
 
   const PATTERNS = [
@@ -68,9 +69,9 @@
     <div class="grid gap-4 text-left sm:grid-cols-2">
       <div>
         <label class="label" for="pattern">Ademritme</label>
-        <select id="pattern" class="input" bind:value={patternId} disabled={running} on:change={reset}>
-          {#each PATTERNS as option}<option value={option.id}>{option.label}</option>{/each}
-        </select>
+        <CycleChoice id="pattern" label="Ademritme" value={patternId} disabled={running}
+          options={PATTERNS.map((pattern) => ({ value: pattern.id, label: pattern.label }))}
+          onChange={(value) => { patternId = value; reset(); }} />
       </div>
       <div>
         <label class="label" for="minutes">Duur (minuten)</label>

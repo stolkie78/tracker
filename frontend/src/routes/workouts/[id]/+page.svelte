@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, RefreshCw, Trash2 } from '@lucide/svelte';
@@ -8,8 +9,8 @@
     CARDIO_MODE_LABELS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
-    DAY_PARTS,
     DAY_PART_LABELS,
+    DAY_PART_OPTIONS,
     EXERCISE_EQUIPMENT_LABELS,
     formatPace,
     getTopProtocol,
@@ -24,6 +25,7 @@
     WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_STYLES,
     type Exercise,
+    type DayPart,
     type ExerciseEquipment,
     type Workout,
     type WorkoutExercise,
@@ -182,7 +184,7 @@
 
   let editing = false;
   let saving = false;
-  let editDayPart: Workout['day_part'] = '';
+  let editDayPart: DayPart | '' = '';
   let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball' };
 
   const toLocalInput = (iso: string) => {
@@ -315,16 +317,14 @@
         <div><label class="label" for="edit-when">Datum en tijd</label><input id="edit-when" class="input" type="datetime-local" bind:value={edit.when} required /></div>
         <div>
           <label class="label" for="edit-day-part">Dagdeel</label>
-          <select id="edit-day-part" class="input" bind:value={editDayPart}>
-            <option value="">Zonder dagdeel</option>
-            {#each DAY_PARTS as part}<option value={part}>{DAY_PART_LABELS[part]}</option>{/each}
-          </select>
+          <CycleChoice id="edit-day-part" label="Dagdeel" bind:value={editDayPart}
+            options={[{ value: '', label: 'Zonder dagdeel' }, ...DAY_PART_OPTIONS]} />
         </div>
         <div><label class="label" for="edit-duration">Duur (minuten)</label><input id="edit-duration" class="input" type="number" min="0" bind:value={edit.duration} /></div>
         {#if workout.type === 'cardio' || workout.type === 'interval'}
           <div>
             <label class="label" for="edit-cardio">Activiteit</label>
-            <select id="edit-cardio" class="input" bind:value={edit.cardio}>{#each CARDIO_MODE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+            <CycleChoice id="edit-cardio" label="Activiteit" options={CARDIO_MODE_OPTIONS} bind:value={edit.cardio} />
           </div>
         {/if}
         {#if workout.type === 'cardio'}
@@ -338,13 +338,13 @@
         {#if workout.type === 'recovery'}
           <div>
             <label class="label" for="edit-recovery">Activiteit</label>
-            <select id="edit-recovery" class="input" bind:value={edit.recovery}>{#each RECOVERY_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+            <CycleChoice id="edit-recovery" label="Activiteit" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={edit.recovery} />
           </div>
         {/if}
         {#if workout.type === 'sport'}
           <div>
             <label class="label" for="edit-sport">Sport</label>
-            <select id="edit-sport" class="input" bind:value={edit.sport}>{#each SPORT_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}</select>
+            <CycleChoice id="edit-sport" label="Sport" options={SPORT_ACTIVITY_OPTIONS} bind:value={edit.sport} />
           </div>
         {/if}
         <div class="sm:col-span-2"><label class="label" for="edit-notes">Notities</label><textarea id="edit-notes" class="input" rows="3" bind:value={edit.notes}></textarea></div>
@@ -397,10 +397,9 @@
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
               <label class="label" for="add-muscle">Spiergroep</label>
-              <select id="add-muscle" class="input" bind:value={addMuscle} on:change={() => (addExerciseId = '')}>
-                <option value="">Alle</option>
-                {#each MUSCLE_GROUP_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-              </select>
+              <CycleChoice id="add-muscle" label="Spiergroep" value={addMuscle}
+                options={[{ value: '', label: 'Alle' }, ...MUSCLE_GROUP_OPTIONS]}
+                onChange={(value) => { addMuscle = value; addExerciseId = ''; addEquipment = ''; }} />
             </div>
             <div>
               <label class="label" for="add-exercise">Oefening</label>
@@ -411,9 +410,8 @@
             </div>
             <div>
               <label class="label" for="add-equipment">Materiaal</label>
-              <select id="add-equipment" class="input" bind:value={addEquipment}>
-                {#each equipmentOptions as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
-              </select>
+              <CycleChoice id="add-equipment" label="Materiaal" bind:value={addEquipment} placeholder="Kies eerst een oefening"
+                options={equipmentOptions.map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />
             </div>
             <div><label class="label" for="add-sets">Sets</label><input id="add-sets" class="input" type="number" min="1" bind:value={addSets} /></div>
             <div><label class="label" for="add-min">Reps min</label><input id="add-min" class="input" type="number" min="1" bind:value={addRepsMin} /></div>

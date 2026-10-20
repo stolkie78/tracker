@@ -25,7 +25,7 @@
 
   const trainingNav = [
     { href: '/', label: 'Tijdlijn' },
-    { href: '/library', label: 'Bibliotheek' },
+    { href: '/library', label: 'Workouts' },
     { href: '/programs', label: 'Programma' },
     { href: '/planner', label: 'AI-planner', ai: true }
   ];

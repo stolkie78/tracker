@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { Check, ChevronDown, ChevronUp, LoaderCircle, Pencil, Plus, Repeat, Trash2 } from '@lucide/svelte';
   import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
   import { blockTime, buildCycleSchedule, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, replanCycle, type ScheduledBlock } from '$lib/programs';
@@ -70,7 +71,7 @@
 
   const resizeCycle = (weeks: number) => {
     if (weeks < cycleWeeks && slots.slice(weeks * 7).some((slot) => DAY_PARTS.some((part) => slot.periods[part].length))) {
-      if (!confirm('Bij het verkorten vervallen de bouwblokken in de extra weken. Doorgaan?')) return;
+      if (!confirm('Bij het verkorten vervallen de workouts in de extra weken. Doorgaan?')) return;
     }
     slots = Array.from({ length: weeks * 7 }, (_, index) => slots[index] ?? emptyCycleSlot());
     cycleWeeks = weeks;
@@ -99,7 +100,7 @@
       return;
     }
     if (!schedule.length) {
-      error = 'Kies minimaal één bouwblok uit je bibliotheek.';
+      error = 'Kies minimaal één workout.';
       return;
     }
     if (schedule.length > MAX_WORKOUTS) {
@@ -142,7 +143,7 @@
         await instantiateTemplate(entry.template, blockTime(entry), {
           plan: plan.id,
           dayPart: entry.part,
-          notes: `${title.trim()} · cyclus ${entry.cycle}, week ${Math.floor(entry.day / 7) + 1} · ${DAY_PART_LABELS[entry.part]} · bouwblok ${entry.order + 1}`
+          notes: `${title.trim()} · cyclus ${entry.cycle}, week ${Math.floor(entry.day / 7) + 1} · ${DAY_PART_LABELS[entry.part]} · workout ${entry.order + 1}`
         });
         created += 1;
       }
@@ -240,7 +241,7 @@
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Meerdere trainingen</p>
     <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programma’s</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
-      Plan bouwblokken uit je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">bibliotheek</a> in een vaste cyclus van één, twee of drie weken, met meerdere trainingen per dagdeel.
+      Plan je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> in een vaste cyclus van één, twee of drie weken, met meerdere trainingen per dagdeel.
     </p>
   </div>
 
@@ -257,7 +258,7 @@
           <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw</button>
         </div>
         {#if plans.length === 0}
-          <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen programma’s. Maak een programma om bouwblokken op je tijdlijn te plannen.</div>
+          <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen programma’s. Maak een programma om workouts op je tijdlijn te plannen.</div>
         {:else}
           {#each plans as plan}
             <div class="card space-y-2">
@@ -301,11 +302,8 @@
             </div>
             <div>
               <label class="label" for="prog-cycle">Duur van de cyclus</label>
-              <select id="prog-cycle" class="input" value={cycleWeeks} on:change={(event) => { resizeCycle(Number(event.currentTarget.value)); event.currentTarget.value = String(cycleWeeks); }}>
-                <option value={1}>1 week (7 dagen)</option>
-                <option value={2}>2 weken (14 dagen)</option>
-                <option value={3}>3 weken (21 dagen)</option>
-              </select>
+              <CycleChoice id="prog-cycle" label="Duur van de cyclus" value={cycleWeeks} onChange={resizeCycle}
+                options={[{ value: 1, label: '1 week (7 dagen)' }, { value: 2, label: '2 weken (14 dagen)' }, { value: 3, label: '3 weken (21 dagen)' }]} />
             </div>
             <div>
               <label class="label" for="prog-cycles">Aantal herhalingen van de cyclus</label>
@@ -316,7 +314,7 @@
 
           {#if templates.length === 0}
             <p class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-              Maak eerst bouwblokken in de <a class="font-semibold underline" href="/library">bibliotheek</a>.
+              Maak eerst een workout bij <a class="font-semibold underline" href="/library">Workouts</a>.
             </p>
           {/if}
           {#if cycleWeeks > 1}
@@ -336,7 +334,7 @@
                   <summary class="cursor-pointer font-bold capitalize">
                     {dayLabel(day)}
                     <span class="text-xs font-normal normal-case text-gray-500 dark:text-gray-400">
-                      · {count ? `${count} ${count === 1 ? 'bouwblok' : 'bouwblokken'}` : 'Rustdag'}
+                      · {count ? `${count} ${count === 1 ? 'workout' : 'workouts'}` : 'Rustdag'}
                     </span>
                   </summary>
                   <div class="mt-4 space-y-4">
@@ -345,14 +343,14 @@
                         <legend class="label">{DAY_PART_LABELS[part]}</legend>
                         {#each slot.periods[part] as _, order}
                           <div class="space-y-2 rounded-xl bg-gray-50 p-2 dark:bg-gray-900">
-                            <select class="input min-w-0" aria-label={`Bouwblok ${order + 1}, dag ${day + 1}, ${DAY_PART_LABELS[part]}`} bind:value={slot.periods[part][order]} required>
-                              <option value="">Kies bouwblok…</option>
+                            <select class="input min-w-0" aria-label={`Workout ${order + 1}, dag ${day + 1}, ${DAY_PART_LABELS[part]}`} bind:value={slot.periods[part][order]} required>
+                              <option value="">Kies workout…</option>
                               {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
                             </select>
                             <div class="flex flex-wrap justify-end gap-2">
-                              <button class="btn-secondary" type="button" aria-label="Bouwblok eerder uitvoeren" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Bouwblok later uitvoeren" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Bouwblok verwijderen" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Workout eerder uitvoeren" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Workout later uitvoeren" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Workout verwijderen" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
                             </div>
                           </div>
                         {/each}
@@ -380,7 +378,7 @@
                 {#if schedule.length > 14}<li class="text-gray-500">+ {schedule.length - 14} meer</li>{/if}
               </ul>
             {/if}
-            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximaal {MAX_WORKOUTS} trainingen per programma. Kies minder herhalingen of bouwblokken.</p>{/if}
+            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximaal {MAX_WORKOUTS} trainingen per programma. Kies minder herhalingen of workouts.</p>{/if}
           </div>
 
           {#if error}<p role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}

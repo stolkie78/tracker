@@ -3,14 +3,14 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
   var data = body.template;
   var entries = body.exercises;
   if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(entries) || entries.length > 100) {
-    throw new BadRequestError("Vul een geldig bouwblok met maximaal 100 oefeningen in.");
+    throw new BadRequestError("Vul een geldige workout met maximaal 100 oefeningen in.");
   }
   var result;
   e.app.runInTransaction(function (app) {
     var record;
     if (body.id) {
       record = app.findRecordById("workout_templates", body.id);
-      if (record.getString("owner") !== e.auth.id) throw new NotFoundError("Bouwblok niet gevonden.");
+      if (record.getString("owner") !== e.auth.id) throw new NotFoundError("Workout niet gevonden.");
     } else {
       record = new Record(app.findCollectionByNameOrId("workout_templates"));
       record.set("owner", e.auth.id);
@@ -47,7 +47,7 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     var previous = app.findAllRecords("template_exercises", $dbx.hashExp({ template: record.id }));
     for (var oldIndex = 0; oldIndex < previous.length; oldIndex++) {
       if (previous[oldIndex].getString("owner") !== e.auth.id) {
-        throw new BadRequestError("De eigenaar van een oefening komt niet overeen met het bouwblok.");
+        throw new BadRequestError("De eigenaar van een oefening komt niet overeen met de workout.");
       }
       app.delete(previous[oldIndex]);
     }

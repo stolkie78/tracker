@@ -30,14 +30,14 @@ export function normalizeCycleSlots(raw: unknown, days: number): CycleSlot[] {
       for (const part of DAY_PARTS) {
         const ids: unknown = part in periods ? periods[part] : [];
         if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string')) {
-          throw new Error('De opgeslagen bouwblokken zijn ongeldig.');
+          throw new Error('De opgeslagen workouts zijn ongeldig.');
         }
         slot.periods[part] = [...ids];
       }
     } else {
       const ids: unknown = 'templates' in value ? value.templates : 'template' in value ? [value.template] : [];
       if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string')) {
-        throw new Error('De opgeslagen bouwblokken zijn ongeldig.');
+        throw new Error('De opgeslagen workouts zijn ongeldig.');
       }
       slot.periods.morning = [...ids];
     }
@@ -72,7 +72,7 @@ export function buildCycleSchedule(
       for (const part of DAY_PARTS) {
         slot.periods[part].forEach((id, order) => {
           const template = lookup.get(id);
-          if (!template) throw new Error(`Kies een beschikbaar bouwblok voor dag ${day + 1}, ${DAY_PART_LABELS[part].toLowerCase()}.`);
+          if (!template) throw new Error(`Kies een beschikbare workout voor dag ${day + 1}, ${DAY_PART_LABELS[part].toLowerCase()}.`);
           result.push({ date: cycleDate(start, cycle * days + day), template, cycle: cycle + 1, day, part, order });
         });
       }

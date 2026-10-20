@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy };
   import { goto } from '$app/navigation';
@@ -207,12 +208,8 @@
     <div class="flex flex-wrap items-end gap-2 sm:gap-3">
       <div class="min-w-0 flex-1">
         <label class="label mb-1" for="type-filter">Trainingstype</label>
-        <select id="type-filter" class="input" bind:value={$activeWorkoutType}>
-          <option value="">Alle trainingen</option>
-          {#each WORKOUT_TYPE_OPTIONS as option}
-            <option value={option.value}>{option.label}</option>
-          {/each}
-        </select>
+        <CycleChoice id="type-filter" label="Trainingstype" bind:value={$activeWorkoutType}
+          options={[{ value: '', label: 'Alle trainingen' }, ...WORKOUT_TYPE_OPTIONS]} />
       </div>
       <span class="w-full text-right text-sm text-gray-500 dark:text-gray-400 sm:w-auto sm:pb-3">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'training' : 'trainingen'}</span>
     </div>
@@ -231,7 +228,7 @@
       <div class="rounded-2xl bg-primary-600 p-4 text-white"><Dumbbell size={28} /></div>
       <h3 class="mt-4 text-xl font-bold">{workouts.length === 0 ? 'Je tijdlijn is nog leeg' : 'Geen trainingen in deze periode'}</h3>
       <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Voeg een training toe of kies een andere periode.</p>
-      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Naar bibliotheek</button>
+      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Naar Workouts</button>
     </div>
   {:else}
     <div class="space-y-8">

@@ -150,6 +150,7 @@ export const DAY_PART_LABELS: Record<DayPart, string> = {
   evening: 'Avond'
 };
 export const DAY_PART_HOURS: Record<DayPart, number> = { morning: 9, afternoon: 14, evening: 19 };
+export const DAY_PART_OPTIONS = DAY_PARTS.map((value) => ({ value, label: DAY_PART_LABELS[value] }));
 
 export interface CycleSlot {
   periods: Record<DayPart, ID[]>;

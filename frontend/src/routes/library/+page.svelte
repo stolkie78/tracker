@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarPlus, LoaderCircle, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import {
     saveTemplate,
@@ -14,8 +15,8 @@
     CARDIO_MODE_OPTIONS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
-    DAY_PARTS,
     DAY_PART_HOURS,
+    DAY_PART_OPTIONS,
     DAY_PART_LABELS,
     EXERCISE_EQUIPMENT_LABELS,
     EXPERIENCE_LEVEL_LABELS,
@@ -83,7 +84,7 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Bibliotheek kon niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Workouts konden niet worden geladen.';
     } finally {
       pageLoading = false;
     }
@@ -176,7 +177,7 @@
     error = '';
     success = '';
     if (!title.trim()) {
-      error = 'Geef het bouwblok een naam.';
+      error = 'Geef de workout een naam.';
       return;
     }
     if (type === 'strength' && entries.some((entry) => !entry.exercise || entry.sets < 1 || entry.repsMin < 1 || entry.repsMax < entry.repsMin)) {
@@ -216,9 +217,9 @@
       resetForm();
       showForm = false;
       templates = await getTemplates();
-      success = wasEditing ? `“${created.title}” is bijgewerkt. Bestaande trainingen zijn niet gewijzigd.` : `“${created.title}” is toegevoegd aan je bibliotheek.`;
+      success = wasEditing ? `“${created.title}” is bijgewerkt. Bestaande trainingen zijn niet gewijzigd.` : `“${created.title}” is toegevoegd aan je workouts.`;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Bouwblok kon niet worden opgeslagen.';
+      error = err instanceof Error ? err.message : 'Workout kon niet worden opgeslagen.';
     } finally {
       saving = false;
     }
@@ -254,7 +255,7 @@
   };
 
   const remove = async (template: WorkoutTemplate) => {
-    if (!confirm(`“${template.title}” uit de bibliotheek verwijderen? Eerder ingeplande trainingen blijven bestaan.`)) return;
+    if (!confirm(`“${template.title}” uit je workouts verwijderen? Eerder ingeplande trainingen blijven bestaan.`)) return;
     busyId = template.id;
     try {
       await deleteTemplate(template.id);
@@ -271,13 +272,12 @@
   };
 </script>
 
-<svelte:head><title>Bibliotheek · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>Workouts · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Bouwblokken</p>
-      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Bibliotheek</h2>
+      <h2 class="text-3xl font-black tracking-tight sm:text-4xl">Workouts</h2>
       <p class="mt-2 text-gray-600 dark:text-gray-300">
         Maak standaard trainingen (bijvoorbeeld 10K hardlopen of Upper body). Start ze direct, plan ze op een dag of gebruik ze in een
         <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">programma</a>.
@@ -291,17 +291,15 @@
 
   {#if showForm}
     <form class="card space-y-4" on:submit|preventDefault={save}>
-      <h3 class="text-xl font-bold">{editing ? 'Bouwblok bewerken' : 'Nieuw bouwblok'}</h3>
+      <h3 class="text-xl font-bold">{editing ? 'Workout bewerken' : 'Nieuwe workout'}</h3>
       {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Wijzigingen gelden voor nieuwe trainingen. Reeds ingeplande en uitgevoerde trainingen blijven ongewijzigd.</p>{/if}
       <p class="text-sm text-gray-500 dark:text-gray-400">Stap {wizardStep} van 2 · {wizardStep === 1 ? 'Type kiezen' : 'Invullen'}</p>
       <fieldset disabled={saving} class="min-w-0 space-y-4">
       {#if wizardStep === 1}
-        <legend class="label">Welk type training wil je maken?</legend>
-        <div class="grid gap-3 sm:grid-cols-2">
-          {#each WORKOUT_TYPE_OPTIONS as option}
-            <button class="btn-secondary justify-start" type="button" on:click={() => chooseType(option.value)}>{option.label}</button>
-          {/each}
-        </div>
+        <label class="label" for="tpl-type">Welk type training wil je maken?</label>
+        <CycleChoice id="tpl-type" label="Type training" options={WORKOUT_TYPE_OPTIONS} bind:value={type} />
+        <p class="text-xs text-gray-500 dark:text-gray-400">Klik om de volgende optie te kiezen.</p>
+        <button class="btn-primary w-full" type="button" on:click={() => chooseType(type)}>Verder</button>
       {:else}
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="badge {WORKOUT_TYPE_STYLES[type].badge}">{WORKOUT_TYPE_LABELS[type]}</span>
@@ -319,9 +317,7 @@
         {#if type === 'cardio' || type === 'interval'}
           <div>
             <label class="label" for="tpl-cardio">Soort</label>
-            <select id="tpl-cardio" class="input" bind:value={cardioMode}>
-              {#each CARDIO_MODE_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-            </select>
+            <CycleChoice id="tpl-cardio" label="Soort" options={CARDIO_MODE_OPTIONS} bind:value={cardioMode} />
           </div>
         {/if}
         {#if type === 'cardio'}
@@ -338,17 +334,13 @@
         {#if type === 'sport'}
           <div>
             <label class="label" for="tpl-sport">Sport</label>
-            <select id="tpl-sport" class="input" bind:value={sportActivity}>
-              {#each SPORT_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-            </select>
+            <CycleChoice id="tpl-sport" label="Sport" options={SPORT_ACTIVITY_OPTIONS} bind:value={sportActivity} />
           </div>
         {/if}
         {#if type === 'recovery'}
           <div>
             <label class="label" for="tpl-recovery">Activiteit</label>
-            <select id="tpl-recovery" class="input" bind:value={recoveryActivity}>
-              {#each RECOVERY_ACTIVITY_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-            </select>
+            <CycleChoice id="tpl-recovery" label="Activiteit" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={recoveryActivity} />
           </div>
         {/if}
       </div>
@@ -357,9 +349,7 @@
         <div class="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="tpl-level">Niveau</label>
-          <select id="tpl-level" class="input" bind:value={level}>
-            {#each Object.entries(EXPERIENCE_LEVEL_LABELS) as [value, label]}<option {value}>{label}</option>{/each}
-          </select>
+          <CycleChoice id="tpl-level" label="Niveau" options={Object.entries(EXPERIENCE_LEVEL_LABELS).map(([value, label]) => ({ value, label }))} bind:value={level} />
         </div>
         <div class="sm:col-span-2">
           <label class="label" for="tpl-tags">Tags (komma-gescheiden)</label>
@@ -377,17 +367,14 @@
           <legend class="label">Oefeningen</legend>
           {#each entries as entry, index}
             <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-2">
-              <select class="input" aria-label="Spiergroep" value={entry.muscle} on:change={(event) => (entries[index] = { ...entry, muscle: event.currentTarget.value, exercise: '', equipment: '' })}>
-                <option value="">Alle spiergroepen</option>
-                {#each MUSCLE_GROUP_OPTIONS as option}<option value={option.value}>{option.label}</option>{/each}
-              </select>
+              <CycleChoice label="Spiergroep" value={entry.muscle} options={[{ value: '', label: 'Alle spiergroepen' }, ...MUSCLE_GROUP_OPTIONS]}
+                onChange={(muscle) => entries[index] = { ...entry, muscle, exercise: '', equipment: '' }} />
               <select class="input" aria-label="Oefening" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
                 <option value="">Kies oefening…</option>
                 {#each exercises.filter((item) => !entry.muscle || item.muscle_group === entry.muscle) as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
               </select>
-              <select class="input" aria-label="Materiaal" bind:value={entry.equipment}>
-                {#each optionsFor(entry.exercise) as option}<option value={option}>{EXERCISE_EQUIPMENT_LABELS[option]}</option>{/each}
-              </select>
+              <CycleChoice label="Materiaal" bind:value={entry.equipment} placeholder="Kies eerst een oefening"
+                options={optionsFor(entry.exercise).map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />
               <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-4">
                 <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" required min="1" bind:value={entry.sets} /></div>
                 <div><label class="label" for="e-min-{index}">Reps min</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>
@@ -421,7 +408,7 @@
   {:else if pageLoading}
     <div class="card animate-pulse">Laden...</div>
   {:else if templates.length === 0}
-    <div class="card text-sm text-gray-600 dark:text-gray-300">Je bibliotheek is nog leeg. Maak een eerste bouwblok met “Nieuw”.</div>
+    <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen workouts. Maak je eerste workout met “Nieuw”.</div>
   {:else}
     <div class="space-y-3">
       {#each templates as template}
@@ -442,12 +429,10 @@
             <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => edit(template)}><Pencil size={16} /> Bewerken</button>
             <button class="btn-primary" type="button" disabled={saving || !!busyId} on:click={() => start(template)}><Play size={16} /> Start nu</button>
             <input class="input !w-auto" type="date" aria-label="Datum inplannen" bind:value={planDates[template.id]} placeholder={toInputDate(new Date())} />
-            <select class="input !w-auto" aria-label="Dagdeel inplannen" value={planParts[template.id] ?? 'morning'} on:change={(event) => {
-              const part = DAY_PARTS.find((part) => part === event.currentTarget.value);
-              if (part) planParts[template.id] = part;
-            }}>
-              {#each DAY_PARTS as part}<option value={part}>{DAY_PART_LABELS[part]}</option>{/each}
-            </select>
+            <div class="w-full sm:w-auto">
+              <CycleChoice label="Dagdeel inplannen" options={DAY_PART_OPTIONS} value={planParts[template.id] ?? 'morning'}
+                onChange={(part) => planParts[template.id] = part} />
+            </div>
             <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => schedule(template)}><CalendarPlus size={16} /> Inplannen</button>
             <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={saving || !!busyId} on:click={() => remove(template)}><Trash2 size={16} /></button>
           </div>

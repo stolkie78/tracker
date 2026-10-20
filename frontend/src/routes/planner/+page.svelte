@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { goto } from '$app/navigation';
   import { Activity, CalendarDays, Check, ChevronDown, LoaderCircle, Sparkles } from '@lucide/svelte';
   import {
@@ -236,9 +237,8 @@
         </div>
         <div>
           <label class="label" for="plan-weeks">Periode</label>
-          <select id="plan-weeks" class="input" bind:value={weeks}>
-            {#each [2, 3, 4, 6, 8, 12] as option}<option value={option}>{option} weken · t/m {formatDate(calculateEndDate(startDate, option))}</option>{/each}
-          </select>
+          <CycleChoice id="plan-weeks" label="Periode" bind:value={weeks}
+            options={[2, 3, 4, 6, 8, 12].map((value) => ({ value, label: `${value} weken · t/m ${formatDate(calculateEndDate(startDate, value))}` }))} />
         </div>
         <div class="sm:col-span-2">
           <label class="label" for="plan-goal">Doel of extra context</label>
@@ -246,9 +246,8 @@
         </div>
         <div>
           <label class="label" for="experience">Ervaringsniveau</label>
-          <select id="experience" class="input" bind:value={experience}>
-            <option value="beginner">Beginner</option><option value="intermediate">Gemiddeld</option><option value="advanced">Gevorderd</option>
-          </select>
+          <CycleChoice id="experience" label="Ervaringsniveau" bind:value={experience}
+            options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Gemiddeld' }, { value: 'advanced', label: 'Gevorderd' }]} />
         </div>
         <div>
           <label class="label" for="equipment">Beschikbaar materiaal</label>
