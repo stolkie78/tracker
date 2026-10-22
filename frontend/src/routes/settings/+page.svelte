@@ -4,8 +4,9 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { setAIAvailability } from '$lib/stores/ai';
-  import { connectStrava, currentUserId, disconnectStrava, getAISettings, getCalendarFeed, resetCalendarFeed, getStravaStatus, saveAISettings, syncStrava } from '$lib/pocketbase';
-  import type { StravaStatus, StravaSyncCounts } from '$lib/types';
+  import { connectStrava, currentUserId, disconnectStrava, getAISettings, getCalendarFeed, resetCalendarFeed, getStravaConfig, getStravaStatus, saveAISettings, saveStravaConfig, syncStrava } from '$lib/pocketbase';
+  import { isAdmin, loadUserRoles } from '$lib/stores/role';
+  import type { StravaConfigStatus, StravaStatus, StravaSyncCounts } from '$lib/types';
 
   const defaultEndpoint = 'https://api.openai.com/v1';
   let endpoint = defaultEndpoint;
@@ -21,6 +22,12 @@
   let stravaBusy = false;
   let stravaError = '';
   let stravaMessage = '';
+  let stravaConfig: StravaConfigStatus | null = null;
+  let stravaClientId = '';
+  let stravaClientSecret = '';
+  let stravaConfigBusy = false;
+  let stravaConfigError = '';
+  let stravaConfigMessage = '';
 
   const describeSync = (counts: StravaSyncCounts) =>
     `Gesynchroniseerd: ${counts.created} nieuw, ${counts.linked} gekoppeld aan een geplande training, ${counts.updated} bijgewerkt.`;
@@ -56,6 +63,39 @@
       scope: 'read,activity:read_all'
     });
     window.location.href = `https://www.strava.com/oauth/authorize?${params}`;
+  };
+
+  const loadStravaConfig = async () => {
+    try {
+      await loadUserRoles();
+      if (!$isAdmin) return;
+      const config = await getStravaConfig();
+      stravaConfig = config;
+      stravaClientId = config.client_id;
+    } catch (err) {
+      stravaConfigError = err instanceof Error ? err.message : 'Strava-configuratie kon niet worden geladen.';
+    }
+  };
+
+  const saveStravaConfiguration = async () => {
+    stravaConfigBusy = true;
+    stravaConfigError = '';
+    stravaConfigMessage = '';
+    try {
+      const savedConfig = await saveStravaConfig({
+        client_id: stravaClientId,
+        ...(stravaClientSecret ? { client_secret: stravaClientSecret } : {})
+      });
+      stravaConfig = savedConfig;
+      stravaClientId = savedConfig.client_id;
+      stravaClientSecret = '';
+      strava = await getStravaStatus();
+      stravaConfigMessage = 'Strava-integratie opgeslagen. De Client Secret wordt niet teruggestuurd naar de browser.';
+    } catch (err) {
+      stravaConfigError = err instanceof Error ? err.message : 'Strava-configuratie kon niet worden opgeslagen.';
+    } finally {
+      stravaConfigBusy = false;
+    }
   };
 
   let calendarUrl = '';
@@ -117,6 +157,7 @@
   onMount(async () => {
     const user = currentUserId();
     loadStrava();
+    loadStravaConfig();
     loadCalendar();
     try {
       const settings = await getAISettings();
@@ -171,7 +212,7 @@
     {#if !strava}
       <p class="animate-pulse text-gray-600 dark:text-gray-300">Strava laden...</p>
     {:else if !strava.configured}
-      <p class="text-gray-600 dark:text-gray-300">Strava is niet geconfigureerd op de server (STRAVA_CLIENT_ID en STRAVA_CLIENT_SECRET ontbreken).</p>
+      <p class="text-gray-600 dark:text-gray-300">De beheerder moet de Strava-integratie instellen voordat je je account kunt koppelen.</p>
     {:else if strava.connected}
       <p class="text-gray-600 dark:text-gray-300">
         Gekoppeld{#if strava.athlete_name} als <strong>{strava.athlete_name}</strong>{/if}. Hardloopactiviteiten worden automatisch geïmporteerd en gekoppeld aan een geplande hardlooptraining van dezelfde dag.
@@ -188,6 +229,30 @@
     {#if stravaError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaError}</p>{/if}
     {#if stravaMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaMessage}</p>{/if}
   </section>
+
+  {#if $isAdmin}
+    <section class="card space-y-3">
+      <h3 class="text-xl font-bold">Strava-integratie beheren</h3>
+      <p class="text-gray-600 dark:text-gray-300">Deze app-brede configuratie wordt door alle gebruikers gedeeld. Strava-toegang en geïmporteerde trainingen blijven per gebruiker gescheiden.</p>
+      {#if !stravaConfig}
+        <p class="animate-pulse text-gray-600 dark:text-gray-300">Configuratie laden...</p>
+      {:else}
+        <form class="space-y-3" on:submit|preventDefault={saveStravaConfiguration}>
+          <div>
+            <label class="label" for="strava-client-id">Strava Client ID</label>
+            <input id="strava-client-id" class="input" bind:value={stravaClientId} required maxlength="100" />
+          </div>
+          <div>
+            <label class="label" for="strava-client-secret">Strava Client Secret {#if stravaConfig.client_secret_set}<span class="font-normal text-green-700 dark:text-green-300">· ingesteld</span>{/if}</label>
+            <input id="strava-client-secret" class="input" type="password" bind:value={stravaClientSecret} autocomplete="new-password" required={!stravaConfig.client_secret_set} placeholder={stravaConfig.client_secret_set ? 'Laat leeg om de huidige secret te behouden' : 'Vul je Strava Client Secret in'} />
+          </div>
+          {#if stravaConfigError}<p role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaConfigError}</p>{/if}
+          {#if stravaConfigMessage}<p role="status" class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaConfigMessage}</p>{/if}
+          <button class="btn-primary" type="submit" disabled={stravaConfigBusy}><Save size={18} /> {stravaConfigBusy ? 'Opslaan...' : 'Strava-configuratie opslaan'}</button>
+        </form>
+      {/if}
+    </section>
+  {/if}
 
   <section class="card space-y-3">
     <h3 class="text-xl font-bold">Agenda (iCal)</h3>

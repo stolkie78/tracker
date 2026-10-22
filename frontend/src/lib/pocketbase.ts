@@ -11,6 +11,7 @@ import {
   type HealthProgram,
   type ID,
   type Profile,
+  type StravaConfigStatus,
   type StravaStatus,
   type StravaSyncCounts,
   type TemplateExercise,
@@ -124,6 +125,16 @@ export const resetCalendarFeed = () =>
 
 export const getStravaStatus = () =>
   pb.send<StravaStatus>('/api/top-trainer/strava', { method: 'GET', requestKey: null });
+
+export const getStravaConfig = () =>
+  pb.send<StravaConfigStatus>('/api/top-trainer/strava-config', { method: 'GET', requestKey: null });
+
+export const saveStravaConfig = (config: { client_id: string; client_secret?: string }) =>
+  pb.send<StravaConfigStatus>('/api/top-trainer/strava-config', {
+    method: 'POST',
+    body: config,
+    requestKey: null
+  });
 
 export const connectStrava = (code: string) =>
   pb.send<{ connected: boolean; athlete_name: string; counts: StravaSyncCounts }>('/api/top-trainer/strava/connect', {
