@@ -8,7 +8,7 @@
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
   import { groupByDayPart } from '$lib/programs';
-  import { formatRunTime, isRun } from '$lib/workouts';
+  import { formatWorkoutTime, requiresDistanceAndTime } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
@@ -153,7 +153,7 @@
         details.push(names.length > 0 ? names.join(', ') : `${exercises.length} oefeningen`);
       }
     }
-    if (workout.type === 'cardio' || isRun(workout)) {
+    if (workout.type === 'cardio' || requiresDistanceAndTime(workout)) {
       if (workout.cardio_mode) details.push(CARDIO_MODE_LABELS[workout.cardio_mode]);
       if (workout.distance_km) details.push(`${workout.distance_km} km`);
     }
@@ -166,7 +166,7 @@
     if (workout.type === 'sport' && workout.sport_activity) {
       details.push(SPORT_ACTIVITY_LABELS[workout.sport_activity]);
     }
-    if (workout.duration_minutes) details.push(isRun(workout) ? formatRunTime(workout.duration_minutes) : `${workout.duration_minutes} min`);
+    if (workout.duration_minutes) details.push(requiresDistanceAndTime(workout) ? formatWorkoutTime(workout.duration_minutes) : `${workout.duration_minutes} min`);
     return details.join(' · ') || 'Geen extra details';
   };
 </script>

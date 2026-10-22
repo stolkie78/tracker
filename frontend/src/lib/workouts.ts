@@ -1,9 +1,10 @@
 import type { Workout } from './types';
 
-export const isRun = (workout: Workout) =>
-  (workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'running';
+export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode'>) =>
+  (workout.type === 'cardio' || workout.type === 'interval') &&
+  (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling');
 
-export const runCompletionData = (distance: number | undefined, time: string) => {
+export const distanceCompletionData = (distance: number | undefined, time: string) => {
   if (typeof distance !== 'number' || !Number.isFinite(distance) || distance <= 0) {
     throw new Error('Vul een afstand groter dan 0 km in.');
   }
@@ -16,7 +17,7 @@ export const runCompletionData = (distance: number | undefined, time: string) =>
   return { distance_km: distance, duration_minutes: seconds / 60 };
 };
 
-export const formatRunTime = (minutes: number) => {
+export const formatWorkoutTime = (minutes: number) => {
   const seconds = Math.round(minutes * 60);
   return [
     Math.floor(seconds / 3600),
