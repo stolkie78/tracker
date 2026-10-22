@@ -8,7 +8,7 @@
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
   import { groupByDayPart } from '$lib/programs';
-  import { formatWorkoutTime, requiresDistanceAndTime } from '$lib/workouts';
+  import { formatWorkoutTime, requiresDistanceAndTime, workoutsInRange, type DateRangeFilter } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
@@ -27,13 +27,13 @@
   let loading = true;
   let error = '';
   let requestId = 0;
-  type DateRangeFilter = 'today' | 'week' | 'month' | 'planned';
   let dateRangeFilter: DateRangeFilter = 'today';
   const DATE_RANGE_OPTIONS: { value: DateRangeFilter; label: string }[] = [
     { value: 'today', label: 'Vandaag' },
     { value: 'week', label: 'Deze week' },
     { value: 'month', label: 'Deze maand' },
-    { value: 'planned', label: 'Gepland' }
+    { value: 'planned', label: 'Gepland' },
+    { value: 'past', label: 'Verleden' }
   ];
 
   const loadWorkouts = async (type: WorkoutType | '', planId = '') => {
@@ -71,30 +71,7 @@
     return result;
   };
 
-  const rangeFor = (filter: DateRangeFilter) => {
-    const start = dateOnly(new Date());
-    if (filter === 'week') {
-      start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
-    } else if (filter === 'month') {
-      start.setDate(1);
-    }
-    const end = new Date(start);
-    if (filter === 'today') end.setDate(end.getDate() + 1);
-    else if (filter === 'week') end.setDate(end.getDate() + 7);
-    else end.setMonth(end.getMonth() + 1);
-    return { start, end };
-  };
-
   const workoutDay = (workout: Workout) => dateOnly(new Date(workout.performed_at));
-
-  const workoutsInRange = (records: Workout[], filter: DateRangeFilter) => {
-    if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
-    const { start, end } = rangeFor(filter);
-    return records.filter((workout) => {
-      const day = workoutDay(workout);
-      return day >= start && day < end;
-    });
-  };
 
   const sortWorkouts = (records: Workout[]) => {
     const today = dateOnly(new Date());
@@ -111,7 +88,10 @@
     });
   };
 
-  $: visibleWorkouts = sortWorkouts(workoutsInRange(workouts, dateRangeFilter));
+  $: rangedWorkouts = workoutsInRange(workouts, dateRangeFilter);
+  $: visibleWorkouts = dateRangeFilter === 'past'
+    ? [...rangedWorkouts].sort((a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime())
+    : sortWorkouts(rangedWorkouts);
 
   const groupedByDay = (records: Workout[]) => {
     const groups = new Map<string, Workout[]>();

@@ -90,7 +90,7 @@ Maak eerst per omgeving een `.env.test`, `.env.demo` of `.env.production` op bas
 - **Interval:** activiteit, werk- en rustduur, aantal rondes en ervaren inspanning.
 - **Herstel:** rust, mobiliteit, yoga, wandelen, rekken of een andere herstelactiviteit.
 
-De tijdlijn kan op trainingstype worden gefilterd. De filterkeuze wordt lokaal onthouden.
+De tijdlijn kan op trainingstype worden gefilterd. De filterkeuze wordt lokaal onthouden. Onder **Periode** kies je Vandaag, Deze week, Deze maand, Gepland of **Verleden**. Verleden toont alle trainingen van voor vandaag, ongeacht status, met de meest recente dag eerst. De periodefilter werkt samen met het gekozen trainingstype en een eventueel programmafilter.
 De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefeningen per materiaaltype: cable, dumbbell, kettlebell, barbell en machine. Het materiaaltype wordt in de oefeningenkiezer en bij krachttrainingsresultaten getoond. Het idempotente PocketBase-setupscript vult de catalogus automatisch aan.
 
 ## Versiegeschiedenis

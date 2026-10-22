@@ -1,5 +1,29 @@
 import type { Workout } from './types';
 
+export type DateRangeFilter = 'today' | 'week' | 'month' | 'planned' | 'past';
+
+export const workoutsInRange = (records: Workout[], filter: DateRangeFilter, now = new Date()) => {
+  if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (filter === 'past') {
+    return records.filter((workout) => new Date(workout.performed_at) < start);
+  }
+  if (filter === 'week') {
+    start.setDate(start.getDate() - ((start.getDay() + 6) % 7));
+  } else if (filter === 'month') {
+    start.setDate(1);
+  }
+  const end = new Date(start);
+  if (filter === 'today') end.setDate(end.getDate() + 1);
+  else if (filter === 'week') end.setDate(end.getDate() + 7);
+  else end.setMonth(end.getMonth() + 1);
+  return records.filter((workout) => {
+    const date = new Date(workout.performed_at);
+    return date >= start && date < end;
+  });
+};
+
 export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode'>) =>
   (workout.type === 'cardio' || workout.type === 'interval') &&
   (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling');
