@@ -15,9 +15,9 @@ const { cycleChoice } = await server.ssrLoadModule('/src/lib/choices.ts');
 
 test('fixed choices advance once and wrap back to the first value', () => {
   const options = [
-    { value: 'morning', label: 'Ochtend' },
-    { value: 'afternoon', label: 'Middag' },
-    { value: 'evening', label: 'Avond' }
+    { value: 'morning', label: 'Morning' },
+    { value: 'afternoon', label: 'Afternoon' },
+    { value: 'evening', label: 'Evening' }
   ];
   assert.equal(cycleChoice(options, 'morning')?.value, 'afternoon');
   assert.equal(cycleChoice(options, 'afternoon')?.value, 'evening');
@@ -26,7 +26,7 @@ test('fixed choices advance once and wrap back to the first value', () => {
 });
 
 test('numeric choices retain numbers, including wraparound', () => {
-  const options = [1, 2, 3].map((value) => ({ value, label: `${value} weken` }));
+  const options = [1, 2, 3].map((value) => ({ value, label: `${value} weeks` }));
   assert.equal(cycleChoice(options, 1)?.value, 2);
   assert.equal(cycleChoice(options, 3)?.value, 1);
 });
@@ -34,7 +34,7 @@ test('numeric choices retain numbers, including wraparound', () => {
 test('empty, single, missing and blank values are handled without fabricating options', () => {
   assert.equal(cycleChoice([], 'missing'), undefined);
   assert.equal(cycleChoice([{ value: 'machine', label: 'Machine' }], '')?.value, 'machine');
-  const options = [{ value: '', label: 'Alle' }, { value: 'strength', label: 'Kracht' }];
+  const options = [{ value: '', label: 'All' }, { value: 'strength', label: 'Strength' }];
   assert.equal(cycleChoice(options, '')?.value, 'strength');
   assert.equal(cycleChoice(options, 'strength')?.value, '');
   assert.equal(cycleChoice(options, 'deleted')?.value, '');

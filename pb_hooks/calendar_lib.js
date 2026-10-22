@@ -1,6 +1,6 @@
 var COLLECTION = "calendar_feeds";
-var TYPE_LABELS = { strength: "Kracht", cardio: "Cardio", interval: "Interval", recovery: "Herstel" };
-var STATUS_LABELS = { planned: "Gepland", in_progress: "Bezig", completed: "Voltooid" };
+var TYPE_LABELS = { strength: "Strength", cardio: "Cardio", interval: "Interval", recovery: "Recovery" };
+var STATUS_LABELS = { planned: "Planned", in_progress: "In progress", completed: "Completed" };
 
 function randomToken() {
   return $security.randomString(40);
@@ -78,12 +78,12 @@ function detailLines(w) {
   var lines = [];
   var type = w.getString("type");
   lines.push((TYPE_LABELS[type] || type) + " - " + (STATUS_LABELS[w.getString("status")] || w.getString("status")));
-  var part = { morning: "Ochtend", afternoon: "Middag", evening: "Avond" }[w.getString("day_part")];
-  if (part) lines.push("Dagdeel: " + part);
-  if (type === "cardio" && w.getFloat("distance_km")) lines.push("Afstand: " + w.getFloat("distance_km") + " km");
+  var part = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" }[w.getString("day_part")];
+  if (part) lines.push("Day part: " + part);
+  if (type === "cardio" && w.getFloat("distance_km")) lines.push("Distance: " + w.getFloat("distance_km") + " km");
   if (type === "interval" && w.getInt("interval_rounds")) {
     lines.push(
-      w.getInt("interval_rounds") + " x " + w.getInt("interval_work_seconds") + "s werk / " + w.getInt("interval_rest_seconds") + "s rust"
+      w.getInt("interval_rounds") + " x " + w.getInt("interval_work_seconds") + "s work / " + w.getInt("interval_rest_seconds") + "s rest"
     );
   }
   if (w.getString("notes")) lines.push(w.getString("notes"));
@@ -104,7 +104,7 @@ function buildCalendar(app, base, ownerId) {
   var lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//T.O.P. Trainer//Tijdlijn//NL",
+    "PRODID:-//T.O.P. Trainer//Timeline//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "X-WR-CALNAME:T.O.P. Trainer",
@@ -117,7 +117,7 @@ function buildCalendar(app, base, ownerId) {
     var minutes = w.getInt("duration_minutes") || 45;
     var end = new Date(start.getTime() + minutes * 60000);
     var link = base + "/workouts/" + w.id;
-    var description = detailLines(w).concat(["", "Start de training: " + link]).join("\n");
+    var description = detailLines(w).concat(["", "Start workout: " + link]).join("\n");
     var summary = (w.getString("status") === "completed" ? "✓ " : "") + w.getString("title");
     [
       "BEGIN:VEVENT",

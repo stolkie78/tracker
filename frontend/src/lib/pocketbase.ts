@@ -53,13 +53,13 @@ export const logout = () => pb.authStore.clear();
 
 export const getOrCreateMyProfile = async (displayName?: string) => {
   const userId = currentUserId();
-  if (!userId) throw new Error('Er is geen ingelogde gebruiker.');
+  if (!userId) throw new Error('No user is signed in.');
   const records = await pb.collection('profiles').getFullList<Profile>({
     filter: `user = "${userId}"`,
     requestKey: null
   });
   if (records[0]) return records[0];
-  const name = displayName || String(pb.authStore.model?.name ?? pb.authStore.model?.email ?? 'Atleet');
+  const name = displayName || String(pb.authStore.model?.name ?? pb.authStore.model?.email ?? 'Athlete');
   try {
     return await pb.collection('profiles').create<Profile>({
       user: userId,
@@ -68,7 +68,7 @@ export const getOrCreateMyProfile = async (displayName?: string) => {
     });
   } catch (error) {
     if (!(error instanceof ClientResponseError) || error.status !== 400 || error.response.data?.user?.code !== 'validation_not_unique') throw error;
-    // Een andere tab kan het unieke profiel gelijktijdig hebben aangemaakt.
+    // Another tab may have created the unique profile at the same time.
     const existing = await getMyProfile();
     if (!existing) throw error;
     return existing;
@@ -171,7 +171,7 @@ export const createTrainingPlan = (data: Omit<TrainingPlan, 'id' | 'created' | '
 export const updateTrainingPlan = (id: ID, data: Partial<TrainingPlan>) =>
   pb.collection('training_plans').update<TrainingPlan>(id, data);
 
-// Verwijdert een programma en de nog geplande trainingen; uitgevoerde trainingen blijven bewaard.
+// Deletes a program and its planned workouts; completed workouts are kept.
 export const deleteTrainingPlan = async (id: ID) => {
   const planned = (await getPlanWorkouts(id)).filter((workout) => workout.status === 'planned');
   for (const workout of planned) await deleteWorkout(workout.id);
@@ -382,7 +382,7 @@ export const deleteTemplate = async (id: ID) => {
   await pb.collection('workout_templates').delete(id);
 };
 
-// Maakt een uitvoerbare training (incl. oefeningen en sets) op basis van een bouwblok.
+// Creates a workout from a template, including its exercises and sets.
 export const instantiateTemplate = async (
   template: WorkoutTemplate,
   performedAt: Date,

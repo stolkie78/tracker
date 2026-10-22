@@ -27,7 +27,7 @@ routerAdd(
       0,
       { user: e.auth.id }
     );
-    if (!admins.length) throw new ForbiddenError("Alleen een beheerder kan Strava configureren.");
+    if (!admins.length) throw new ForbiddenError("Only an administrator can configure Strava.");
     var strava = require(`${__hooks}/strava_lib.js`);
     var config = strava.config(e.app);
     return e.json(200, {
@@ -51,17 +51,17 @@ routerAdd(
       0,
       { user: e.auth.id }
     );
-    if (!admins.length) throw new ForbiddenError("Alleen een beheerder kan Strava configureren.");
+    if (!admins.length) throw new ForbiddenError("Only an administrator can configure Strava.");
 
     var body = e.requestInfo().body || {};
     var clientId = typeof body.client_id === "string" ? body.client_id.trim() : "";
     var clientSecret = typeof body.client_secret === "string" ? body.client_secret.trim() : "";
     var strava = require(`${__hooks}/strava_lib.js`);
     if (!clientId || clientId.length > 100 || clientSecret.length > 4096) {
-      throw new BadRequestError("Vul een geldige Strava Client ID en Client Secret in.");
+      throw new BadRequestError("Enter a valid Strava client ID and client secret.");
     }
     if (!clientSecret && !strava.isConfigured(e.app)) {
-      throw new BadRequestError("Vul de Strava Client Secret in.");
+      throw new BadRequestError("Enter the Strava client secret.");
     }
     var record = strava.saveConfig(e.app, clientId, clientSecret);
     return e.json(200, {
@@ -78,10 +78,10 @@ routerAdd(
   "/api/top-trainer/strava/connect",
   function (e) {
     var strava = require(`${__hooks}/strava_lib.js`);
-    if (!strava.isConfigured(e.app)) throw new BadRequestError("Strava is niet geconfigureerd.");
+    if (!strava.isConfigured(e.app)) throw new BadRequestError("Strava is not configured.");
     var body = e.requestInfo().body || {};
     var code = typeof body.code === "string" ? body.code.trim() : "";
-    if (!code || code.length > 256) throw new BadRequestError("Ongeldige Strava-code.");
+    if (!code || code.length > 256) throw new BadRequestError("Invalid Strava authorization code.");
     var record = strava.connect(e.app, e.auth.id, code);
     var counts = strava.sync(e.app, record);
     return e.json(200, { connected: true, athlete_name: record.getString("athlete_name"), counts: counts });
@@ -95,7 +95,7 @@ routerAdd(
   function (e) {
     var strava = require(`${__hooks}/strava_lib.js`);
     var record = strava.findConnection(e.app, e.auth.id);
-    if (!record) throw new BadRequestError("Strava is nog niet gekoppeld.");
+    if (!record) throw new BadRequestError("Strava is not connected yet.");
     return e.json(200, { counts: strava.sync(e.app, record) });
   },
   $apis.requireAuth()

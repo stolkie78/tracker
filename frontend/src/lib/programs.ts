@@ -11,33 +11,33 @@ export const localDate = (date: Date) =>
 export function cycleDate(start: string, offset: number) {
   const date = new Date(`${start}T12:00:00`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || Number.isNaN(date.getTime()) || localDate(date) !== start) {
-    throw new Error('Kies een geldige startdatum.');
+    throw new Error('Choose a valid start date.');
   }
   date.setDate(date.getDate() + offset);
   return date;
 }
 
 export function normalizeCycleSlots(raw: unknown, days: number): CycleSlot[] {
-  if (!Array.isArray(raw)) throw new Error('Het opgeslagen cyclusschema is ongeldig.');
+  if (!Array.isArray(raw)) throw new Error('The saved cycle schedule is invalid.');
   return Array.from({ length: days }, (_, index) => {
     const value: unknown = raw[index];
     const slot = emptyCycleSlot();
     if (value === undefined) return slot;
-    if (!isRecord(value)) throw new Error('Het opgeslagen dagschema is ongeldig.');
+    if (!isRecord(value)) throw new Error('The saved daily schedule is invalid.');
     if ('periods' in value) {
       const periods = value.periods;
-      if (!isRecord(periods)) throw new Error('De opgeslagen dagdelen zijn ongeldig.');
+      if (!isRecord(periods)) throw new Error('The saved day parts are invalid.');
       for (const part of DAY_PARTS) {
         const ids: unknown = part in periods ? periods[part] : [];
         if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string')) {
-          throw new Error('De opgeslagen workouts zijn ongeldig.');
+          throw new Error('The saved workouts are invalid.');
         }
         slot.periods[part] = [...ids];
       }
     } else {
       const ids: unknown = 'templates' in value ? value.templates : 'template' in value ? [value.template] : [];
       if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string')) {
-        throw new Error('De opgeslagen workouts zijn ongeldig.');
+        throw new Error('The saved workouts are invalid.');
       }
       slot.periods.morning = [...ids];
     }
@@ -58,21 +58,21 @@ export function buildCycleSchedule(
   start: string, cycleWeeks: number, repetitions: number, slots: CycleSlot[], lookup: Map<string, WorkoutTemplate>
 ): ScheduledBlock[] {
   if (!Number.isInteger(cycleWeeks) || cycleWeeks < 1 || cycleWeeks > 3) {
-    throw new Error('Een cyclus duurt één, twee of drie weken.');
+    throw new Error('A cycle must last one, two, or three weeks.');
   }
   if (!Number.isInteger(repetitions) || repetitions < 1 || repetitions > 52) {
-    throw new Error('Kies één tot en met 52 herhalingen.');
+    throw new Error('Choose between 1 and 52 repetitions.');
   }
   cycleDate(start, 0);
   const days = cycleWeeks * 7;
-  if (slots.length !== days) throw new Error('Het dagschema past niet bij de cyclusduur.');
+  if (slots.length !== days) throw new Error('The daily schedule does not match the cycle length.');
   const result: ScheduledBlock[] = [];
   for (let cycle = 0; cycle < repetitions; cycle += 1) {
     slots.forEach((slot, day) => {
       for (const part of DAY_PARTS) {
         slot.periods[part].forEach((id, order) => {
           const template = lookup.get(id);
-          if (!template) throw new Error(`Kies een beschikbare workout voor dag ${day + 1}, ${DAY_PART_LABELS[part].toLowerCase()}.`);
+          if (!template) throw new Error(`Choose an available workout for day ${day + 1}, ${DAY_PART_LABELS[part].toLowerCase()}.`);
           result.push({ date: cycleDate(start, cycle * days + day), template, cycle: cycle + 1, day, part, order });
         });
       }
@@ -87,11 +87,11 @@ export function blockTime(entry: ScheduledBlock) {
   return date;
 }
 
-// Oudere losse trainingen hebben geen dagdeel; verzin daar geen indeling voor.
+// Older standalone workouts have no day part; do not invent one.
 export function groupByDayPart(records: Workout[]) {
   return [...DAY_PARTS, '' as const].map((part) => ({
     part,
-    label: part ? DAY_PART_LABELS[part] : 'Zonder dagdeel',
+    label: part ? DAY_PART_LABELS[part] : 'No day part',
     workouts: records.filter((workout) => (workout.day_part || '') === part)
       .sort((a, b) => new Date(a.performed_at).getTime() - new Date(b.performed_at).getTime())
   })).filter((group) => group.workouts.length > 0);

@@ -84,7 +84,7 @@
         }
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Workouts konden niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Workouts could not be loaded.';
     } finally {
       pageLoading = false;
     }
@@ -161,7 +161,7 @@
 
   const detailsOf = (template: WorkoutTemplate) => {
     const parts: string[] = [`${template.duration_minutes} min`];
-    if (template.type === 'strength') parts.push(`${template.expand?.template_exercises_via_template?.length ?? 0} oefeningen`);
+    if (template.type === 'strength') parts.push(`${template.expand?.template_exercises_via_template?.length ?? 0} exercises`);
     if (template.type === 'cardio') {
       if (template.cardio_mode) parts.push(CARDIO_MODE_LABELS[template.cardio_mode]);
       if (template.distance_km) parts.push(`${template.distance_km} km`);
@@ -177,11 +177,11 @@
     error = '';
     success = '';
     if (!title.trim()) {
-      error = 'Geef de workout een naam.';
+      error = 'Enter a workout name.';
       return;
     }
     if (type === 'strength' && entries.some((entry) => !entry.exercise || entry.sets < 1 || entry.repsMin < 1 || entry.repsMax < entry.repsMin)) {
-      error = 'Kies per oefening een oefening en controleer sets en herhalingsbereik.';
+      error = 'Choose an exercise for each entry and check the sets and rep range.';
       return;
     }
     saving = true;
@@ -217,9 +217,9 @@
       resetForm();
       showForm = false;
       templates = await getTemplates();
-      success = wasEditing ? `“${created.title}” is bijgewerkt. Bestaande trainingen zijn niet gewijzigd.` : `“${created.title}” is toegevoegd aan je workouts.`;
+      success = wasEditing ? `“${created.title}” has been updated. Existing workouts were not changed.` : `“${created.title}” has been added to your workouts.`;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Workout kon niet worden opgeslagen.';
+      error = err instanceof Error ? err.message : 'Workout could not be saved.';
     } finally {
       saving = false;
     }
@@ -232,7 +232,7 @@
       const workout = await instantiateTemplate(template, new Date(), { status: 'in_progress' });
       await goto(`/workouts/${workout.id}`);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Training kon niet worden gestart.';
+      error = err instanceof Error ? err.message : 'Workout could not be started.';
       busyId = '';
     }
   };
@@ -246,16 +246,16 @@
       const part = planParts[template.id] ?? 'morning';
       const hour = String(DAY_PART_HOURS[part]).padStart(2, '0');
       await instantiateTemplate(template, new Date(`${day}T${hour}:00:00`), { dayPart: part });
-      success = `“${template.title}” is ingepland op ${day} · ${DAY_PART_LABELS[part]}.`;
+      success = `“${template.title}” scheduled for ${day} · ${DAY_PART_LABELS[part]}.`;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Inplannen is mislukt.';
+      error = err instanceof Error ? err.message : 'Could not schedule workout.';
     } finally {
       busyId = '';
     }
   };
 
   const remove = async (template: WorkoutTemplate) => {
-    if (!confirm(`“${template.title}” uit je workouts verwijderen? Eerder ingeplande trainingen blijven bestaan.`)) return;
+    if (!confirm(`Remove “${template.title}” from your workouts? Previously scheduled workouts will remain.`)) return;
     busyId = template.id;
     try {
       await deleteTemplate(template.id);
@@ -265,7 +265,7 @@
         showForm = false;
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Verwijderen is mislukt.';
+      error = err instanceof Error ? err.message : 'Could not delete workout.';
     } finally {
       busyId = '';
     }
@@ -279,11 +279,11 @@
     <div>
       <h2 class="text-3xl font-black tracking-tight sm:text-4xl">Workouts</h2>
       <p class="mt-2 text-gray-600 dark:text-gray-300">
-        Maak standaard trainingen (bijvoorbeeld 10K hardlopen of Upper body). Start ze direct, plan ze op een dag of gebruik ze in een
-        <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">programma</a>.
+        Create reusable workouts (such as a 10K run or an upper-body session). Start them now, schedule them for a day, or use them in a
+        <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">a program</a>.
       </p>
     </div>
-    {#if !showForm}<button class="btn-primary shrink-0" type="button" disabled={pageLoading || saving || !!busyId} on:click={() => { resetForm(); showForm = true; error = ''; success = ''; }}><Plus size={18} /> Nieuw</button>{/if}
+    {#if !showForm}<button class="btn-primary shrink-0" type="button" disabled={pageLoading || saving || !!busyId} on:click={() => { resetForm(); showForm = true; error = ''; success = ''; }}><Plus size={18} /> New</button>{/if}
   </div>
 
   {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
@@ -291,45 +291,45 @@
 
   {#if showForm}
     <form class="card space-y-4" on:submit|preventDefault={save}>
-      <h3 class="text-xl font-bold">{editing ? 'Workout bewerken' : 'Nieuwe workout'}</h3>
-      {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Wijzigingen gelden voor nieuwe trainingen. Reeds ingeplande en uitgevoerde trainingen blijven ongewijzigd.</p>{/if}
-      <p class="text-sm text-gray-500 dark:text-gray-400">Stap {wizardStep} van 2 · {wizardStep === 1 ? 'Type kiezen' : 'Invullen'}</p>
+      <h3 class="text-xl font-bold">{editing ? 'Edit workout' : 'New workout'}</h3>
+      {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Changes apply to new workouts. Previously scheduled and completed workouts will not change.</p>{/if}
+      <p class="text-sm text-gray-500 dark:text-gray-400">Step {wizardStep} of 2 · {wizardStep === 1 ? 'Choose a type' : 'Enter details'}</p>
       <fieldset disabled={saving} class="min-w-0 space-y-4">
       {#if wizardStep === 1}
-        <label class="label" for="tpl-type">Welk type training wil je maken?</label>
-        <CycleChoice id="tpl-type" label="Type training" options={WORKOUT_TYPE_OPTIONS} bind:value={type} />
-        <p class="text-xs text-gray-500 dark:text-gray-400">Klik om de volgende optie te kiezen.</p>
-        <button class="btn-primary w-full" type="button" on:click={() => chooseType(type)}>Verder</button>
+        <label class="label" for="tpl-type">What type of workout would you like to create?</label>
+        <CycleChoice id="tpl-type" label="Workout type" options={WORKOUT_TYPE_OPTIONS} bind:value={type} />
+        <p class="text-xs text-gray-500 dark:text-gray-400">Click to cycle through the options.</p>
+        <button class="btn-primary w-full" type="button" on:click={() => chooseType(type)}>Continue</button>
       {:else}
       <div class="flex flex-wrap items-center justify-between gap-2">
         <span class="badge {WORKOUT_TYPE_STYLES[type].badge}">{WORKOUT_TYPE_LABELS[type]}</span>
-        <button class="btn-secondary" type="button" on:click={() => { wizardStep = 1; error = ''; }}>Type wijzigen</button>
+        <button class="btn-secondary" type="button" on:click={() => { wizardStep = 1; error = ''; }}>Change type</button>
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="label" for="tpl-title">Naam</label>
-          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'Bijvoorbeeld: Upper body' : type === 'recovery' ? 'Bijvoorbeeld: Mobiliteit' : type === 'sport' ? 'Bijvoorbeeld: Volleybaltraining' : 'Bijvoorbeeld: 10K hardlopen'} required />
+          <label class="label" for="tpl-title">Name</label>
+          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'For example: Upper body' : type === 'recovery' ? 'For example: Mobility' : type === 'sport' ? 'For example: Volleyball practice' : 'For example: 10K run'} required />
         </div>
         <div>
-          <label class="label" for="tpl-duration">Duur (min)</label>
+          <label class="label" for="tpl-duration">Duration (min)</label>
           <input id="tpl-duration" class="input" type="number" required min="1" max="600" bind:value={duration} />
         </div>
         {#if type === 'cardio' || type === 'interval'}
           <div>
-            <label class="label" for="tpl-cardio">Soort</label>
-            <CycleChoice id="tpl-cardio" label="Soort" options={CARDIO_MODE_OPTIONS} bind:value={cardioMode} />
+            <label class="label" for="tpl-cardio">Activity</label>
+            <CycleChoice id="tpl-cardio" label="Activity" options={CARDIO_MODE_OPTIONS} bind:value={cardioMode} />
           </div>
         {/if}
         {#if type === 'cardio'}
           <div>
-            <label class="label" for="tpl-distance">Afstand (km)</label>
+            <label class="label" for="tpl-distance">Distance (km)</label>
             <input id="tpl-distance" class="input" type="number" min="0" step="0.1" bind:value={distance} />
           </div>
         {/if}
         {#if type === 'interval'}
-          <div><label class="label" for="tpl-work">Werk (sec)</label><input id="tpl-work" class="input" type="number" min="1" bind:value={intervalWork} /></div>
-          <div><label class="label" for="tpl-rest">Rust (sec)</label><input id="tpl-rest" class="input" type="number" min="0" bind:value={intervalRest} /></div>
-          <div><label class="label" for="tpl-rounds">Rondes</label><input id="tpl-rounds" class="input" type="number" min="1" bind:value={intervalRounds} /></div>
+          <div><label class="label" for="tpl-work">Work (sec)</label><input id="tpl-work" class="input" type="number" min="1" bind:value={intervalWork} /></div>
+          <div><label class="label" for="tpl-rest">Rest (sec)</label><input id="tpl-rest" class="input" type="number" min="0" bind:value={intervalRest} /></div>
+          <div><label class="label" for="tpl-rounds">Rounds</label><input id="tpl-rounds" class="input" type="number" min="1" bind:value={intervalRounds} /></div>
         {/if}
         {#if type === 'sport'}
           <div>
@@ -339,24 +339,24 @@
         {/if}
         {#if type === 'recovery'}
           <div>
-            <label class="label" for="tpl-recovery">Activiteit</label>
-            <CycleChoice id="tpl-recovery" label="Activiteit" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={recoveryActivity} />
+            <label class="label" for="tpl-recovery">Activity</label>
+            <CycleChoice id="tpl-recovery" label="Activity" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={recoveryActivity} />
           </div>
         {/if}
       </div>
       <details class="rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-        <summary class="cursor-pointer text-sm font-semibold">Extra opties</summary>
+        <summary class="cursor-pointer text-sm font-semibold">Additional options</summary>
         <div class="mt-3 grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="label" for="tpl-level">Niveau</label>
-          <CycleChoice id="tpl-level" label="Niveau" options={Object.entries(EXPERIENCE_LEVEL_LABELS).map(([value, label]) => ({ value, label }))} bind:value={level} />
+          <label class="label" for="tpl-level">Experience level</label>
+          <CycleChoice id="tpl-level" label="Experience level" options={Object.entries(EXPERIENCE_LEVEL_LABELS).map(([value, label]) => ({ value, label }))} bind:value={level} />
         </div>
         <div class="sm:col-span-2">
-          <label class="label" for="tpl-tags">Tags (komma-gescheiden)</label>
-          <input id="tpl-tags" class="input" bind:value={tags} maxlength="200" placeholder="bovenlichaam, duwen, trekken" />
+          <label class="label" for="tpl-tags">Tags (comma-separated)</label>
+          <input id="tpl-tags" class="input" bind:value={tags} maxlength="200" placeholder="upper body, push, pull" />
         </div>
         <div class="sm:col-span-2">
-          <label class="label" for="tpl-notes">Notities</label>
+          <label class="label" for="tpl-notes">Notes</label>
           <textarea id="tpl-notes" class="input min-h-20 resize-y" bind:value={notes} maxlength="1000"></textarea>
         </div>
         </div>
@@ -364,51 +364,51 @@
 
       {#if type === 'strength'}
         <fieldset class="space-y-3">
-          <legend class="label">Oefeningen</legend>
+          <legend class="label">Exercises</legend>
           {#each entries as entry, index}
             <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-2">
-              <CycleChoice label="Spiergroep" value={entry.muscle} options={[{ value: '', label: 'Alle spiergroepen' }, ...MUSCLE_GROUP_OPTIONS]}
+              <CycleChoice label="Muscle group" value={entry.muscle} options={[{ value: '', label: 'All muscle groups' }, ...MUSCLE_GROUP_OPTIONS]}
                 onChange={(muscle) => entries[index] = { ...entry, muscle, exercise: '', equipment: '' }} />
-              <select class="input" aria-label="Oefening" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
-                <option value="">Kies oefening…</option>
+              <select class="input" aria-label="Exercise" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
+                <option value="">Choose an exercise…</option>
                 {#each exercises.filter((item) => !entry.muscle || item.muscle_group === entry.muscle) as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
               </select>
-              <CycleChoice label="Materiaal" bind:value={entry.equipment} placeholder="Kies eerst een oefening"
+              <CycleChoice label="Equipment" bind:value={entry.equipment} placeholder="Choose an exercise first"
                 options={optionsFor(entry.exercise).map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />
               <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-4">
                 <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" required min="1" bind:value={entry.sets} /></div>
-                <div><label class="label" for="e-min-{index}">Reps min</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>
-                <div><label class="label" for="e-max-{index}">Reps max</label><input id="e-max-{index}" class="input" type="number" required min="1" bind:value={entry.repsMax} /></div>
+                <div><label class="label" for="e-min-{index}">Min reps</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>
+                <div><label class="label" for="e-max-{index}">Max reps</label><input id="e-max-{index}" class="input" type="number" required min="1" bind:value={entry.repsMax} /></div>
                 <div><label class="label" for="e-w-{index}">Kg</label><input id="e-w-{index}" class="input" type="number" required min="0" step="0.1" bind:value={entry.weight} /></div>
               </div>
               <details class="sm:col-span-2">
-              <summary class="cursor-pointer text-sm font-semibold">Extra oefenopties</summary>
+              <summary class="cursor-pointer text-sm font-semibold">Additional exercise options</summary>
               <div class="mt-3 grid gap-2 sm:grid-cols-3">
-                <div><label class="label" for="e-increment-{index}">Stap (kg)</label><input id="e-increment-{index}" class="input" type="number" min="0.1" step="0.1" required bind:value={entry.increment} /></div>
-                <div><label class="label" for="e-rest-{index}">Rust (sec)</label><input id="e-rest-{index}" class="input" type="number" min="0" required bind:value={entry.rest} /></div>
+                <div><label class="label" for="e-increment-{index}">Increment (kg)</label><input id="e-increment-{index}" class="input" type="number" min="0.1" step="0.1" required bind:value={entry.increment} /></div>
+                <div><label class="label" for="e-rest-{index}">Rest (sec)</label><input id="e-rest-{index}" class="input" type="number" min="0" required bind:value={entry.rest} /></div>
                 <div><label class="label" for="e-tempo-{index}">Tempo</label><input id="e-tempo-{index}" class="input" maxlength="100" bind:value={entry.tempo} /></div>
               </div>
               </details>
               {#if entries.length > 1}
-                <button class="btn-secondary sm:col-span-2" type="button" on:click={() => (entries = entries.filter((_, i) => i !== index))}><Trash2 size={16} /> Verwijderen</button>
+                <button class="btn-secondary sm:col-span-2" type="button" on:click={() => (entries = entries.filter((_, i) => i !== index))}><Trash2 size={16} /> Remove</button>
               {/if}
             </div>
           {/each}
-          <button class="btn-secondary w-full" type="button" aria-label="Nieuwe oefening" on:click={() => (entries = [...entries, emptyEntry()])}><Plus size={16} /> Nieuw</button>
+          <button class="btn-secondary w-full" type="button" aria-label="New exercise" on:click={() => (entries = [...entries, emptyEntry()])}><Plus size={16} /> Add exercise</button>
         </fieldset>
       {/if}
 
       <button class="btn-primary w-full" type="submit" disabled={saving}>
-        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}Opslaan{/if}
+        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Saving...{:else}Save{/if}
       </button>
       {/if}
-      <button class="btn-secondary w-full" type="button" on:click={() => { showForm = false; resetForm(); }}>Annuleren</button>
+      <button class="btn-secondary w-full" type="button" on:click={() => { showForm = false; resetForm(); }}>Cancel</button>
       </fieldset>
     </form>
   {:else if pageLoading}
-    <div class="card animate-pulse">Laden...</div>
+    <div class="card animate-pulse">Loading...</div>
   {:else if templates.length === 0}
-    <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen workouts. Maak je eerste workout met “Nieuw”.</div>
+    <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any workouts yet. Create your first workout with “New”.</div>
   {:else}
     <div class="space-y-3">
       {#each templates as template}
@@ -426,15 +426,15 @@
           {/if}
           {#if template.notes}<p class="text-sm text-gray-500 dark:text-gray-400">{template.notes}</p>{/if}
           <div class="flex flex-wrap items-center gap-2">
-            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => edit(template)}><Pencil size={16} /> Bewerken</button>
-            <button class="btn-primary" type="button" disabled={saving || !!busyId} on:click={() => start(template)}><Play size={16} /> Start nu</button>
-            <input class="input !w-auto" type="date" aria-label="Datum inplannen" bind:value={planDates[template.id]} placeholder={toInputDate(new Date())} />
+            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => edit(template)}><Pencil size={16} /> Edit</button>
+            <button class="btn-primary" type="button" disabled={saving || !!busyId} on:click={() => start(template)}><Play size={16} /> Start now</button>
+            <input class="input !w-auto" type="date" aria-label="Schedule date" bind:value={planDates[template.id]} placeholder={toInputDate(new Date())} />
             <div class="w-full sm:w-auto">
-              <CycleChoice label="Dagdeel inplannen" options={DAY_PART_OPTIONS} value={planParts[template.id] ?? 'morning'}
+              <CycleChoice label="Schedule day part" options={DAY_PART_OPTIONS} value={planParts[template.id] ?? 'morning'}
                 onChange={(part) => planParts[template.id] = part} />
             </div>
-            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => schedule(template)}><CalendarPlus size={16} /> Inplannen</button>
-            <button class="btn-secondary" type="button" aria-label="Verwijderen" disabled={saving || !!busyId} on:click={() => remove(template)}><Trash2 size={16} /></button>
+            <button class="btn-secondary" type="button" disabled={saving || !!busyId} on:click={() => schedule(template)}><CalendarPlus size={16} /> Schedule</button>
+            <button class="btn-secondary" type="button" aria-label="Delete" disabled={saving || !!busyId} on:click={() => remove(template)}><Trash2 size={16} /></button>
           </div>
         </article>
       {/each}

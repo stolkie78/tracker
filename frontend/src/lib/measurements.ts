@@ -2,7 +2,7 @@ import { periodStart, type PeriodKey } from '$lib/stats';
 import type { BodyMeasurement } from '$lib/types';
 
 export const measurementDateLabel = (value: string) =>
-  new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString('nl-NL');
+  new Date(`${value.slice(0, 10)}T00:00:00`).toLocaleDateString('en-US');
 
 export const calculateBMI = (weightKg: number, heightCm: number): number | null =>
   Number.isFinite(weightKg) && Number.isFinite(heightCm) && weightKg > 0 && heightCm > 0
@@ -10,9 +10,9 @@ export const calculateBMI = (weightKg: number, heightCm: number): number | null 
     : null;
 
 export const MEASUREMENT_METRICS = {
-  weight: { label: 'Gewicht', unit: 'kg' },
+  weight: { label: 'Weight', unit: 'kg' },
   bmi: { label: 'BMI', unit: '' },
-  waist: { label: 'Taille', unit: 'cm' }
+  waist: { label: 'Waist', unit: 'cm' }
 };
 export type MeasurementMetric = keyof typeof MEASUREMENT_METRICS;
 

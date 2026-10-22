@@ -9,7 +9,7 @@ pb.authStore.onChange(() => {
   isAuthenticated.set(pb.authStore.isValid);
 }, true);
 
-// Een sessie uit een eerdere database (bijv. na een reset) is lokaal nog 'geldig'; server-side controleren.
+// A session from an earlier database (for example, after a reset) may still appear valid locally; verify it server-side.
 if (typeof window !== 'undefined' && pb.authStore.isValid) {
   pb.collection('users').authRefresh().catch(() => pb.authStore.clear());
 }

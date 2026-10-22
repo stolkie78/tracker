@@ -43,7 +43,7 @@
       bio = record.bio ?? '';
       photoUrl = await getProfilePhotoUrl(record);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Je profiel kon niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Your profile could not be loaded.';
     } finally {
       loading = false;
     }
@@ -57,7 +57,7 @@
     try {
       const photo = photoInput.files?.[0];
       if (photo && (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type) || photo.size > 5 * 1024 * 1024)) {
-        throw new Error('Kies een JPG-, PNG- of WebP-foto van maximaal 5 MB.');
+        throw new Error('Choose a JPG, PNG, or WebP image no larger than 5 MB.');
       }
       const data = new FormData();
       data.set('display_name', displayName.trim());
@@ -68,61 +68,61 @@
       else if (removePhoto) data.set('photo', '');
       record = await saveMyProfile(record.id, data);
       profileStore.set(record);
-      success = 'Profiel opgeslagen.';
+      success = 'Profile saved.';
       photoInput.value = '';
       removePhoto = false;
       photoUrl = await getProfilePhotoUrl(record);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Opslaan mislukt.';
+      error = err instanceof Error ? err.message : 'Could not save changes.';
     } finally {
       saving = false;
     }
   };
 </script>
 
-<svelte:head><title>Mijn profiel · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>My profile · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-5">
   <div>
-    <h2 class="text-3xl font-black">Mijn profiel</h2>
-    <p class="mt-2 text-gray-600 dark:text-gray-300">Je persoonlijke gegevens en foto zijn alleen voor jou zichtbaar. Trainers hebben geen toegang.</p>
-    <a class="mt-2 inline-block font-bold text-overload-signal" href="/health/measurements">Lichaamsmetingen vind je onder Health</a>
+    <h2 class="text-3xl font-black">My profile</h2>
+    <p class="mt-2 text-gray-600 dark:text-gray-300">Your personal details and photo are only visible to you. Coaches cannot access them.</p>
+    <a class="mt-2 inline-block font-bold text-overload-signal" href="/health/measurements">Find body measurements under Health</a>
   </div>
-  <section class="card space-y-3" aria-label="Weergave en account">
-    <h3 class="text-xl font-bold">Weergave en account</h3>
+  <section class="card space-y-3" aria-label="Appearance and account">
+    <h3 class="text-xl font-bold">Appearance and account</h3>
     <div class="flex flex-wrap gap-3">
       <button type="button" class="btn-secondary gap-2" on:click={() => darkTheme.update((dark) => !dark)}>
-        {#if $darkTheme}<Sun size={20} /> Licht thema{:else}<Moon size={20} /> Donker thema{/if}
+        {#if $darkTheme}<Sun size={20} /> Light theme{:else}<Moon size={20} /> Dark theme{/if}
       </button>
-      <button type="button" class="btn-secondary gap-2" on:click={signOut}><LogOut size={20} /> Uitloggen</button>
+      <button type="button" class="btn-secondary gap-2" on:click={signOut}><LogOut size={20} /> Sign out</button>
     </div>
   </section>
   {#if error}<p role="alert" class="card text-red-700 dark:text-red-300">{error}</p>{/if}
   {#if success}<p role="status" class="card text-emerald-700 dark:text-emerald-300">{success}</p>{/if}
   {#if loading}
-    <div class="card">Profiel laden...</div>
+    <div class="card">Loading profile...</div>
   {:else if record}
     <form class="card space-y-4" on:submit|preventDefault={save}>
-      <h3 class="text-xl font-bold">Persoonlijke gegevens</h3>
+      <h3 class="text-xl font-bold">Personal details</h3>
       <fieldset disabled={saving} class="space-y-4">
         {#if photoUrl && !removePhoto}
-          <img src={photoUrl} alt="Mijn profielfoto" class="h-28 w-28 rounded-full object-cover" on:error={() => { error = 'Je profielfoto kon niet worden geladen. Vernieuw de pagina om het opnieuw te proberen.'; }} />
+          <img src={photoUrl} alt="My profile photo" class="h-28 w-28 rounded-full object-cover" on:error={() => { error = 'Your profile photo could not be loaded. Refresh the page to try again.'; }} />
         {/if}
         <div>
-          <label class="label" for="photo">Profielfoto (JPG, PNG of WebP, maximaal 5 MB)</label>
+          <label class="label" for="photo">Profile photo (JPG, PNG, or WebP, up to 5 MB)</label>
           <input id="photo" class="input" type="file" accept="image/jpeg,image/png,image/webp" bind:this={photoInput} on:change={() => { removePhoto = false; }} />
           {#if record.photo}
-            <label class="mt-2 flex items-center gap-2"><input type="checkbox" bind:checked={removePhoto} on:change={() => { if (removePhoto) photoInput.value = ''; }} /> Huidige foto verwijderen</label>
+            <label class="mt-2 flex items-center gap-2"><input type="checkbox" bind:checked={removePhoto} on:change={() => { if (removePhoto) photoInput.value = ''; }} /> Remove current photo</label>
           {/if}
         </div>
-        <div><label class="label" for="display-name">Naam</label><input class="input" id="display-name" required maxlength="200" autocomplete="name" bind:value={displayName} /></div>
-        <div><label class="label" for="email">E-mailadres</label><input class="input" id="email" type="email" readonly value={$currentUser?.email ?? ''} /></div>
+        <div><label class="label" for="display-name">Name</label><input class="input" id="display-name" required maxlength="200" autocomplete="name" bind:value={displayName} /></div>
+        <div><label class="label" for="email">Email address</label><input class="input" id="email" type="email" readonly value={$currentUser?.email ?? ''} /></div>
         <div class="grid gap-4 sm:grid-cols-2">
-          <div><label class="label" for="birth-date">Geboortedatum (optioneel)</label><input class="input" id="birth-date" type="date" max={localDate()} autocomplete="bday" bind:value={birthDate} /></div>
-          <div><label class="label" for="phone">Telefoonnummer (optioneel)</label><input class="input" id="phone" type="tel" maxlength="50" autocomplete="tel" bind:value={phone} /></div>
+          <div><label class="label" for="birth-date">Date of birth (optional)</label><input class="input" id="birth-date" type="date" max={localDate()} autocomplete="bday" bind:value={birthDate} /></div>
+          <div><label class="label" for="phone">Phone number (optional)</label><input class="input" id="phone" type="tel" maxlength="50" autocomplete="tel" bind:value={phone} /></div>
         </div>
-        <div><label class="label" for="bio">Over mij / trainingsdoelen (optioneel)</label><textarea class="input" id="bio" rows="3" maxlength="2000" bind:value={bio}></textarea></div>
-        <button class="btn-primary" type="submit">{saving ? 'Opslaan...' : 'Profiel opslaan'}</button>
+        <div><label class="label" for="bio">About me / training goals (optional)</label><textarea class="input" id="bio" rows="3" maxlength="2000" bind:value={bio}></textarea></div>
+        <button class="btn-primary" type="submit">{saving ? 'Saving...' : 'Save profile'}</button>
       </fieldset>
     </form>
   {/if}

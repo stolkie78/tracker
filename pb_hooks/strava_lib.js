@@ -36,7 +36,7 @@ function form(values) {
 
 function tokenRequest(app, values) {
   var c = config(app);
-  if (!isConfigured(app)) throw new BadRequestError("Strava is niet geconfigureerd.");
+  if (!isConfigured(app)) throw new BadRequestError("Strava is not configured.");
   values.client_id = c.clientId;
   values.client_secret = c.clientSecret;
   var res = $http.send({
@@ -47,7 +47,7 @@ function tokenRequest(app, values) {
     timeout: 30,
   });
   if (res.statusCode !== 200 || !res.json) {
-    throw new BadRequestError("Strava-autorisatie is mislukt (HTTP " + res.statusCode + ").");
+    throw new BadRequestError("Strava authorization failed (HTTP " + res.statusCode + ").");
   }
   return res.json;
 }
@@ -116,7 +116,7 @@ function findExisting(app, ownerId, stravaId) {
   }
 }
 
-// Zoekt een geplande hardlooptraining op dezelfde (lokale) dag zonder Strava-koppeling.
+// Finds an unlinked planned running workout on the same local day.
 function findPlanned(app, ownerId, activity) {
   var start = new Date(activity.start_date).getTime();
   var offset = new Date(activity.start_date_local).getTime() - start;
@@ -153,7 +153,7 @@ function upsertActivity(app, ownerId, activity) {
       record.set("title", activity.name || "Hardlopen");
       record.set("type", "cardio");
       record.set("cardio_mode", "running");
-      record.set("notes", "Geïmporteerd van Strava");
+      record.set("notes", "Imported from Strava");
     }
     record.set("status", "completed");
     record.set("performed_at", activity.start_date);
@@ -172,10 +172,10 @@ function fetchActivities(token, after) {
       headers: { Authorization: "Bearer " + token },
       timeout: 30,
     });
-    if (res.statusCode === 401) throw new BadRequestError("Strava-toegang is verlopen. Koppel Strava opnieuw.");
-    if (res.statusCode === 429) throw new BadRequestError("Strava-limiet bereikt. Probeer het later opnieuw.");
+    if (res.statusCode === 401) throw new BadRequestError("Strava access has expired. Reconnect Strava.");
+    if (res.statusCode === 429) throw new BadRequestError("Strava rate limit reached. Try again later.");
     if (res.statusCode !== 200 || !Array.isArray(res.json)) {
-      throw new BadRequestError("Strava-activiteiten ophalen mislukt (HTTP " + res.statusCode + ").");
+      throw new BadRequestError("Could not fetch Strava activities (HTTP " + res.statusCode + ").");
     }
     all = all.concat(res.json);
     if (res.json.length < 100) break;

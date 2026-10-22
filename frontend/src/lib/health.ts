@@ -2,24 +2,24 @@ import type { HealthCheckin, HealthProgramKind } from '$lib/types';
 
 export type MealPlan = Record<number, string>;
 
-export const WEEKDAY_LABELS = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag'];
+export const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 const MEAL_IDEAS = [
-  'Zalm, ei, gekookte aardappel, broccoli en olijfolie; yoghurt met noten en bessen toe.',
-  'Kipdijfilet met rijst, gemengde groenten en avocado; kwark met fruit toe.',
-  'Rundergehakt-chilli met bonen, rijst en sla; handvol noten toe.',
-  'Omelet van 4 eieren met spinazie en feta, volkorenbrood, linzensoep en fruit.',
-  'Tonijn-quinoa-salade met kikkererwten, groenten en olijfolie; kefir toe.',
-  'Kalkoen met zoete aardappel, boerenkool en tahini; cottage cheese met appel toe.',
-  'Witte vis met pasta, tomatensaus en groenten; Griekse yoghurt met honing toe.'
+  'Salmon, eggs, boiled potatoes, broccoli, and olive oil; add yogurt with nuts and berries.',
+  'Chicken thighs with rice, mixed vegetables, and avocado; add cottage cheese and fruit.',
+  'Beef chili with beans, rice, and lettuce; add a handful of nuts.',
+  'Four-egg omelet with spinach and feta, whole-grain bread, lentil soup, and fruit.',
+  'Tuna quinoa salad with chickpeas, vegetables, and olive oil; add kefir.',
+  'Turkey with sweet potato, kale, and tahini; add cottage cheese with apple.',
+  'White fish with pasta, tomato sauce, and vegetables; add Greek yogurt with honey.'
 ];
 
 export const suggestMealPlan = (proteinG: number, calories: number, kind: HealthProgramKind = 'omad'): MealPlan =>
   Object.fromEntries(
     WEEK_ORDER.map((day, index) => [
       day,
-      `${MEAL_IDEAS[index]} (richtlijn ca. ${calories} kcal en ${proteinG} g eiwit${kind === 'omad' ? '' : ', verdeel over je eetvenster'})`
+      `${MEAL_IDEAS[index]} (target: approx. ${calories} kcal and ${proteinG} g protein${kind === 'omad' ? '' : ', spread across your eating window'})`
     ])
   );
 
@@ -41,7 +41,7 @@ const addDays = (key: string, days: number) => {
   return toDateKey(date);
 };
 
-/** Opeenvolgende gevaste dagen; vandaag telt mee als het al is afgevinkt, anders begint de reeks bij gisteren. */
+/** Consecutive fasting days; include today if checked off, otherwise start with yesterday. */
 export const currentStreak = (checkins: HealthCheckin[], today: string) => {
   const fasted = new Set(checkins.filter((entry) => entry.fasted).map((entry) => entry.date));
   let cursor = fasted.has(today) ? today : addDays(today, -1);
@@ -78,14 +78,14 @@ export const healthInsights = (checkins: HealthCheckin[], start: Date | null, to
 };
 
 export const FASTING_PROTOCOLS: Record<HealthProgramKind, { label: string; eatHours: number; description: string; defaultStart: string }> = {
-  omad: { label: 'OMAD', eatHours: 1, defaultStart: '18:00', description: 'One Meal A Day: vast door de dag en eet één voedzame maaltijd.' },
-  '16_8': { label: '16:8', eatHours: 8, defaultStart: '12:00', description: '16 uur vasten en een eetvenster van 8 uur.' },
-  '12_12': { label: '12:12', eatHours: 12, defaultStart: '08:00', description: '12 uur vasten en een eetvenster van 12 uur; een rustige instap.' }
+  omad: { label: 'OMAD', eatHours: 1, defaultStart: '18:00', description: 'One Meal A Day: fast throughout the day and eat one nourishing meal.' },
+  '16_8': { label: '16:8', eatHours: 8, defaultStart: '12:00', description: 'Fast for 16 hours with an 8-hour eating window.' },
+  '12_12': { label: '12:12', eatHours: 12, defaultStart: '08:00', description: 'Fast for 12 hours with a 12-hour eating window; a gentle starting point.' }
 };
 
 export const FASTING_KINDS = Object.keys(FASTING_PROTOCOLS) as HealthProgramKind[];
 
-/** Of je nu in je eetvenster zit en hoeveel tijd er nog is tot het venster sluit of opent. */
+/** Whether you are in your eating window and how long until it opens or closes. */
 export const windowStatus = (start: string, eatHours: number, now: Date) => {
   const [hours, minutes] = start.split(':').map(Number);
   const open = new Date(now);
@@ -108,20 +108,20 @@ export const windowStatus = (start: string, eatHours: number, now: Date) => {
 };
 
 const QUOTES = [
-  'Discipline is kiezen tussen wat je nu wilt en wat je het meest wilt.',
-  'Honger komt in golven. Drink water, wacht 15 minuten en de golf is voorbij.',
-  'Eén maaltijd, volledig aanwezig. Geniet ervan, je hebt hem verdiend.',
-  'Kleine dagelijkse winst bouwt het grote resultaat.',
-  'Je hoeft niet perfect te zijn, alleen consistent.',
-  'Elke gevaste dag is een stem op de persoon die je wilt worden.',
-  'Moeilijk is geen teken om te stoppen, maar dat je groeit.',
-  'Zwarte koffie, thee en water helpen je door de ochtend heen.'
+  'Discipline is choosing between what you want now and what you want most.',
+  'Hunger comes in waves. Drink water, wait 15 minutes, and the wave will pass.',
+  'One meal, fully present. Enjoy it; you have earned it.',
+  'Small daily wins add up to big results.',
+  'You do not have to be perfect, just consistent.',
+  'Every fasting day is a vote for the person you want to become.',
+  'Difficulty is not a reason to stop; it is a sign that you are growing.',
+  'Black coffee, tea, and water can help you through the morning.'
 ];
 
 export const motivationFor = (streak: number, fastedToday: boolean, dayOfYear: number) => {
-  if (fastedToday) return `Top, vandaag staat erin! Reeks: ${streak} ${streak === 1 ? 'dag' : 'dagen'}. Rust goed uit.`;
-  if (streak >= 7) return `${streak} dagen op rij. Laat deze reeks niet los, vandaag gaat het weer lukken.`;
-  if (streak >= 1) return `Je zit op ${streak} ${streak === 1 ? 'dag' : 'dagen'}. Bouw door, vandaag is dag ${streak + 1}.`;
+  if (fastedToday) return `Great, today's check-in is saved! Streak: ${streak} ${streak === 1 ? 'day' : 'days'}. Get some rest.`;
+  if (streak >= 7) return `${streak} days in a row. Keep your streak going; you can do it again today.`;
+  if (streak >= 1) return `You're at ${streak} ${streak === 1 ? 'day' : 'days'}. Keep it up; today is day ${streak + 1}.`;
   return QUOTES[dayOfYear % QUOTES.length];
 };
 

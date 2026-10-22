@@ -29,11 +29,11 @@
   let requestId = 0;
   let dateRangeFilter: DateRangeFilter = 'today';
   const DATE_RANGE_OPTIONS: { value: DateRangeFilter; label: string }[] = [
-    { value: 'today', label: 'Vandaag' },
-    { value: 'week', label: 'Deze week' },
-    { value: 'month', label: 'Deze maand' },
-    { value: 'planned', label: 'Gepland' },
-    { value: 'past', label: 'Verleden' }
+    { value: 'today', label: 'Today' },
+    { value: 'week', label: 'This week' },
+    { value: 'month', label: 'This month' },
+    { value: 'planned', label: 'Planned' },
+    { value: 'past', label: 'Past' }
   ];
 
   const loadWorkouts = async (type: WorkoutType | '', planId = '') => {
@@ -45,7 +45,7 @@
       const records = await getWorkouts(filter);
       if (currentRequest === requestId) workouts = records;
     } catch (err) {
-      if (currentRequest === requestId) error = err instanceof Error ? err.message : 'Trainingen konden niet worden geladen.';
+      if (currentRequest === requestId) error = err instanceof Error ? err.message : 'Workouts could not be loaded.';
     } finally {
       if (currentRequest === requestId) loading = false;
     }
@@ -104,10 +104,10 @@
   };
 
   const formatDay = (date: string) =>
-    new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${date}T12:00:00`));
+    new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${date}T12:00:00`));
 
   const formatDateTime = (date: string) =>
-    new Intl.DateTimeFormat('nl-NL', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
+    new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
 
   const isToday = (date: string) => {
     const workoutDay = new Date(date);
@@ -130,7 +130,7 @@
         const names = exercises
           .map((entry) => entry.expand?.exercise?.name)
           .filter((name): name is string => Boolean(name));
-        details.push(names.length > 0 ? names.join(', ') : `${exercises.length} oefeningen`);
+        details.push(names.length > 0 ? names.join(', ') : `${exercises.length} exercises`);
       }
     }
     if (workout.type === 'cardio' || requiresDistanceAndTime(workout)) {
@@ -138,7 +138,7 @@
       if (workout.distance_km) details.push(`${workout.distance_km} km`);
     }
     if (workout.type === 'interval' && workout.interval_rounds) {
-      details.push(`${workout.interval_rounds} rondes · ${workout.interval_work_seconds ?? 0}s werk / ${workout.interval_rest_seconds ?? 0}s rust`);
+      details.push(`${workout.interval_rounds} rounds · ${workout.interval_work_seconds ?? 0}s work / ${workout.interval_rest_seconds ?? 0}s rest`);
     }
     if (workout.type === 'recovery' && workout.recovery_activity) {
       details.push(RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]);
@@ -147,37 +147,37 @@
       details.push(SPORT_ACTIVITY_LABELS[workout.sport_activity]);
     }
     if (workout.duration_minutes) details.push(requiresDistanceAndTime(workout) ? formatWorkoutTime(workout.duration_minutes) : `${workout.duration_minutes} min`);
-    return details.join(' · ') || 'Geen extra details';
+    return details.join(' · ') || 'No additional details';
   };
 </script>
 
 <svelte:head>
-  <title>Tijdlijn · T.O.P. Trainer</title>
+  <title>Timeline · T.O.P. Trainer</title>
 </svelte:head>
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div>
-      <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Jouw beweging</p>
-      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Trainingslog</h2>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">Een tijdlijn van je kracht-, cardio-, interval- en herstelsessies.</p>
+      <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Your activity</p>
+      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Workout log</h2>
+      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your strength, cardio, interval, recovery, and sports sessions.</p>
     </div>
     <button class="btn-primary w-full sm:w-auto" on:click={() => goto('/library')}>
-      <Plus size={19} /> Training kiezen
+      <Plus size={19} /> Choose a workout
     </button>
   </div>
 
   {#if selectedPlan}
     <div class="card flex flex-wrap items-center justify-between gap-3">
-      <p class="text-sm font-semibold">Tijdlijn gefilterd op programma: {planTitles.get(selectedPlan) ?? 'onbekend'}.</p>
-      <button class="btn-secondary" on:click={() => goto('/')}>Alle trainingen tonen</button>
+      <p class="text-sm font-semibold">Timeline filtered by program: {planTitles.get(selectedPlan) ?? 'unknown'}.</p>
+      <button class="btn-secondary" on:click={() => goto('/')}>Show all workouts</button>
     </div>
   {/if}
 
   <div class="card space-y-4 p-3 sm:p-5">
     <div>
-      <p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Periode</p>
-      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Periode">
+      <p class="mb-2 text-sm font-semibold text-gray-600 dark:text-gray-300">Date range</p>
+      <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Date range">
       {#each DATE_RANGE_OPTIONS as option}
         <button
           type="button"
@@ -189,28 +189,28 @@
     </div>
     <div class="flex flex-wrap items-end gap-2 sm:gap-3">
       <div class="min-w-0 flex-1">
-        <label class="label mb-1" for="type-filter">Trainingstype</label>
-        <CycleChoice id="type-filter" label="Trainingstype" bind:value={$activeWorkoutType}
-          options={[{ value: '', label: 'Alle trainingen' }, ...WORKOUT_TYPE_OPTIONS]} />
+        <label class="label mb-1" for="type-filter">Workout type</label>
+        <CycleChoice id="type-filter" label="Workout type" bind:value={$activeWorkoutType}
+          options={[{ value: '', label: 'All workouts' }, ...WORKOUT_TYPE_OPTIONS]} />
       </div>
-      <span class="w-full text-right text-sm text-gray-500 dark:text-gray-400 sm:w-auto sm:pb-3">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'training' : 'trainingen'}</span>
+      <span class="w-full text-right text-sm text-gray-500 dark:text-gray-400 sm:w-auto sm:pb-3">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'workout' : 'workouts'}</span>
     </div>
   </div>
 
   {#if loading}
-    <div class="card animate-pulse py-8 text-center text-gray-500">Je tijdlijn laden...</div>
+    <div class="card animate-pulse py-8 text-center text-gray-500">Loading your timeline...</div>
   {:else if error}
     <div class="card border-red-300 text-red-700 dark:border-red-900 dark:text-red-300">
-      <p class="font-bold">Laden mislukt</p>
+      <p class="font-bold">Loading failed</p>
       <p class="mt-1 text-sm">{error}</p>
-      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType, selectedPlan)}>Opnieuw proberen</button>
+      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType, selectedPlan)}>Try again</button>
     </div>
   {:else if visibleWorkouts.length === 0}
     <div class="card flex flex-col items-center py-12 text-center">
       <div class="rounded-2xl bg-primary-600 p-4 text-white"><Dumbbell size={28} /></div>
-      <h3 class="mt-4 text-xl font-bold">{workouts.length === 0 ? 'Je tijdlijn is nog leeg' : 'Geen trainingen in deze periode'}</h3>
-      <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Voeg een training toe of kies een andere periode.</p>
-      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Naar Workouts</button>
+      <h3 class="mt-4 text-xl font-bold">{workouts.length === 0 ? 'Your timeline is empty' : 'No workouts in this period'}</h3>
+      <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Add a workout or choose a different date range.</p>
+      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Go to Workouts</button>
     </div>
   {:else}
     <div class="space-y-8">
@@ -237,20 +237,20 @@
                       <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-base font-bold sm:text-lg">{workout.title}</h3>
                         {#if activeWorkout?.id === workout.id}
-                          <span class="badge bg-emerald-600 text-white">Actief</span>
+                          <span class="badge bg-emerald-600 text-white">Active</span>
                         {:else if isToday(workout.performed_at)}
-                          <span class="badge bg-amber-500 text-white">Vandaag</span>
+                          <span class="badge bg-amber-500 text-white">Today</span>
                         {:else if upcomingWorkout?.id === workout.id}
-                          <span class="badge bg-primary-600 text-white">Eerstvolgende</span>
+                          <span class="badge bg-primary-600 text-white">Next up</span>
                         {/if}
                       </div>
                       {#if workout.status === 'planned' && workout.due_date && dateOnly(new Date(workout.due_date)) >= dateOnly(new Date())}
-                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Klaar om op te pakken</p>
+                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Ready to start</p>
                       {/if}
                       {#if workout.plan}
-                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">▦ Programma · {planTitles.get(workout.plan) ?? 'onbekend'}</p>
+                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">▦ Program · {planTitles.get(workout.plan) ?? 'unknown'}</p>
                       {:else}
-                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Losse sessie</p>
+                        <p class="mt-1 text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Standalone session</p>
                       {/if}
                       <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{workoutSubtitle(workout)}</p>
                     </div>
@@ -264,8 +264,8 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{workout.status === 'planned' ? (workout.day_part ? group.label : 'Tijd niet ingepland') : formatDateTime(workout.performed_at)}</span>
-                  <span>Details bekijken →</span>
+                  <span>{workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
+                  <span>View details →</span>
                 </div>
               </a>
             {/each}

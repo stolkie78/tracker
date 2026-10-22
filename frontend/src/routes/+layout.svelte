@@ -14,33 +14,41 @@
 
   const TRAINING_PATHS = ['/workouts', '/planner', '/programs', '/library'];
   const nav = [
-    { href: '/', label: 'Training', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
+    { href: '/', label: 'Workout', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
     { href: '/health', label: 'Health', icon: HeartPulse, match: (path: string) => path.startsWith('/health') },
     { href: '/stats', label: 'Insights', icon: ChartNoAxesCombined, match: (path: string) => path.startsWith('/stats') }
   ];
   const accountNav = [
-    { href: '/settings', label: 'Instellingen', icon: Settings, match: (path: string) => path.startsWith('/settings') },
-    { href: '/profile', label: 'Profiel', icon: UserRound, match: (path: string) => path.startsWith('/profile') }
+    { href: '/settings', label: 'Settings', icon: Settings, match: (path: string) => path.startsWith('/settings') },
+    { href: '/profile', label: 'Profile', icon: UserRound, match: (path: string) => path.startsWith('/profile') }
   ];
 
   const trainingNav = [
-    { href: '/', label: 'Tijdlijn' },
+    { href: '/', label: 'Timeline' },
     { href: '/library', label: 'Workouts' },
-    { href: '/programs', label: 'Programma' },
-    { href: '/planner', label: 'AI-planner', ai: true }
+    { href: '/programs', label: 'Programs' },
+    { href: '/planner', label: 'AI planner', ai: true }
   ];
-  const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path.startsWith(href));
+  const isActive = (path: string, href: string) =>
+    href === '/' ? path === '/' : href === '/stats' ? path === href : path.startsWith(href);
 
   const healthNav = [
-    { href: '/health/measurements', label: 'Metingen' },
+    { href: '/health/measurements', label: 'Measurements' },
     { href: '/health/fasting', label: 'Fasting' },
     { href: '/health/mindfulness', label: 'Mindfulness' },
     { href: '/health/braintraining', label: 'Braintraining' }
   ];
+  const insightsNav = [
+    { href: '/stats', label: 'Overview' },
+    { href: '/stats/training', label: 'Training' },
+    { href: '/stats/exercises', label: 'Exercises' },
+    { href: '/stats/body', label: 'Body' }
+  ];
 
   $: inTraining = nav[0].match($page.url.pathname);
   $: inHealth = nav[1].match($page.url.pathname);
-  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : [];
+  $: inInsights = nav[2].match($page.url.pathname);
+  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : inInsights ? insightsNav : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
@@ -51,7 +59,7 @@
   $: if (browser && $isAuthenticated && !isLogin && !$rolesLoaded) {
     roleLoadError = '';
     loadUserRoles().catch((error) => {
-      roleLoadError = error instanceof Error ? error.message : 'Je profiel kon niet worden geladen.';
+      roleLoadError = error instanceof Error ? error.message : 'Your profile could not be loaded.';
     });
   }
 
@@ -82,13 +90,13 @@
     try {
       await loadUserRoles();
     } catch (error) {
-      roleLoadError = error instanceof Error ? error.message : 'Je profiel kon niet worden geladen.';
+      roleLoadError = error instanceof Error ? error.message : 'Your profile could not be loaded.';
     }
   };
 </script>
 
 <svelte:head>
-  <meta name="description" content="Houd je trainingen bij en zie je voortgang in één overzicht." />
+  <meta name="description" content="Track your workouts and see your progress in one place." />
   <link rel="manifest" href="/manifest.webmanifest" />
 </svelte:head>
 
@@ -96,16 +104,16 @@
   <slot />
 {:else if !$isAuthenticated}
   <main class="mx-auto max-w-lg px-4 py-16 text-center">
-    <div class="card">Je wordt doorgestuurd naar aanmelden...</div>
+    <div class="card">Redirecting you to sign in...</div>
   </main>
 {:else if !$rolesLoaded}
   <main class="mx-auto max-w-lg px-4 py-16 text-center">
     <div class="card">
       {#if roleLoadError}
-        <p class="font-semibold text-red-700 dark:text-red-300">Profiel laden mislukt: {roleLoadError}</p>
-        <button class="btn-secondary mt-4" on:click={retryRoleLoad}>Opnieuw proberen</button>
+        <p class="font-semibold text-red-700 dark:text-red-300">Could not load profile: {roleLoadError}</p>
+        <button class="btn-secondary mt-4" on:click={retryRoleLoad}>Try again</button>
       {:else}
-        Je profiel wordt geladen...
+        Loading your profile...
       {/if}
     </div>
   </main>
@@ -113,7 +121,7 @@
   <div class="min-h-screen">
     <header class="sticky top-0 z-40 border-b border-gray-200/70 bg-white/90 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90">
       <div class="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <a href="/" class="flex items-center gap-3" aria-label="T.O.P. Trainer startpagina">
+        <a href="/" class="flex items-center gap-3" aria-label="T.O.P. Trainer home">
           <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-overload-signal text-white">
             <Dumbbell size={22} />
           </div>
@@ -122,7 +130,7 @@
             <h1 class="text-lg font-black">Trainer</h1>
           </div>
         </a>
-        <nav class="order-last grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto" aria-label="Hoofdmenu">
+        <nav class="order-last grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto" aria-label="Main menu">
           {#each nav as item}
             <a
               class="flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-3 text-sm font-bold transition sm:px-4 {item.match($page.url.pathname) ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'}"
@@ -141,7 +149,7 @@
       </div>
     </header>
     {#if subNav.length}
-      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label={inHealth ? 'Health' : 'Training'}>
+      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label={inHealth ? 'Health' : inInsights ? 'Insights' : 'Training'}>
         <div class="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-4 py-2">
           {#each subNav as item}
             <a
@@ -156,21 +164,21 @@
     <main class="mx-auto max-w-4xl px-4 py-5 pb-28 sm:py-8 lg:pb-8">
       {#if $aiAvailability.error}
         <div role="alert" class="card mb-4 space-y-2 text-red-700 dark:text-red-300">
-          <p>Beschikbaarheid AI-planner kon niet worden gecontroleerd: {$aiAvailability.error}</p>
-          <button type="button" class="btn-secondary" on:click={loadAIAvailability}>Opnieuw proberen</button>
+          <p>Could not check AI planner availability: {$aiAvailability.error}</p>
+          <button type="button" class="btn-secondary" on:click={loadAIAvailability}>Try again</button>
         </div>
       {/if}
       {#key $currentUser?.id}
         {#if $page.url.pathname.startsWith('/planner') && !$aiAvailability.enabled}
           <div class="card space-y-3">
             {#if $aiAvailability.loading || $aiAvailability.user !== $currentUser?.id}
-              <p>AI-instellingen laden...</p>
+              <p>Loading AI settings...</p>
             {:else if $aiAvailability.error}
-              <p>De AI-planner is niet beschikbaar zolang de instellingen niet kunnen worden gecontroleerd.</p>
+              <p>The AI planner is unavailable until its settings can be checked.</p>
             {:else}
-              <h2 class="text-xl font-bold">AI-planner niet ingesteld</h2>
-              <p>Stel eerst je eigen API-sleutel in om de AI-planner te gebruiken.</p>
-              <a class="btn-primary" href="/settings">Naar Instellingen</a>
+              <h2 class="text-xl font-bold">AI planner not configured</h2>
+              <p>Add your own API key before using the AI planner.</p>
+              <a class="btn-primary" href="/settings">Go to Settings</a>
             {/if}
           </div>
         {:else}
@@ -178,7 +186,7 @@
         {/if}
       {/key}
     </main>
-    <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 lg:hidden" aria-label="Snelmenu">
+    <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 lg:hidden" aria-label="Quick menu">
       <div class="mx-auto grid max-w-4xl grid-cols-3">
         {#each nav as tab}
           <a href={tab.href} class="flex min-h-[60px] flex-col items-center justify-center gap-1 text-xs font-bold {tab.match($page.url.pathname) ? 'text-overload-signal' : 'text-gray-600 dark:text-gray-300'}" aria-current={tab.match($page.url.pathname) ? 'page' : undefined}>
