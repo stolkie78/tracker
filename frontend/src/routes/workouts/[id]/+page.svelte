@@ -3,6 +3,7 @@
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { formatRunTime, isRun, runCompletionData } from '$lib/workouts';
   import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
   import {
@@ -22,9 +23,10 @@
     RECOVERY_ACTIVITY_OPTIONS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
+    WORKOUT_STATUS_CARD_STYLES,
     WORKOUT_STATUS_OPTIONS,
     WORKOUT_TYPE_LABELS,
-  WORKOUT_TYPE_STYLES,
+    WORKOUT_TYPE_STYLES,
     type Exercise,
     type DayPart,
     type ExerciseEquipment,
@@ -40,6 +42,9 @@
   let loading = true;
   let error = '';
   let statusSaving = false;
+  let showRunCompletion = false;
+  let runDistance: number | undefined = undefined;
+  let runTime = '';
 
   $: workoutDate = workout
     ? new Intl.DateTimeFormat('nl-NL', {
@@ -161,8 +166,11 @@
     }
   });
 
-  const changeStatus = async (status: Workout['status']) => {
-    if (!workout || statusSaving) return;
+  const persistStatus = async (
+    status: Workout['status'],
+    results: Partial<Pick<Workout, 'distance_km' | 'duration_minutes'>> = {}
+  ) => {
+    if (!workout || statusSaving) return false;
     statusSaving = true;
     error = '';
     try {
@@ -179,10 +187,13 @@
       }
       workout = await updateWorkout(workout.id, {
         status,
+        ...results,
         ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
       });
+      return true;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Training kon niet worden aangepast.';
+      return false;
     } finally {
       statusSaving = false;
     }
@@ -235,7 +246,7 @@
         duration_minutes: edit.duration,
         notes: edit.notes,
         ...(type === 'cardio' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
-        ...(type === 'interval' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], interval_work_seconds: edit.work, interval_rest_seconds: edit.rest, interval_rounds: edit.rounds } : {}),
+        ...(type === 'interval' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance, interval_work_seconds: edit.work, interval_rest_seconds: edit.rest, interval_rounds: edit.rounds } : {}),
         ...(type === 'recovery' ? { recovery_activity: edit.recovery as Workout['recovery_activity'] } : {}),
         ...(type === 'sport' ? { sport_activity: edit.sport as Workout['sport_activity'] } : {})
       });
@@ -285,8 +296,33 @@
 
   const startWorkout = () => changeStatus('in_progress');
   const finishWorkout = async () => {
+    if (!workout || statusSaving) return;
+    if (isRun(workout)) {
+      error = '';
+      showRunCompletion = true;
+      return;
+    }
     if (exerciseLogs.some((exercise) => !isDone(exercise)) && !confirm('Niet alle oefeningen zijn afgerond. Toch afronden?')) return;
-    await changeStatus('completed');
+    await persistStatus('completed');
+  };
+
+  const changeStatus = async (status: Workout['status']) => {
+    if (!workout || statusSaving) return;
+    if (status === 'completed' && workout.status !== 'completed' && isRun(workout)) {
+      await finishWorkout();
+      return;
+    }
+    if (await persistStatus(status)) showRunCompletion = false;
+  };
+
+  const finishRun = async () => {
+    if (!workout || statusSaving) return;
+    try {
+      const results = runCompletionData(runDistance, runTime);
+      if (await persistStatus('completed', results)) showRunCompletion = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Controleer de afstand en tijd.';
+    }
   };
 </script>
 
@@ -303,7 +339,7 @@
 {:else}
 <div class="space-y-5">
   <a href="/" class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> Terug naar tijdlijn</a>
-  <article class="card">
+  <article class="card {WORKOUT_STATUS_CARD_STYLES[workout.status]}">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
         <div class="flex flex-wrap gap-2">
@@ -329,15 +365,15 @@
           <CycleChoice id="edit-day-part" label="Dagdeel" bind:value={editDayPart}
             options={[{ value: '', label: 'Zonder dagdeel' }, ...DAY_PART_OPTIONS]} />
         </div>
-        <div><label class="label" for="edit-duration">Duur (minuten)</label><input id="edit-duration" class="input" type="number" min="0" bind:value={edit.duration} /></div>
+        <div><label class="label" for="edit-duration">Duur (minuten)</label><input id="edit-duration" class="input" type="number" min="0" step="any" bind:value={edit.duration} /></div>
         {#if workout.type === 'cardio' || workout.type === 'interval'}
           <div>
             <label class="label" for="edit-cardio">Activiteit</label>
             <CycleChoice id="edit-cardio" label="Activiteit" options={CARDIO_MODE_OPTIONS} bind:value={edit.cardio} />
           </div>
         {/if}
-        {#if workout.type === 'cardio'}
-          <div><label class="label" for="edit-distance">Afstand (km)</label><input id="edit-distance" class="input" type="number" min="0" step="0.1" bind:value={edit.distance} /></div>
+        {#if workout.type === 'cardio' || workout.type === 'interval'}
+          <div><label class="label" for="edit-distance">Afstand (km)</label><input id="edit-distance" class="input" type="number" min="0" step="any" bind:value={edit.distance} /></div>
         {/if}
         {#if workout.type === 'interval'}
           <div><label class="label" for="edit-work">Werk (sec)</label><input id="edit-work" class="input" type="number" min="0" bind:value={edit.work} /></div>
@@ -361,11 +397,12 @@
       </form>
     {/if}
     <div class="mt-5 grid gap-3 sm:grid-cols-2">
-      {#if workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Duur</span><p class="font-bold">{workout.duration_minutes} minuten</p></div>{/if}
+      {#if workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Duur</span><p class="font-bold">{isRun(workout) ? formatRunTime(workout.duration_minutes) : `${workout.duration_minutes} minuten`}</p></div>{/if}
+      {#if workout.type === 'interval' && workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Afstand</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
+      {#if isRun(workout) && workout.distance_km && workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Gemiddeld tempo</span><p class="font-bold">{formatPace(workout.distance_km, workout.duration_minutes)}</p></div>{/if}
       {#if workout.type === 'cardio'}
         {#if workout.cardio_mode}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activiteit</span><p class="font-bold">{CARDIO_MODE_LABELS[workout.cardio_mode]}</p></div>{/if}
         {#if workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Afstand</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
-        {#if workout.distance_km && workout.duration_minutes && workout.cardio_mode === 'running'}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Gemiddeld tempo</span><p class="font-bold">{formatPace(workout.distance_km, workout.duration_minutes)}</p></div>{/if}
         {#if workout.elevation_gain_m}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Hoogtemeters</span><p class="font-bold">{workout.elevation_gain_m} m</p></div>{/if}
         {#if workout.average_heart_rate}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Gemiddelde hartslag</span><p class="font-bold">{workout.average_heart_rate} bpm</p></div>{/if}
       {:else if workout.type === 'interval'}
@@ -482,8 +519,26 @@
     </section>
   {:else if workout.status === 'planned'}
     <button class="btn-primary w-full" disabled={statusSaving} on:click={startWorkout}><Play size={18} /> Training starten</button>
-  {:else if workout.status === 'in_progress'}
+  {:else if workout.status === 'in_progress' && !showRunCompletion}
     <button class="btn-primary w-full" disabled={statusSaving} on:click={finishWorkout}><Check size={18} /> Training afronden</button>
+  {/if}
+  {#if showRunCompletion}
+    <form class="card space-y-4" aria-labelledby="run-completion-title" on:submit|preventDefault={finishRun}>
+      <h3 id="run-completion-title" class="text-xl font-bold">Hardlooptraining afronden</h3>
+      <p class="text-sm text-gray-600 dark:text-gray-300">Vul je werkelijk gelopen afstand en tijd in.</p>
+      <div>
+        <label class="label" for="run-distance">Exacte afstand (km)</label>
+        <input id="run-distance" class="input" type="number" min="0" step="any" bind:value={runDistance} disabled={statusSaving} required />
+      </div>
+      <div>
+        <label class="label" for="run-time">Tijd (uu:mm:ss)</label>
+        <input id="run-time" class="input" type="text" placeholder="00:32:15" pattern="[0-9]+:[0-5][0-9]:[0-5][0-9]" bind:value={runTime} disabled={statusSaving} required />
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" type="submit" disabled={statusSaving}>{statusSaving ? 'Opslaan...' : 'Opslaan en afronden'}</button>
+        <button class="btn-secondary" type="button" disabled={statusSaving} on:click={() => { showRunCompletion = false; error = ''; }}>Annuleren</button>
+      </div>
+    </form>
   {/if}
   {#if error && workout.type !== 'strength'}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
 </div>

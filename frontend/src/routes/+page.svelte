@@ -8,13 +8,15 @@
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
   import { groupByDayPart } from '$lib/programs';
+  import { formatRunTime, isRun } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
     SPORT_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
-  WORKOUT_TYPE_STYLES,
+    WORKOUT_TYPE_STYLES,
+    WORKOUT_STATUS_CARD_STYLES,
     WORKOUT_TYPE_OPTIONS,
     type Workout,
     type WorkoutType
@@ -151,7 +153,7 @@
         details.push(names.length > 0 ? names.join(', ') : `${exercises.length} oefeningen`);
       }
     }
-    if (workout.type === 'cardio') {
+    if (workout.type === 'cardio' || isRun(workout)) {
       if (workout.cardio_mode) details.push(CARDIO_MODE_LABELS[workout.cardio_mode]);
       if (workout.distance_km) details.push(`${workout.distance_km} km`);
     }
@@ -164,7 +166,7 @@
     if (workout.type === 'sport' && workout.sport_activity) {
       details.push(SPORT_ACTIVITY_LABELS[workout.sport_activity]);
     }
-    if (workout.duration_minutes) details.push(`${workout.duration_minutes} min`);
+    if (workout.duration_minutes) details.push(isRun(workout) ? formatRunTime(workout.duration_minutes) : `${workout.duration_minutes} min`);
     return details.join(' · ') || 'Geen extra details';
   };
 </script>
@@ -244,7 +246,7 @@
               <h3 class="pt-2 text-sm font-bold text-gray-600 dark:text-gray-300">{group.label}</h3>
             {#each group.workouts as workout (workout.id)}
               <a
-                class="card block border-2 p-4 transition hover:shadow-md sm:p-5 {activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800'}"
+                class="card block border-2 p-4 transition hover:shadow-md sm:p-5 {WORKOUT_STATUS_CARD_STYLES[workout.status] || (activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800')}"
                 href={`/workouts/${workout.id}`}>
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div class="flex min-w-0 items-start gap-3">

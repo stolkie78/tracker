@@ -291,6 +291,13 @@ export const WORKOUT_STATUS_LABELS: Record<WorkoutStatus, string> = {
   skipped: 'Overgeslagen'
 };
 
+export const WORKOUT_STATUS_CARD_STYLES: Record<WorkoutStatus, string> = {
+  planned: '',
+  in_progress: '',
+  completed: 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950',
+  skipped: 'border-gray-400 bg-gray-100 dark:border-gray-600 dark:bg-gray-800'
+};
+
 export const CARDIO_MODE_LABELS: Record<CardioMode, string> = {
   running: 'Hardlopen',
   cycling: 'Fietsen',
