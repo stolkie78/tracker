@@ -35,7 +35,7 @@
       plans = allPlans.filter((plan) => plan.schedule_mode);
       templates = allTemplates;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Programma’s konden niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Programs could not be loaded.';
     } finally {
       pageLoading = false;
     }
@@ -45,12 +45,12 @@
     try {
       return { entries: buildCycleSchedule(start, weeks, repeats, pattern, lookup), error: '' };
     } catch (err) {
-      return { entries: [] as ScheduledBlock[], error: err instanceof Error ? err.message : 'Het schema is ongeldig.' };
+      return { entries: [] as ScheduledBlock[], error: err instanceof Error ? err.message : 'The schedule is invalid.' };
     }
   }
 
   const formatDate = (value: string | Date) =>
-    new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }).format(
+    new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(
       typeof value === 'string' ? new Date(`${value.slice(0, 10)}T12:00:00`) : value
     );
 
@@ -66,12 +66,12 @@
     const date = new Date(`${startDate}T12:00:00`);
     if (Number.isNaN(date.getTime())) return `Dag ${index + 1}`;
     date.setDate(date.getDate() + index);
-    return new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'short' }).format(date);
+    return new Intl.DateTimeFormat('en-US', { weekday: 'long', day: 'numeric', month: 'short' }).format(date);
   };
 
   const resizeCycle = (weeks: number) => {
     if (weeks < cycleWeeks && slots.slice(weeks * 7).some((slot) => DAY_PARTS.some((part) => slot.periods[part].length))) {
-      if (!confirm('Bij het verkorten vervallen de workouts in de extra weken. Doorgaan?')) return;
+      if (!confirm('Shortening the cycle will remove workouts in the extra weeks. Continue?')) return;
     }
     slots = Array.from({ length: weeks * 7 }, (_, index) => slots[index] ?? emptyCycleSlot());
     cycleWeeks = weeks;
@@ -92,7 +92,7 @@
     error = '';
     success = '';
     if (!title.trim()) {
-      error = 'Geef het programma een naam.';
+      error = 'Enter a program name.';
       return;
     }
     if (preview.error) {
@@ -100,11 +100,11 @@
       return;
     }
     if (!schedule.length) {
-      error = 'Kies minimaal één workout.';
+      error = 'Choose at least one workout.';
       return;
     }
     if (schedule.length > MAX_WORKOUTS) {
-      error = `Een programma mag maximaal ${MAX_WORKOUTS} trainingen bevatten. Verkort het schema of kies minder herhalingen.`;
+      error = `A program can contain at most ${MAX_WORKOUTS} workouts. Shorten the schedule or choose fewer repetitions.`;
       return;
     }
 
@@ -127,7 +127,7 @@
         start_date: `${startDate}T12:00:00.000Z`,
         end_date: `${localDate(cycleDate(startDate, cycleWeeks * 7 * cycles - 1))}T12:00:00.000Z`,
         weeks: cycleWeeks * cycles,
-        summary: `Cyclus van ${cycleWeeks} ${cycleWeeks === 1 ? 'week' : 'weken'} × ${cycles} · ${schedule.length} trainingen`,
+        summary: `${cycleWeeks}-week cycle × ${cycles} · ${schedule.length} workouts`,
         schedule_mode: 'fixed_weekdays' as const,
         cycle_days: cycleWeeks * 7,
         cycles,
@@ -143,26 +143,26 @@
         await instantiateTemplate(entry.template, blockTime(entry), {
           plan: plan.id,
           dayPart: entry.part,
-          notes: `${title.trim()} · cyclus ${entry.cycle}, week ${Math.floor(entry.day / 7) + 1} · ${DAY_PART_LABELS[entry.part]} · workout ${entry.order + 1}`
+          notes: `${title.trim()} · cycle ${entry.cycle}, week ${Math.floor(entry.day / 7) + 1} · ${DAY_PART_LABELS[entry.part]} · workout ${entry.order + 1}`
         });
         created += 1;
       }
       plans = editingPlan ? plans.map((item) => item.id === plan.id ? plan : item) : [plan, ...plans];
       success = editingPlan
-        ? `Programma bijgewerkt: ${created} trainingen opnieuw gepland, ${kept} bestaande behouden.`
-        : `Programma opgeslagen met ${created} geplande trainingen in je tijdlijn.`;
+        ? `Program updated: ${created} workouts rescheduled, ${kept} existing workouts kept.`
+        : `Program saved with ${created} scheduled workouts on your timeline.`;
       cancelEdit();
     } catch (err) {
-      const reason = err instanceof Error ? err.message : 'Opslaan is mislukt.';
+      const reason = err instanceof Error ? err.message : 'Could not save changes.';
       error = changed
-        ? `Opslaan is niet volledig gelukt: ${created} trainingen aangemaakt. Controleer de tijdlijn voordat je opnieuw opslaat. ${reason}`
+        ? `Could not complete the save: ${created} workouts created. Check your timeline before trying again. ${reason}`
         : reason;
       if (planId && changed) {
         try {
           plans = (await getTrainingPlans()).filter((plan) => plan.schedule_mode);
           editingPlan = plans.find((plan) => plan.id === planId) ?? editingPlan;
         } catch (reloadError) {
-          error += ` Programmalijst niet vernieuwd: ${reloadError instanceof Error ? reloadError.message : 'onbekende fout'}.`;
+          error += ` Program list could not be refreshed: ${reloadError instanceof Error ? reloadError.message : 'unknown error'}.`;
         }
       }
     } finally {
@@ -173,16 +173,16 @@
   const startEdit = (plan: TrainingPlan) => {
     error = '';
     if (plan.schedule_mode === 'flexible_cycle') {
-      error = 'Dit oude flexibele programma kan niet meer worden bewerkt. Verwijder het en maak een programma met een vast cyclusschema.';
+      error = 'This legacy flexible program can no longer be edited. Delete it and create a program with a fixed cycle schedule.';
       return;
     }
     try {
       const days = plan.cycle_days || 7;
-      if (![7, 14, 21].includes(days)) throw new Error('Dit programma heeft geen ondersteunde cyclusduur.');
+      if (![7, 14, 21].includes(days)) throw new Error('This program has an unsupported cycle length.');
       const parsed: unknown = JSON.parse(plan.cycle_pattern || '[]');
       const normalized = normalizeCycleSlots(parsed, days);
       const legacy = Array.isArray(parsed) && parsed.some((slot) => slot && typeof slot === 'object' && !('periods' in slot));
-      // Oude weekschema's waren aan maandag gekoppeld, ook bij een latere startdatum.
+      // Legacy weekly schedules were anchored to Monday, even when starting on a later date.
       const start = plan.start_date.slice(0, 10);
       const shift = legacy ? (cycleDate(start, 0).getDay() + 6) % 7 : 0;
       slots = [...normalized.slice(shift), ...normalized.slice(0, shift)];
@@ -197,7 +197,7 @@
       cycles = plan.cycles || 4;
       window.setTimeout(() => document.getElementById('program-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Het programma kon niet worden geopend.';
+      error = err instanceof Error ? err.message : 'The program could not be opened.';
     }
   };
 
@@ -223,42 +223,42 @@
   };
 
   const removePlan = async (plan: TrainingPlan) => {
-    if (!confirm(`Programma “${plan.title}” verwijderen? Nog geplande trainingen worden verwijderd, uitgevoerde blijven bewaard.`)) return;
+    if (!confirm(`Delete program “${plan.title}”? Planned workouts will be deleted; completed workouts will be kept.`)) return;
     try {
       await deleteTrainingPlan(plan.id);
       plans = plans.filter((item) => item.id !== plan.id);
       if (editingPlan?.id === plan.id) cancelEdit();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Verwijderen is mislukt.';
+      error = err instanceof Error ? err.message : 'Could not delete program.';
     }
   };
 </script>
 
-<svelte:head><title>Programma · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>Programs · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-6">
   <div>
-    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Meerdere trainingen</p>
-    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programma’s</h2>
+    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Multiple workouts</p>
+    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programs</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
-      Plan je <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> in een vaste cyclus van één, twee of drie weken, met meerdere trainingen per dagdeel.
+      Schedule your <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> in a fixed cycle of one, two, or three weeks, with multiple workouts per day part.
     </p>
   </div>
 
   {#if pageLoading}
-    <div class="card animate-pulse">Laden...</div>
+    <div class="card animate-pulse">Loading...</div>
   {:else}
     {#if !showForm}
       <section class="space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 class="text-xl font-black">Mijn programma’s</h3>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{plans.length} programma’s · {activePlanCount} actief</p>
+            <h3 class="text-xl font-black">My programs</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{plans.length} programs · {activePlanCount} active</p>
           </div>
-          <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> Nieuw</button>
+          <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> New</button>
         </div>
         {#if plans.length === 0}
-          <div class="card text-sm text-gray-600 dark:text-gray-300">Je hebt nog geen programma’s. Maak een programma om workouts op je tijdlijn te plannen.</div>
+          <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any programs yet. Create a program to schedule workouts on your timeline.</div>
         {:else}
           {#each plans as plan}
             <div class="card space-y-2">
@@ -266,18 +266,18 @@
                 <div class="flex flex-wrap items-center gap-2">
                   <p class="font-bold">{plan.title}</p>
                   <span class="badge {planState(plan) === 'active' ? 'bg-emerald-600' : planState(plan) === 'upcoming' ? 'bg-sky-600' : 'bg-gray-500'} text-white">
-                    {planState(plan) === 'active' ? 'Actief' : planState(plan) === 'upcoming' ? 'Gepland' : 'Afgelopen'}
+                    {planState(plan) === 'active' ? 'Active' : planState(plan) === 'upcoming' ? 'Upcoming' : 'Ended'}
                   </span>
                 </div>
                 <div class="flex gap-2">
-                  <button class="btn-secondary" type="button" aria-label="Programma bewerken" on:click={() => startEdit(plan)}><Pencil size={16} /> Bewerken</button>
-                  <button class="btn-danger" type="button" aria-label="Programma verwijderen" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
+                  <button class="btn-secondary" type="button" aria-label="Edit program" on:click={() => startEdit(plan)}><Pencil size={16} /> Edit</button>
+                  <button class="btn-danger" type="button" aria-label="Delete program" on:click={() => removePlan(plan)}><Trash2 size={16} /></button>
                 </div>
               </div>
               <p class="text-sm text-gray-500 dark:text-gray-400">
-                {plan.schedule_mode === 'flexible_cycle' ? 'Oud flexibel programma' : `Cyclus van ${(plan.cycle_days || 7) / 7} ${(plan.cycle_days || 7) === 7 ? 'week' : 'weken'} × ${plan.cycles || 1}`} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
+                {plan.schedule_mode === 'flexible_cycle' ? 'Legacy flexible program' : `${(plan.cycle_days || 7) / 7}-week cycle × ${plan.cycles || 1}`} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
               </p>
-              <a class="text-sm font-semibold text-primary-700 underline dark:text-primary-300" href={`/?plan=${plan.id}`}>Bekijk in tijdlijn</a>
+              <a class="text-sm font-semibold text-primary-700 underline dark:text-primary-300" href={`/?plan=${plan.id}`}>View on timeline</a>
             </div>
           {/each}
         {/if}
@@ -290,35 +290,35 @@
     {#if showForm}
       <form id="program-form" class="card scroll-mt-4 space-y-5" on:submit|preventDefault={save}>
         <fieldset class="min-w-0 space-y-5" disabled={saving}>
-          {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Je bewerkt “{editingPlan.title}”. Uitgevoerde en gestarte trainingen blijven staan. Nog geplande trainingen vanaf vandaag worden opnieuw ingepland.</p>{/if}
+          {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Editing “{editingPlan.title}”. Completed and in-progress workouts will be kept. Planned workouts from today onward will be rescheduled.</p>{/if}
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
-              <label class="label" for="prog-title">Naam</label>
-              <input id="prog-title" class="input" bind:value={title} maxlength="120" placeholder="Bijvoorbeeld: kracht en mobiliteit" required />
+              <label class="label" for="prog-title">Name</label>
+              <input id="prog-title" class="input" bind:value={title} maxlength="120" placeholder="For example: strength and mobility" required />
             </div>
             <div>
-              <label class="label" for="prog-start">Startdatum</label>
+              <label class="label" for="prog-start">Start date</label>
               <input id="prog-start" class="input" type="date" bind:value={startDate} required />
             </div>
             <div>
-              <label class="label" for="prog-cycle">Duur van de cyclus</label>
-              <CycleChoice id="prog-cycle" label="Duur van de cyclus" value={cycleWeeks} onChange={resizeCycle}
-                options={[{ value: 1, label: '1 week (7 dagen)' }, { value: 2, label: '2 weken (14 dagen)' }, { value: 3, label: '3 weken (21 dagen)' }]} />
+              <label class="label" for="prog-cycle">Cycle length</label>
+              <CycleChoice id="prog-cycle" label="Cycle length" value={cycleWeeks} onChange={resizeCycle}
+                options={[{ value: 1, label: '1 week (7 days)' }, { value: 2, label: '2 weeks (14 days)' }, { value: 3, label: '3 weeks (21 days)' }]} />
             </div>
             <div>
-              <label class="label" for="prog-cycles">Aantal herhalingen van de cyclus</label>
+              <label class="label" for="prog-cycles">Number of cycle repeats</label>
               <input id="prog-cycles" class="input" type="number" min="1" max="52" step="1" bind:value={cycles} required />
             </div>
           </div>
-          <p class="text-sm text-gray-600 dark:text-gray-300">De cyclus begint op de startdatum en herhaalt zich elke {cycleWeeks * 7} dagen. Stel iedere week afzonderlijk in; een leeg dagdeel is vrij.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-300">The cycle starts on the start date and repeats every {cycleWeeks * 7} days. Configure each week separately; leave a day part empty for rest.</p>
 
           {#if templates.length === 0}
             <p class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-              Maak eerst een workout bij <a class="font-semibold underline" href="/library">Workouts</a>.
+              Create a workout in <a class="font-semibold underline" href="/library">Workouts</a> first.
             </p>
           {/if}
           {#if cycleWeeks > 1}
-            <div class="flex flex-wrap gap-2" role="group" aria-label="Week van de cyclus">
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Cycle week">
               {#each Array.from({ length: cycleWeeks }, (_, week) => week) as week}
                 <button class={selectedWeek === week ? 'btn-primary' : 'btn-secondary'} type="button" aria-pressed={selectedWeek === week} on:click={() => selectedWeek = week}>Week {week + 1}</button>
               {/each}
@@ -334,7 +334,7 @@
                   <summary class="cursor-pointer font-bold capitalize">
                     {dayLabel(day)}
                     <span class="text-xs font-normal normal-case text-gray-500 dark:text-gray-400">
-                      · {count ? `${count} ${count === 1 ? 'workout' : 'workouts'}` : 'Rustdag'}
+                      · {count ? `${count} ${count === 1 ? 'workout' : 'workouts'}` : 'Rest day'}
                     </span>
                   </summary>
                   <div class="mt-4 space-y-4">
@@ -343,18 +343,18 @@
                         <legend class="label">{DAY_PART_LABELS[part]}</legend>
                         {#each slot.periods[part] as _, order}
                           <div class="space-y-2 rounded-xl bg-gray-50 p-2 dark:bg-gray-900">
-                            <select class="input min-w-0" aria-label={`Workout ${order + 1}, dag ${day + 1}, ${DAY_PART_LABELS[part]}`} bind:value={slot.periods[part][order]} required>
-                              <option value="">Kies workout…</option>
+                            <select class="input min-w-0" aria-label={`Workout ${order + 1}, day ${day + 1}, ${DAY_PART_LABELS[part]}`} bind:value={slot.periods[part][order]} required>
+                              <option value="">Choose a workout…</option>
                               {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
                             </select>
                             <div class="flex flex-wrap justify-end gap-2">
-                              <button class="btn-secondary" type="button" aria-label="Workout eerder uitvoeren" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Workout later uitvoeren" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Workout verwijderen" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Move workout earlier" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Move workout later" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Remove workout" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
                             </div>
                           </div>
                         {/each}
-                        <button class="btn-secondary w-full" type="button" aria-label={`Nieuwe training, dag ${day + 1}, ${DAY_PART_LABELS[part]}`} on:click={() => setPeriod(day, part, [...slot.periods[part], ''])}><Plus size={16} /> Nieuw</button>
+                        <button class="btn-secondary w-full" type="button" aria-label={`New workout, day ${day + 1}, ${DAY_PART_LABELS[part]}`} on:click={() => setPeriod(day, part, [...slot.periods[part], ''])}><Plus size={16} /> Add workout</button>
                       </fieldset>
                     {/each}
                   </div>
@@ -364,7 +364,7 @@
           {/each}
 
           <div class="rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-900">
-            <p class="font-bold">Voorbeeld: {schedule.length} geplande trainingen</p>
+            <p class="font-bold">Preview: {schedule.length} scheduled workouts</p>
             {#if preview.error}
               <p class="mt-1 text-amber-800 dark:text-amber-200">{preview.error}</p>
             {:else}
@@ -372,20 +372,20 @@
               <ul class="mt-3 flex flex-wrap gap-2">
                 {#each schedule.slice(0, 14) as entry}
                   <li class="badge {WORKOUT_TYPE_STYLES[entry.template.type].badge}">
-                    {entry.template.title} · {new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'short' }).format(entry.date)} · {DAY_PART_LABELS[entry.part]}
+                    {entry.template.title} · {new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short' }).format(entry.date)} · {DAY_PART_LABELS[entry.part]}
                   </li>
                 {/each}
-                {#if schedule.length > 14}<li class="text-gray-500">+ {schedule.length - 14} meer</li>{/if}
+                {#if schedule.length > 14}<li class="text-gray-500">+ {schedule.length - 14} more</li>{/if}
               </ul>
             {/if}
-            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximaal {MAX_WORKOUTS} trainingen per programma. Kies minder herhalingen of workouts.</p>{/if}
+            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximum {MAX_WORKOUTS} workouts per program. Choose fewer repeats or workouts.</p>{/if}
           </div>
 
           {#if error}<p role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
           <button class="btn-primary w-full" type="submit" disabled={saving}>
-            {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}<Check size={18} /> {editingPlan ? 'Wijzigingen opslaan en toekomstige trainingen herplannen' : 'Programma opslaan in mijn tijdlijn'}{/if}
+            {#if saving}<LoaderCircle class="animate-spin" size={18} /> Saving...{:else}<Check size={18} /> {editingPlan ? 'Save changes and reschedule future workouts' : 'Save program to my timeline'}{/if}
           </button>
-          <button class="btn-secondary w-full" type="button" on:click={cancelEdit}>Annuleren</button>
+          <button class="btn-secondary w-full" type="button" on:click={cancelEdit}>Cancel</button>
         </fieldset>
       </form>
     {/if}

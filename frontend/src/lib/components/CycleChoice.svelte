@@ -7,14 +7,14 @@
   export let label: string;
   export let id: string | undefined = undefined;
   export let disabled = false;
-  export let placeholder = 'Geen opties beschikbaar';
+  export let placeholder = 'No options available';
   export let onChange: ((next: T) => void) | undefined = undefined;
 
   $: current = options.find((option) => option.value === value);
   $: next = cycleChoice(options, value);
-  $: text = current?.label ?? (options.length ? 'Kies een optie' : placeholder);
+  $: text = current?.label ?? (options.length ? 'Choose an option' : placeholder);
   $: canChange = options.length > 1 || (options.length === 1 && !current);
-  $: hint = canChange ? `Volgende: ${next?.label}` : '';
+  $: hint = canChange ? `Next: ${next?.label}` : '';
 
   const advance = () => {
     if (disabled || !canChange || !next) return;

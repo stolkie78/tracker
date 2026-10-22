@@ -96,6 +96,7 @@ De oefeningencatalogus bevat 50 veelgebruikte krachtoefeningen, met tien oefenin
 ## Versiegeschiedenis
 
 | Versie | Wijzigingen |
+| 0.20.0 | Insights opgesplitst in overzicht, training, oefeningen en lichaam. De app, meldingen, AI-planner en kalenderfeed zijn vertaald naar het Engels. |
 | 0.19.3 | Exacte afstand en tijd bij afronden van wandelen en fietsen, ook bij interval. Tijdlijnfilter Verleden voor alle trainingen van voor vandaag. Strava-appconfiguratie in PocketBase, beheerbaar via Instellingen door een admin. Dependency- en containerupdates. Voer pb-setup uit, herstart PocketBase en vul de Strava Client ID en Client Secret opnieuw in via Instellingen. |
 | 0.19.2 | Overgeslagen trainingskaarten grijs en voltooide kaarten groen in licht en donker thema. Hardlooptrainingen vragen bij afronden om de werkelijke afstand en tijd (uu:mm:ss), ook via de statuswisselaar en bij interval; resultaten en status worden samen opgeslagen. |
 | 0.19.1 | Workoutstatus gebruikt dezelfde compacte switcher als andere keuzes, inclusief Overgeslagen, zonder zichtbare preview of losse knop Overslaan. Programmatrainingen en gekoppelde reeksen hebben geen verwijderknop op de trainingspagina; beheer verloopt via Programma beheren. Statusacties zijn geblokkeerd tijdens opslaan. |

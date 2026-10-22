@@ -24,22 +24,22 @@
   } from '$lib/types';
 
   const DAYS = [
-    { value: 'Monday', label: 'Ma' },
-    { value: 'Tuesday', label: 'Di' },
-    { value: 'Wednesday', label: 'Wo' },
-    { value: 'Thursday', label: 'Do' },
-    { value: 'Friday', label: 'Vr' },
-    { value: 'Saturday', label: 'Za' },
-    { value: 'Sunday', label: 'Zo' }
+    { value: 'Monday', label: 'Mon' },
+    { value: 'Tuesday', label: 'Tue' },
+    { value: 'Wednesday', label: 'Wed' },
+    { value: 'Thursday', label: 'Thu' },
+    { value: 'Friday', label: 'Fri' },
+    { value: 'Saturday', label: 'Sat' },
+    { value: 'Sunday', label: 'Sun' }
   ];
   const today = new Date();
   const dateInputValue = new Date(today.getTime() - today.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
   let startDate = dateInputValue;
   let weeks = 4;
-  let goal = 'Algemene fitheid en sterker worden';
+  let goal = 'General fitness and building strength';
   let experience = 'beginner';
-  let equipment = 'Sportschool met standaard fitnessapparatuur';
+  let equipment = 'Gym with standard fitness equipment';
   let availableDays = ['Monday', 'Wednesday', 'Friday', 'Saturday', 'Sunday'];
   let strengthSessions = 3;
   let cardioSessions = 1;
@@ -62,7 +62,7 @@
     try {
       plans = await getTrainingPlans();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Opgeslagen plannen konden niet worden geladen.';
+      error = err instanceof Error ? err.message : 'Saved plans could not be loaded.';
     } finally {
       pageLoading = false;
     }
@@ -75,7 +75,7 @@
   }
 
   const formatDate = (value: string) =>
-    new Intl.DateTimeFormat('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${value.slice(0, 10)}T12:00:00`));
+    new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${value.slice(0, 10)}T12:00:00`));
 
   const toggleDay = (day: string) => {
     availableDays = availableDays.includes(day) ? availableDays.filter((entry) => entry !== day) : [...availableDays, day];
@@ -86,11 +86,11 @@
     success = '';
     generated = null;
     if (sessionsPerWeek < 1 || sessionsPerWeek > 7) {
-      error = 'Kies minimaal één en maximaal zeven sessies per week.';
+      error = 'Choose at least one and no more than seven sessions per week.';
       return;
     }
     if (availableDays.length < sessionsPerWeek) {
-      error = `Selecteer minimaal ${sessionsPerWeek} beschikbare dagen per week voor de gekozen trainingsfrequentie.`;
+      error = `Select at least ${sessionsPerWeek} available days per week for your chosen training frequency.`;
       return;
     }
 
@@ -112,7 +112,7 @@
         }
       });
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Het schema kon niet worden gegenereerd. Controleer je AI-instellingen en probeer opnieuw.';
+      error = err instanceof Error ? err.message : 'Could not generate the plan. Check your AI settings and try again.';
     } finally {
       loading = false;
     }
@@ -186,12 +186,12 @@
         await persistWorkout(saved.id, workout, index);
       }
       plans = [saved, ...plans];
-      success = `Schema opgeslagen met ${generated.workouts.length} trainingen.`;
+      success = `Plan saved with ${generated.workouts.length} workouts.`;
       generated = null;
     } catch (err) {
-      const reason = err instanceof Error ? err.message : 'Opslaan is mislukt.';
+      const reason = err instanceof Error ? err.message : 'Could not save changes.';
       error = planId
-        ? `Het plan is aangemaakt en ${savedWorkoutCount} van de ${totalWorkoutCount} trainingen zijn opgeslagen. Probeer ontbrekende trainingen opnieuw aan te maken. ${reason}`
+        ? `The plan was created and ${savedWorkoutCount} of ${totalWorkoutCount} workouts were saved. Try creating the missing workouts again. ${reason}`
         : reason;
     } finally {
       saving = false;
@@ -199,64 +199,64 @@
   };
 
   const workoutDetails = (workout: GeneratedWorkout) => {
-    if (workout.type === 'strength') return `${workout.strength_exercises?.length ?? 0} oefeningen`;
+    if (workout.type === 'strength') return `${workout.strength_exercises?.length ?? 0} exercises`;
     if (workout.type === 'cardio') {
       return [workout.cardio_mode ? CARDIO_MODE_LABELS[workout.cardio_mode] : '', workout.distance_km ? `${workout.distance_km} km` : ''].filter(Boolean).join(' · ');
     }
     if (workout.type === 'interval') {
-      return `${workout.interval_rounds} rondes · ${workout.interval_work_seconds}s werk / ${workout.interval_rest_seconds}s rust`;
+      return `${workout.interval_rounds} rounds · ${workout.interval_work_seconds}s work / ${workout.interval_rest_seconds}s rest`;
     }
     return workout.recovery_activity ? RECOVERY_ACTIVITY_LABELS[workout.recovery_activity] : '';
   };
 </script>
 
 <svelte:head>
-  <title>AI-trainingsplanner · T.O.P. Trainer</title>
+  <title>AI Workout Planner · T.O.P. Trainer</title>
 </svelte:head>
 
 <div class="space-y-6">
   <div>
-    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Persoonlijke planning</p>
-    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">AI-trainingsplanner</h2>
-    <p class="mt-2 text-gray-600 dark:text-gray-300">Maak een gemengd schema voor meerdere weken. Bekijk eerst het voorstel en sla het daarna op in je tijdlijn.</p>
+    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Personal planning</p>
+    <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">AI Workout Planner</h2>
+    <p class="mt-2 text-gray-600 dark:text-gray-300">Create a mixed training plan for several weeks. Review the proposal before saving it to your timeline.</p>
   </div>
 
   {#if pageLoading}
-    <div class="card animate-pulse">Planner laden...</div>
+    <div class="card animate-pulse">Loading planner...</div>
   {:else}
     <form class="card space-y-5" on:submit|preventDefault={generate}>
       <div class="flex items-start gap-3 rounded-xl bg-primary-50 p-4 text-sm text-primary-900 dark:bg-primary-950 dark:text-primary-100">
         <Sparkles class="mt-0.5 shrink-0" size={20} />
-        <p>De planner maakt kracht-, cardio-, interval- en herstelsessies op basis van je doelen, beschikbare dagen, materiaal en voorkeuren. Controleer een AI-voorstel altijd zelf voordat je het volgt.</p>
+        <p>The planner creates strength, cardio, interval, and recovery sessions based on your goals, availability, equipment, and preferences. Always review an AI-generated plan before following it.</p>
       </div>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
-          <label class="label" for="plan-start">Startdatum</label>
+          <label class="label" for="plan-start">Start date</label>
           <input id="plan-start" class="input" type="date" bind:value={startDate} required />
         </div>
         <div>
-          <label class="label" for="plan-weeks">Periode</label>
-          <CycleChoice id="plan-weeks" label="Periode" bind:value={weeks}
-            options={[2, 3, 4, 6, 8, 12].map((value) => ({ value, label: `${value} weken · t/m ${formatDate(calculateEndDate(startDate, value))}` }))} />
+          <label class="label" for="plan-weeks">Duration</label>
+          <CycleChoice id="plan-weeks" label="Duration" bind:value={weeks}
+            options={[2, 3, 4, 6, 8, 12].map((value) => ({ value, label: `${value} weeks · through ${formatDate(calculateEndDate(startDate, value))}` }))} />
         </div>
         <div class="sm:col-span-2">
-          <label class="label" for="plan-goal">Doel of extra context</label>
-          <textarea id="plan-goal" class="input min-h-24 resize-y" bind:value={goal} maxlength="500" placeholder="Bijvoorbeeld: sterker worden, conditie verbeteren, voorbereiding op een wandeltocht." required></textarea>
+          <label class="label" for="plan-goal">Goal or additional context</label>
+          <textarea id="plan-goal" class="input min-h-24 resize-y" bind:value={goal} maxlength="500" placeholder="For example: build strength, improve fitness, prepare for a hiking trip." required></textarea>
         </div>
         <div>
           <label class="label" for="experience">Ervaringsniveau</label>
           <CycleChoice id="experience" label="Ervaringsniveau" bind:value={experience}
-            options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Gemiddeld' }, { value: 'advanced', label: 'Gevorderd' }]} />
+            options={[{ value: 'beginner', label: 'Beginner' }, { value: 'intermediate', label: 'Intermediate' }, { value: 'advanced', label: 'Advanced' }]} />
         </div>
         <div>
-          <label class="label" for="equipment">Beschikbaar materiaal</label>
-          <input id="equipment" class="input" bind:value={equipment} maxlength="500" placeholder="Sportschool, dumbbells thuis, geen materiaal..." />
+          <label class="label" for="equipment">Available equipment</label>
+          <input id="equipment" class="input" bind:value={equipment} maxlength="500" placeholder="Gym, dumbbells at home, no equipment..." />
         </div>
       </div>
 
       <fieldset>
-        <legend class="label">Beschikbare dagen</legend>
+        <legend class="label">Available days</legend>
         <div class="grid grid-cols-7 gap-2">
           {#each DAYS as day}
             <label class="touch-target flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border text-sm font-bold transition {availableDays.includes(day.value) ? 'border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-950 dark:text-primary-100' : 'border-gray-200 bg-white text-gray-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-400'}">
@@ -269,36 +269,36 @@
       </fieldset>
 
       <fieldset>
-        <legend class="label">Sessies per week <span class="font-normal text-gray-500">· {sessionsPerWeek} totaal</span></legend>
+        <legend class="label">Sessions per week <span class="font-normal text-gray-500">· {sessionsPerWeek} total</span></legend>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div><label class="label" for="sessions-strength">Kracht</label><input id="sessions-strength" class="input" type="number" min="0" max="7" bind:value={strengthSessions} /></div>
+          <div><label class="label" for="sessions-strength">Strength</label><input id="sessions-strength" class="input" type="number" min="0" max="7" bind:value={strengthSessions} /></div>
           <div><label class="label" for="sessions-cardio">Cardio</label><input id="sessions-cardio" class="input" type="number" min="0" max="7" bind:value={cardioSessions} /></div>
           <div><label class="label" for="sessions-interval">Interval</label><input id="sessions-interval" class="input" type="number" min="0" max="7" bind:value={intervalSessions} /></div>
-          <div><label class="label" for="sessions-recovery">Herstel</label><input id="sessions-recovery" class="input" type="number" min="0" max="7" bind:value={recoverySessions} /></div>
+          <div><label class="label" for="sessions-recovery">Recovery</label><input id="sessions-recovery" class="input" type="number" min="0" max="7" bind:value={recoverySessions} /></div>
         </div>
       </fieldset>
 
       {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
       {#if success}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{success}</p>{/if}
       <button class="btn-primary w-full" type="submit" disabled={loading}>
-        {#if loading}<LoaderCircle class="animate-spin" size={18} /> Schema maken...{:else}<Sparkles size={18} /> Schema genereren{/if}
+        {#if loading}<LoaderCircle class="animate-spin" size={18} /> Creating plan...{:else}<Sparkles size={18} /> Generate plan{/if}
       </button>
-      <p class="text-center text-xs text-gray-500 dark:text-gray-400">Het genereren kan tot ongeveer twee minuten duren. De AI-sleutel configureer je bij <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/settings">Instellingen</a>.</p>
+      <p class="text-center text-xs text-gray-500 dark:text-gray-400">Generation may take up to two minutes. Configure your AI key in <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/settings">Settings</a>.</p>
     </form>
   {/if}
 
   {#if generated}
     <section class="space-y-4">
       <div class="card">
-        <p class="text-xs font-bold uppercase tracking-[0.18em] text-overload-signal">AI-voorstel · {generated.workouts.length} sessies</p>
+        <p class="text-xs font-bold uppercase tracking-[0.18em] text-overload-signal">AI proposal · {generated.workouts.length} sessions</p>
         <h3 class="mt-2 text-2xl font-black">{generated.title}</h3>
         <p class="mt-2 whitespace-pre-line text-gray-600 dark:text-gray-300">{generated.summary}</p>
-        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">{formatDate(startDate)} – {formatDate(endDate)} · {weeks} weken</p>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">{formatDate(startDate)} – {formatDate(endDate)} · {weeks} weeks</p>
       </div>
       {#each generated.workouts as workout, index}
         <article class="card flex gap-3">
           <div class="flex w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-primary-50 text-center dark:bg-primary-950">
-            <span class="text-[10px] font-bold uppercase text-primary-700 dark:text-primary-300">{new Intl.DateTimeFormat('nl-NL', { weekday: 'short' }).format(new Date(`${workout.date}T12:00:00`))}</span>
+            <span class="text-[10px] font-bold uppercase text-primary-700 dark:text-primary-300">{new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(new Date(`${workout.date}T12:00:00`))}</span>
             <span class="text-xl font-black">{new Date(`${workout.date}T12:00:00`).getDate()}</span>
           </div>
           <div class="min-w-0 flex-1">
@@ -310,7 +310,7 @@
             {#if workout.type === 'strength' && workout.strength_exercises}
               <ul class="mt-3 space-y-1 text-sm text-gray-600 dark:text-gray-300">
                 {#each workout.strength_exercises as exercise}
-                  <li>{exercise.sets} × {exercise.reps_min}-{exercise.reps_max} reps · {exercise.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS}s rust · tempo {exercise.tempo ?? DEFAULT_STRENGTH_TEMPO} · gewicht naar wens ({exercise.weight_increment} kg stap)</li>
+                  <li>{exercise.sets} × {exercise.reps_min}-{exercise.reps_max} reps · {exercise.rest_seconds ?? DEFAULT_STRENGTH_REST_SECONDS}s rest · tempo {exercise.tempo ?? DEFAULT_STRENGTH_TEMPO} · weight as desired ({exercise.weight_increment} kg increments)</li>
                 {/each}
               </ul>
             {/if}
@@ -320,31 +320,31 @@
         </article>
       {/each}
       <button class="btn-primary w-full" on:click={savePlan} disabled={saving}>
-        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Opslaan...{:else}<Check size={18} /> Schema opslaan in mijn tijdlijn{/if}
+        {#if saving}<LoaderCircle class="animate-spin" size={18} /> Saving...{:else}<Check size={18} /> Save plan to my timeline{/if}
       </button>
-      <button class="btn-secondary w-full" on:click={() => (generated = null)} disabled={saving}>Voorstel weggooien</button>
+      <button class="btn-secondary w-full" on:click={() => (generated = null)} disabled={saving}>Discard proposal</button>
     </section>
   {/if}
 
   <section class="space-y-3">
     <div class="flex items-center gap-2">
       <CalendarDays size={20} class="text-overload-signal" />
-      <h3 class="text-xl font-black">Eerder gemaakte plannen</h3>
+      <h3 class="text-xl font-black">Previous plans</h3>
     </div>
     {#if plans.length === 0}
-      <div class="card text-sm text-gray-600 dark:text-gray-300">Je opgeslagen trainingsperiodes verschijnen hier.</div>
+      <div class="card text-sm text-gray-600 dark:text-gray-300">Your saved training plans will appear here.</div>
     {:else}
       {#each plans as plan}
         <details class="card group">
           <summary class="flex cursor-pointer list-none items-center justify-between gap-3">
             <div>
               <p class="font-bold">{plan.title}</p>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.start_date)} – {formatDate(plan.end_date)} · {plan.weeks} weken</p>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{formatDate(plan.start_date)} – {formatDate(plan.end_date)} · {plan.weeks} weeks</p>
             </div>
             <ChevronDown size={19} class="transition group-open:rotate-180" />
           </summary>
           {#if plan.summary}<p class="mt-4 whitespace-pre-line border-t border-gray-100 pt-4 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300">{plan.summary}</p>{/if}
-          <a class="btn-secondary mt-4 w-full" href={`/?plan=${plan.id}`}><Activity size={17} /> Terug naar tijdlijn</a>
+          <a class="btn-secondary mt-4 w-full" href={`/?plan=${plan.id}`}><Activity size={17} /> Back to timeline</a>
         </details>
       {/each}
     {/if}

@@ -3,14 +3,14 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
   var data = body.template;
   var entries = body.exercises;
   if (!data || typeof data !== "object" || Array.isArray(data) || !Array.isArray(entries) || entries.length > 100) {
-    throw new BadRequestError("Vul een geldige workout met maximaal 100 oefeningen in.");
+    throw new BadRequestError("Enter a valid workout with no more than 100 exercises.");
   }
   var result;
   e.app.runInTransaction(function (app) {
     var record;
     if (body.id) {
       record = app.findRecordById("workout_templates", body.id);
-      if (record.getString("owner") !== e.auth.id) throw new NotFoundError("Workout niet gevonden.");
+      if (record.getString("owner") !== e.auth.id) throw new NotFoundError("Workout not found.");
     } else {
       record = new Record(app.findCollectionByNameOrId("workout_templates"));
       record.set("owner", e.auth.id);
@@ -26,7 +26,7 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     var type = record.getString("type");
     var duration = record.getFloat("duration_minutes");
     if (!Number.isFinite(duration) || duration < 1 || duration > 600) {
-      throw new BadRequestError("Vul een trainingsduur tussen 1 en 600 minuten in.");
+      throw new BadRequestError("Enter a workout duration between 1 and 600 minutes.");
     }
     if (type !== "cardio" && type !== "interval") record.set("cardio_mode", "");
     if (type !== "cardio") record.set("distance_km", 0);
@@ -38,27 +38,27 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     if (type !== "recovery") record.set("recovery_activity", "");
     if (type !== "sport") record.set("sport_activity", "");
     if (record.getString("type") === "strength" && entries.length === 0) {
-      throw new BadRequestError("Voeg minimaal één oefening toe.");
+      throw new BadRequestError("Add at least one exercise.");
     }
     if (record.getString("type") !== "strength" && entries.length !== 0) {
-      throw new BadRequestError("Alleen krachttrainingen kunnen oefeningen bevatten.");
+      throw new BadRequestError("Only strength workouts can contain exercises.");
     }
     app.save(record);
     var previous = app.findAllRecords("template_exercises", $dbx.hashExp({ template: record.id }));
     for (var oldIndex = 0; oldIndex < previous.length; oldIndex++) {
       if (previous[oldIndex].getString("owner") !== e.auth.id) {
-        throw new BadRequestError("De eigenaar van een oefening komt niet overeen met de workout.");
+        throw new BadRequestError("The exercise owner does not match the workout owner.");
       }
       app.delete(previous[oldIndex]);
     }
     for (var index = 0; index < entries.length; index++) {
       var entry = entries[index];
-      if (!entry || typeof entry.exercise !== "string") throw new BadRequestError("Kies een geldige oefening.");
+      if (!entry || typeof entry.exercise !== "string") throw new BadRequestError("Choose a valid exercise.");
       var exercise = app.findRecordById("exercises", entry.exercise);
       var exerciseOwner = exercise.getString("owner");
-      if (exerciseOwner && exerciseOwner !== e.auth.id) throw new NotFoundError("Oefening niet gevonden.");
+      if (exerciseOwner && exerciseOwner !== e.auth.id) throw new NotFoundError("Exercise not found.");
       if (entry.equipment && exercise.getStringSlice("equipment_options").indexOf(entry.equipment) < 0) {
-        throw new BadRequestError("Kies geldig materiaal voor de oefening.");
+        throw new BadRequestError("Choose valid equipment for the exercise.");
       }
       if (
         !Number.isInteger(entry.target_sets) || entry.target_sets < 1 ||
@@ -68,7 +68,7 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
         typeof entry.weight_increment !== "number" || !Number.isFinite(entry.weight_increment) || entry.weight_increment <= 0 ||
         typeof entry.rest_seconds !== "number" || !Number.isFinite(entry.rest_seconds) || entry.rest_seconds < 0
       ) {
-        throw new BadRequestError("Controleer sets, herhalingen, gewicht, gewichtsstap en rust.");
+        throw new BadRequestError("Check the sets, reps, weight, weight increment, and rest period.");
       }
       var child = new Record(app.findCollectionByNameOrId("template_exercises"));
       child.set("owner", e.auth.id);

@@ -15,8 +15,8 @@ after(() => server.close());
 const { blockTime, buildCycleSchedule, cycleDate, emptyCycleSlot, groupByDayPart, localDate, normalizeCycleSlots, replanCycle } =
   await server.ssrLoadModule('/src/lib/programs.ts');
 const templates = new Map([
-  ['strength', { id: 'strength', title: 'Kracht', type: 'strength' }],
-  ['mobility', { id: 'mobility', title: 'Mobiliteit', type: 'recovery' }]
+  ['strength', { id: 'strength', title: 'Strength', type: 'strength' }],
+  ['mobility', { id: 'mobility', title: 'Mobility', type: 'recovery' }]
 ]);
 const { buildCalendar } = createRequire(import.meta.url)('../../pb_hooks/calendar_lib.js');
 const slotsFor = (weeks) => Array.from({ length: weeks * 7 }, emptyCycleSlot);
@@ -81,18 +81,18 @@ test('calendar date arithmetic remains correct across daylight saving and year b
 
 test('invalid dates, lengths, repeat counts and unavailable blocks produce explicit errors', () => {
   for (const date of ['', '2026-02-30', 'not-a-date']) {
-    assert.throws(() => buildCycleSchedule(date, 1, 1, slotsFor(1), templates), /startdatum/);
+    assert.throws(() => buildCycleSchedule(date, 1, 1, slotsFor(1), templates), /start date/);
   }
   for (const weeks of [0, 4, 1.5, NaN]) {
-    assert.throws(() => buildCycleSchedule('2026-10-21', weeks, 1, slotsFor(1), templates), /weken/);
+    assert.throws(() => buildCycleSchedule('2026-10-21', weeks, 1, slotsFor(1), templates), /weeks/);
   }
   for (const repeats of [0, 53, 1.5, undefined]) {
-    assert.throws(() => buildCycleSchedule('2026-10-21', 1, repeats, slotsFor(1), templates), /herhalingen/);
+    assert.throws(() => buildCycleSchedule('2026-10-21', 1, repeats, slotsFor(1), templates), /repetitions/);
   }
-  assert.throws(() => buildCycleSchedule('2026-10-21', 2, 1, slotsFor(1), templates), /dagschema/);
+  assert.throws(() => buildCycleSchedule('2026-10-21', 2, 1, slotsFor(1), templates), /daily schedule/);
   const slots = slotsFor(1);
   slots[0].periods.morning = ['missing'];
-  assert.throws(() => buildCycleSchedule('2026-10-21', 1, 1, slots, templates), /beschikbare workout/);
+  assert.throws(() => buildCycleSchedule('2026-10-21', 1, 1, slots, templates), /available workout/);
 });
 
 test('saved patterns round-trip and legacy fixed weekday blocks are preserved in the morning', () => {
@@ -106,7 +106,7 @@ test('saved patterns round-trip and legacy fixed weekday blocks are preserved in
   assert.deepEqual(legacy[0].periods, { morning: ['strength', 'mobility'], afternoon: [], evening: [] });
   assert.deepEqual(legacy[1].periods.morning, ['strength']);
   for (const invalid of [{}, [null], [{ periods: [] }], [{ periods: { morning: 'strength' } }]]) {
-    assert.throws(() => normalizeCycleSlots(invalid, 7), /ongeldig/);
+    assert.throws(() => normalizeCycleSlots(invalid, 7), /invalid/);
   }
 });
 
@@ -119,7 +119,7 @@ test('timeline orders dayparts and keeps multiple blocks without inventing a day
     record('afternoon', 'mobility', 'afternoon', '2026-10-21T14:00:00')
   ];
   const groups = groupByDayPart(workouts);
-  assert.deepEqual(groups.map((group) => group.label), ['Ochtend', 'Middag', 'Avond', 'Zonder dagdeel']);
+  assert.deepEqual(groups.map((group) => group.label), ['Morning', 'Afternoon', 'Evening', 'No day part']);
   assert.deepEqual(groups[0].workouts.map((entry) => entry.id), ['strength', 'mobility']);
   assert.equal(workouts[0].id, 'evening');
   assert.deepEqual(groupByDayPart([]), []);
@@ -148,9 +148,9 @@ test('replanning keeps past and started workouts without duplicating completed b
 
 test('calendar export keeps all combined blocks and identifies their dayparts', () => {
   const entries = [
-    { id: 'strength', title: 'Kracht', type: 'strength', day_part: 'morning', performed_at: '2026-10-21 07:00:00.000Z' },
-    { id: 'mobility', title: 'Mobiliteit', type: 'recovery', day_part: 'morning', performed_at: '2026-10-21 07:00:01.000Z' },
-    { id: 'evening', title: 'Herstel', type: 'recovery', day_part: 'evening', performed_at: '2026-10-21 17:00:00.000Z' }
+    { id: 'strength', title: 'Strength', type: 'strength', day_part: 'morning', performed_at: '2026-10-21 07:00:00.000Z' },
+    { id: 'mobility', title: 'Mobility', type: 'recovery', day_part: 'morning', performed_at: '2026-10-21 07:00:01.000Z' },
+    { id: 'evening', title: 'Recovery', type: 'recovery', day_part: 'evening', performed_at: '2026-10-21 17:00:00.000Z' }
   ].map((data) => ({
     id: data.id,
     getString: (name) => data[name] ?? (name === 'status' ? 'planned' : ''),
@@ -159,8 +159,8 @@ test('calendar export keeps all combined blocks and identifies their dayparts', 
   }));
   const calendar = buildCalendar({ findRecordsByFilter: () => entries }, 'https://example.com', 'owner');
   assert.equal((calendar.match(/BEGIN:VEVENT/g) ?? []).length, 3);
-  assert.equal((calendar.match(/Dagdeel: Ochtend/g) ?? []).length, 2);
-  assert.equal((calendar.match(/Dagdeel: Avond/g) ?? []).length, 1);
+  assert.equal((calendar.match(/Day part: Morning/g) ?? []).length, 2);
+  assert.equal((calendar.match(/Day part: Evening/g) ?? []).length, 1);
   assert.ok(calendar.includes('DTSTART:20261021T070000Z'));
   assert.ok(calendar.includes('DTSTART:20261021T070001Z'));
   assert.ok(calendar.includes('UID:evening@top-trainer'));

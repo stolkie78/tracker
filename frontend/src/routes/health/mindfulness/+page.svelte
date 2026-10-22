@@ -4,9 +4,9 @@
   import { Brain, Pause, Play, RotateCcw } from '@lucide/svelte';
 
   const PATTERNS = [
-    { id: 'box', label: 'Box breathing 4-4-4-4', steps: [['Adem in', 4], ['Vasthouden', 4], ['Adem uit', 4], ['Vasthouden', 4]] },
-    { id: '478', label: '4-7-8 ontspanning', steps: [['Adem in', 4], ['Vasthouden', 7], ['Adem uit', 8]] },
-    { id: 'calm', label: 'Rustig 5-5', steps: [['Adem in', 5], ['Adem uit', 5]] }
+    { id: 'box', label: 'Box breathing 4-4-4-4', steps: [['Breathe in', 4], ['Hold', 4], ['Breathe out', 4], ['Hold', 4]] },
+    { id: '478', label: '4-7-8 relaxation', steps: [['Breathe in', 4], ['Hold', 7], ['Breathe out', 8]] },
+    { id: 'calm', label: 'Calm breathing 5-5', steps: [['Breathe in', 5], ['Breathe out', 5]] }
   ] as const;
 
   let patternId: string = 'box';
@@ -62,35 +62,35 @@
   <div>
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Health · Mindfulness</p>
     <h2 class="mt-1 flex items-center gap-2 text-3xl font-black"><Brain size={28} /> Mindfulness</h2>
-    <p class="mt-1 text-gray-600 dark:text-gray-300">Een korte ademhalingsoefening om tot rust te komen. Neem een comfortabele houding aan en volg het ritme.</p>
+    <p class="mt-1 text-gray-600 dark:text-gray-300">A short breathing exercise to help you relax. Get comfortable and follow the rhythm.</p>
   </div>
 
   <section class="card space-y-5 text-center">
     <div class="grid gap-4 text-left sm:grid-cols-2">
       <div>
-        <label class="label" for="pattern">Ademritme</label>
-        <CycleChoice id="pattern" label="Ademritme" value={patternId} disabled={running}
+        <label class="label" for="pattern">Breathing pattern</label>
+        <CycleChoice id="pattern" label="Breathing pattern" value={patternId} disabled={running}
           options={PATTERNS.map((pattern) => ({ value: pattern.id, label: pattern.label }))}
           onChange={(value) => { patternId = value; reset(); }} />
       </div>
       <div>
-        <label class="label" for="minutes">Duur (minuten)</label>
+        <label class="label" for="minutes">Duration (minutes)</label>
         <input id="minutes" class="input" type="number" min="1" max="60" bind:value={minutes} disabled={running} />
       </div>
     </div>
 
-    <div class="mx-auto flex h-48 w-48 items-center justify-center rounded-full border-4 border-primary-500 transition-transform duration-1000 {running && current[0] === 'Adem in' ? 'scale-110' : running && current[0] === 'Adem uit' ? 'scale-90' : ''}">
+    <div class="mx-auto flex h-48 w-48 items-center justify-center rounded-full border-4 border-primary-500 transition-transform duration-1000 {running && current[0] === 'Breathe in' ? 'scale-110' : running && current[0] === 'Breathe out' ? 'scale-90' : ''}">
       <div>
-        <p class="text-2xl font-black">{finished ? 'Klaar' : running || elapsed > 0 ? current[0] : 'Klaar om te starten'}</p>
+        <p class="text-2xl font-black">{finished ? 'Done' : running || elapsed > 0 ? current[0] : 'Ready to start'}</p>
         {#if running}<p class="text-3xl font-black">{stepLeft}</p>{/if}
       </div>
     </div>
     <p class="text-gray-600 dark:text-gray-300">{format(elapsed)} / {format(total)}</p>
-    {#if finished}<p class="font-semibold text-emerald-600 dark:text-emerald-300">Goed gedaan. Neem even de tijd om terug te komen.</p>{/if}
+    {#if finished}<p class="font-semibold text-emerald-600 dark:text-emerald-300">Well done. Take a moment to come back to the present.</p>{/if}
 
     <div class="flex justify-center gap-3">
-      <button class="btn-primary" on:click={toggle}>{#if running}<Pause size={18} /> Pauzeren{:else}<Play size={18} /> {elapsed > 0 && !finished ? 'Hervatten' : 'Starten'}{/if}</button>
-      <button class="btn-secondary" on:click={reset}><RotateCcw size={18} /> Opnieuw</button>
+      <button class="btn-primary" on:click={toggle}>{#if running}<Pause size={18} /> Pause{:else}<Play size={18} /> {elapsed > 0 && !finished ? 'Resume' : 'Start'}{/if}</button>
+      <button class="btn-secondary" on:click={reset}><RotateCcw size={18} /> Reset</button>
     </div>
   </section>
 </div>

@@ -30,13 +30,13 @@ export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_
 
 export const distanceCompletionData = (distance: number | undefined, time: string) => {
   if (typeof distance !== 'number' || !Number.isFinite(distance) || distance <= 0) {
-    throw new Error('Vul een afstand groter dan 0 km in.');
+    throw new Error('Enter a distance greater than 0 km.');
   }
   const match = /^(\d+):([0-5]\d):([0-5]\d)$/.exec(time.trim());
-  if (!match) throw new Error('Vul de tijd in als uu:mm:ss, bijvoorbeeld 00:32:15.');
+  if (!match) throw new Error('Enter the time as hh:mm:ss, for example 00:32:15.');
   const seconds = Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
   if (!Number.isSafeInteger(seconds) || seconds <= 0) {
-    throw new Error('Vul een tijd groter dan 0 seconden in.');
+    throw new Error('Enter a time greater than 0 seconds.');
   }
   return { distance_km: distance, duration_minutes: seconds / 60 };
 };

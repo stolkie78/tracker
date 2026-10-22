@@ -24,7 +24,7 @@ routerAdd(
 routerAdd("GET", "/api/top-trainer/calendar/{token}/timeline.ics", function (e) {
   var lib = require(`${__hooks}/calendar_lib.js`);
   var feed = lib.findFeedByToken(e.app, e.request.pathValue("token"));
-  if (!feed) throw new NotFoundError("Onbekende agenda.");
+  if (!feed) throw new NotFoundError("Unknown calendar.");
   var body = lib.buildCalendar(e.app, lib.appUrl(e), feed.getString("owner"));
   e.response.header().set("Content-Type", "text/calendar; charset=utf-8");
   e.response.header().set("Content-Disposition", 'inline; filename="top-trainer.ics"');

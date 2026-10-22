@@ -3,8 +3,8 @@ import { exerciseLabel, type CardioMode, type Workout, type WorkoutType } from '
 export type PeriodKey = '4w' | '12w' | '1y' | 'all';
 
 export const PERIOD_OPTIONS: { value: PeriodKey; label: string; days: number | null }[] = [
-  { value: '4w', label: '4 weken', days: 28 },
-  { value: '12w', label: '12 weken', days: 84 },
+  { value: '4w', label: '4 weeks', days: 28 },
+  { value: '12w', label: '12 weeks', days: 84 },
   { value: '1y', label: '1 jaar', days: 365 },
   { value: 'all', label: 'Alles', days: null }
 ];
@@ -113,7 +113,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
         estimated1RM: round1(Math.max(...sets.map((set) => epley(Number(set.weight) || 0, Number(set.reps)))))
       };
       const key = `${entry.exercise}|${entry.equipment ?? ''}`;
-      const bucket = perExercise.get(key) ?? { name: exerciseLabel(entry.expand?.exercise?.name ?? 'Oefening', entry.equipment), sessions: [] };
+      const bucket = perExercise.get(key) ?? { name: exerciseLabel(entry.expand?.exercise?.name ?? 'Exercise', entry.equipment), sessions: [] };
       bucket.sessions.push(session);
       perExercise.set(key, bucket);
     }

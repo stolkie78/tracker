@@ -33,13 +33,13 @@ routerAdd(
     var apiKey = typeof body.api_key === "string" ? body.api_key.trim() : "";
 
     if (!endpoint || !model || model.length > 160 || apiKey.length > 4096) {
-      throw new BadRequestError("Vul een geldig API-endpoint, model en API-sleutel in.");
+      throw new BadRequestError("Enter a valid API endpoint, model, and API key.");
     }
     if (
       !/^https:\/\//i.test(endpoint) &&
       !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(endpoint)
     ) {
-      throw new BadRequestError("Gebruik een HTTPS-endpoint of een lokaal endpoint op localhost.");
+      throw new BadRequestError("Use an HTTPS endpoint or a local endpoint on localhost.");
     }
 
     var records = e.app.findRecordsByFilter(
@@ -55,7 +55,7 @@ routerAdd(
       record = records[0];
     } else {
       if (!apiKey) {
-        throw new BadRequestError("Vul eerst een API-sleutel in.");
+        throw new BadRequestError("Enter an API key first.");
       }
       record = new Record(e.app.findCollectionByNameOrId("ai_settings"));
       record.set("owner", e.auth.id);
@@ -115,14 +115,14 @@ routerAdd(
     var preferences = body.preferences || {};
 
     if (!isDate(startDate) || !isDate(endDate) || startDate > endDate) {
-      fail(400, "Kies een geldige start- en einddatum voor de periode.");
+      fail(400, "Choose a valid start and end date for the period.");
     }
     if (!isIntegerInRange(weeks, 1, 12)) {
-      fail(400, "Een plan kan 1 tot en met 12 weken duren.");
+      fail(400, "A plan can last between 1 and 12 weeks.");
     }
     var requestedDays = (new Date(endDate + "T12:00:00Z").getTime() - new Date(startDate + "T12:00:00Z").getTime()) / 86400000;
     if (requestedDays !== weeks * 7 - 1) {
-      fail(400, "De begin- en einddatum moeten overeenkomen met het gekozen aantal weken.");
+      fail(400, "The start and end dates must match the selected number of weeks.");
     }
 
     var strengthCount = preferences.strength_sessions;
@@ -134,21 +134,21 @@ routerAdd(
 
     for (var i = 0; i < counts.length; i++) {
       if (!isIntegerInRange(counts[i], 0, 7)) {
-        fail(400, "Trainingsfrequenties moeten gehele aantallen van 0 tot en met 7 zijn.");
+        fail(400, "Workout frequencies must be whole numbers from 0 to 7.");
       }
       weeklyTotal += counts[i];
     }
     if (weeklyTotal < 1 || weeklyTotal > 7) {
-      fail(400, "Kies 1 tot en met 7 trainingen per week.");
+      fail(400, "Choose between 1 and 7 workouts per week.");
     }
     var allowedDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
     var selectedDays = Array.isArray(body.available_days) ? body.available_days : [];
     if (selectedDays.length < weeklyTotal || selectedDays.length > 7) {
-      fail(400, "Selecteer voldoende beschikbare dagen voor de gekozen trainingsfrequentie.");
+      fail(400, "Select enough available days for the chosen training frequency.");
     }
     for (var dayIndex = 0; dayIndex < selectedDays.length; dayIndex++) {
       if (allowedDays.indexOf(selectedDays[dayIndex]) < 0 || selectedDays.indexOf(selectedDays[dayIndex]) !== dayIndex) {
-        fail(400, "De lijst met beschikbare dagen is ongeldig.");
+        fail(400, "The list of available days is invalid.");
       }
     }
 
@@ -160,25 +160,25 @@ routerAdd(
         { owner: e.auth.id }
       );
     } catch (_) {
-      fail(400, "Stel eerst je AI-provider in op de instellingenpagina.");
+      fail(400, "Configure your AI provider on the settings page first.");
     }
 
     var apiKey = settings.getString("api_key");
     var endpoint = settings.getString("endpoint").replace(/\/+$/, "");
     var model = settings.getString("model").trim();
     if (!apiKey || !endpoint || !model) {
-      fail(400, "Vul de AI-provider, API-sleutel en het model in bij instellingen.");
+      fail(400, "Enter the AI provider, API key, and model in settings.");
     }
     if (
       !/^https:\/\//i.test(endpoint) &&
       !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(endpoint)
     ) {
-      fail(400, "Gebruik een HTTPS-endpoint of een lokaal endpoint op localhost.");
+      fail(400, "Use an HTTPS endpoint or a local endpoint on localhost.");
     }
 
     var exercises = $app.findRecordsByFilter("exercises", 'active = true && (owner = "" || owner = {:owner})', "name", 500, 0, { owner: e.auth.id });
     if (exercises.length === 0) {
-      fail(400, "Er zijn nog geen oefeningen beschikbaar. Voeg oefeningen toe en probeer opnieuw.");
+      fail(400, "No exercises are available yet. Add exercises and try again.");
     }
 
     var allowedExercises = {};
@@ -268,40 +268,40 @@ routerAdd(
             {
               role: "system",
               content:
-                "Je bent een voorzichtige trainingsplanner. Maak een praktisch, gevarieerd weekschema voor de opgegeven periode en respecteer exact de opgegeven aantallen per trainingstype per week. Verdeel sessies over de beschikbare dagen, plan rust tussen zware krachtsessies en bouw cardio en intervallen geleidelijk op. Gebruik voor kracht alleen oefeningen uit available_exercises, kies per oefening een apparaat uit de equipment_options en geef per oefening sets, een realistisch repbereik, starting_weight 0 tenzij de gebruiker expliciet een trainingsgewicht meegaf, en weight_increment (kleine stap). Adviseer geen diagnose of revalidatie; vermeld bij klachten stoppen en deskundig advies vragen. Geef uitsluitend geldige JSON terug met title, summary en workouts; geen markdown.",
+                "You are a cautious workout planner. Create a practical, varied weekly plan for the requested period and match exactly the requested number of workouts for each type per week. Distribute sessions across the available days, schedule rest between demanding strength sessions, and build cardio and intervals gradually. For strength, use only exercises from available_exercises, choose equipment from each exercise's equipment_options, and provide sets, a realistic rep range, starting_weight 0 unless the user explicitly provided a training weight, and a small weight_increment. Do not diagnose or prescribe rehabilitation; advise users with symptoms to stop and seek professional guidance. Return only valid JSON with title, summary, and workouts; do not use markdown. Write all user-facing text in English.",
             },
             { role: "user", content: JSON.stringify(userPrompt) },
           ],
         }),
       });
     } catch (_) {
-      fail(502, "De AI-provider is niet bereikbaar. Controleer endpoint en netwerk en probeer opnieuw.");
+      fail(502, "The AI provider is unreachable. Check the endpoint and network, then try again.");
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       $app.logger().error("AI planner provider request failed", "status", response.statusCode);
-      fail(502, "De AI-provider heeft het verzoek geweigerd. Controleer model en API-sleutel.");
+      fail(502, "The AI provider rejected the request. Check the model and API key.");
     }
 
     var messageContent = "";
     try {
       messageContent = response.json.choices[0].message.content;
     } catch (_) {
-      fail(502, "De AI-provider stuurde geen herkenbaar chat-completionantwoord terug.");
+      fail(502, "The AI provider returned an unrecognized chat completion response.");
     }
 
     var generated;
     try {
       generated = JSON.parse(messageContent);
     } catch (_) {
-      fail(502, "De AI-provider stuurde geen geldige JSON-planning terug.");
+      fail(502, "The AI provider did not return a valid JSON plan.");
     }
 
     if (!generated || !Array.isArray(generated.workouts) || generated.workouts.length === 0) {
-      fail(502, "De AI heeft geen trainingen voor deze periode aangemaakt.");
+      fail(502, "The AI did not create any workouts for this period.");
     }
     if (generated.workouts.length !== weeks * weeklyTotal) {
-      fail(502, "De AI-planning bevat niet exact het gevraagde aantal trainingen; probeer opnieuw.");
+      fail(502, "The AI plan does not contain the exact requested number of workouts; try again.");
     }
 
     var validTypes = ["strength", "cardio", "interval", "recovery"];
@@ -330,29 +330,29 @@ routerAdd(
         validTypes.indexOf(item.type) < 0 ||
         !isIntegerInRange(item.duration_minutes, 1, 360)
       ) {
-        fail(502, "De AI-planning bevat een ongeldige datum of training.");
+        fail(502, "The AI plan contains an invalid date or workout.");
       }
       if (selectedDays.indexOf(weekdayNames[new Date(item.date + "T12:00:00Z").getUTCDay()]) < 0) {
-        fail(502, "De AI-planning bevat een datum op een niet-beschikbare dag.");
+        fail(502, "The AI plan contains a date on an unavailable day.");
       }
       var dayOffset = (new Date(item.date + "T12:00:00Z").getTime() - new Date(startDate + "T12:00:00Z").getTime()) / 86400000;
       var itemWeek = Math.floor(dayOffset / 7);
       if (itemWeek < 0 || itemWeek >= weeks) {
-        fail(502, "De AI-planning bevat een sessie buiten de gekozen weekindeling.");
+        fail(502, "The AI plan contains a session outside the selected week.");
       }
       actualTypeCounts[itemWeek][item.type]++;
 
       var normalized = {
         date: item.date,
         type: item.type,
-        title: cleanText(item.title, 120, "Training"),
+        title: cleanText(item.title, 120, "Workout"),
         duration_minutes: item.duration_minutes,
         notes: cleanText(item.notes, 1200, ""),
       };
 
       if (item.type === "strength") {
         if (!Array.isArray(item.strength_exercises) || item.strength_exercises.length < 1 || item.strength_exercises.length > 12) {
-          fail(502, "Een krachttraining moet 1 tot en met 12 oefeningen bevatten.");
+          fail(502, "A strength workout must contain between 1 and 12 exercises.");
         }
         normalized.strength_exercises = [];
         for (var strengthIndex = 0; strengthIndex < item.strength_exercises.length; strengthIndex++) {
@@ -366,7 +366,7 @@ routerAdd(
             !isNumberInRange(strength.starting_weight, 0, 500) ||
             !isNumberInRange(strength.weight_increment, 0.25, 25)
           ) {
-            fail(502, "De AI-planning bevat een ongeldige krachtoefening of set.");
+            fail(502, "The AI plan contains an invalid strength exercise or set.");
           }
           var allowedEquipment = allowedExercises[strength.exercise_id];
           var chosenEquipment = allowedEquipment.indexOf(strength.equipment) >= 0 ? strength.equipment : allowedEquipment[0];
@@ -383,7 +383,7 @@ routerAdd(
       } else if (item.type === "cardio") {
         normalized.cardio_mode = validEnum(item.cardio_mode, validCardio, "other");
         if (item.distance_km !== undefined && !isNumberInRange(item.distance_km, 0, 1000)) {
-          fail(502, "De AI-planning bevat een ongeldige cardio-afstand.");
+          fail(502, "The AI plan contains an invalid cardio distance.");
         }
         normalized.distance_km = item.distance_km || 0;
       } else if (item.type === "interval") {
@@ -393,7 +393,7 @@ routerAdd(
           !isIntegerInRange(item.interval_rest_seconds, 0, 3600) ||
           !isIntegerInRange(item.interval_rounds, 1, 100)
         ) {
-          fail(502, "De AI-planning bevat ongeldige intervalinstellingen.");
+          fail(502, "The AI plan contains invalid interval settings.");
         }
         normalized.interval_work_seconds = item.interval_work_seconds;
         normalized.interval_rest_seconds = item.interval_rest_seconds;
@@ -409,13 +409,13 @@ routerAdd(
       for (var typeIndex = 0; typeIndex < validTypes.length; typeIndex++) {
         var workoutType = validTypes[typeIndex];
         if (actualTypeCounts[weekCheck][workoutType] !== counts[typeIndex]) {
-          fail(502, "De AI-planning bevat niet de gevraagde mix per week; probeer opnieuw.");
+          fail(502, "The AI plan does not contain the requested mix for each week; try again.");
         }
       }
     }
 
     return e.json(200, {
-      title: cleanText(generated.title, 120, "Trainingsplan"),
+      title: cleanText(generated.title, 120, "Training plan"),
       summary: cleanText(generated.summary, 2000, ""),
       workouts: normalizedWorkouts,
     });

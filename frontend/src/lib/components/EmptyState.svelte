@@ -1,6 +1,6 @@
 <script lang="ts">
-  export let title = 'Nog niets gevonden';
-  export let description = 'Maak je eerste item aan om te starten.';
+  export let title = 'Nothing found yet';
+  export let description = 'Create your first item to get started.';
 </script>
 
 <div class="card flex flex-col items-center justify-center py-12 text-center">

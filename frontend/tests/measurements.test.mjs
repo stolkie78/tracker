@@ -18,7 +18,7 @@ test('measurement labels preserve the calendar day in extreme timezones', () => 
   try {
     for (const zone of ['Pacific/Kiritimati', 'Pacific/Honolulu', 'Europe/Amsterdam']) {
       process.env.TZ = zone;
-      assert.equal(measurementDateLabel('2026-01-01 12:00:00.000Z'), '1-1-2026');
+      assert.equal(measurementDateLabel('2026-01-01 12:00:00.000Z'), '1/1/2026');
     }
   } finally {
     if (timezone === undefined) delete process.env.TZ;

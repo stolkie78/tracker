@@ -30,7 +30,7 @@
   let stravaConfigMessage = '';
 
   const describeSync = (counts: StravaSyncCounts) =>
-    `Gesynchroniseerd: ${counts.created} nieuw, ${counts.linked} gekoppeld aan een geplande training, ${counts.updated} bijgewerkt.`;
+    `Synced: ${counts.created} new, ${counts.linked} linked to a planned workout, ${counts.updated} updated.`;
 
   const loadStrava = async () => {
     try {
@@ -41,13 +41,13 @@
         await goto('/settings', { replaceState: true });
         const result = await connectStrava(code);
         strava = await getStravaStatus();
-        stravaMessage = `Strava gekoppeld. ${describeSync(result.counts)}`;
+        stravaMessage = `Strava connected. ${describeSync(result.counts)}`;
       } else if (code) {
         await goto('/settings', { replaceState: true });
-        stravaError = 'Geef toegang tot je activiteiten om Strava te koppelen.';
+        stravaError = 'Grant access to your activities to connect Strava.';
       }
     } catch (err) {
-      stravaError = err instanceof Error ? err.message : 'Strava kon niet worden geladen.';
+      stravaError = err instanceof Error ? err.message : 'Strava could not be loaded.';
     } finally {
       stravaBusy = false;
     }
@@ -73,7 +73,7 @@
       stravaConfig = config;
       stravaClientId = config.client_id;
     } catch (err) {
-      stravaConfigError = err instanceof Error ? err.message : 'Strava-configuratie kon niet worden geladen.';
+      stravaConfigError = err instanceof Error ? err.message : 'Strava settings could not be loaded.';
     }
   };
 
@@ -90,9 +90,9 @@
       stravaClientId = savedConfig.client_id;
       stravaClientSecret = '';
       strava = await getStravaStatus();
-      stravaConfigMessage = 'Strava-integratie opgeslagen. De Client Secret wordt niet teruggestuurd naar de browser.';
+      stravaConfigMessage = 'Strava integration saved. The client secret is never sent back to the browser.';
     } catch (err) {
-      stravaConfigError = err instanceof Error ? err.message : 'Strava-configuratie kon niet worden opgeslagen.';
+      stravaConfigError = err instanceof Error ? err.message : 'Strava settings could not be saved.';
     } finally {
       stravaConfigBusy = false;
     }
@@ -106,22 +106,22 @@
     try {
       calendarUrl = (await getCalendarFeed()).url;
     } catch (err) {
-      calendarError = err instanceof Error ? err.message : 'Agenda-link kon niet worden geladen.';
+      calendarError = err instanceof Error ? err.message : 'Calendar link could not be loaded.';
     }
   };
 
   const copyCalendar = async () => {
     await navigator.clipboard.writeText(calendarUrl);
-    calendarMessage = 'Link gekopieerd.';
+    calendarMessage = 'Link copied.';
   };
 
   const resetCalendar = async () => {
-    if (!confirm('Nieuwe agenda-link aanmaken? De oude link werkt dan niet meer.')) return;
+    if (!confirm('Create a new calendar link? The old link will stop working.')) return;
     try {
       calendarUrl = (await resetCalendarFeed()).url;
-      calendarMessage = 'Nieuwe link aangemaakt. Abonneer je agenda opnieuw.';
+      calendarMessage = 'New link created. Subscribe to your calendar again.';
     } catch (err) {
-      calendarError = err instanceof Error ? err.message : 'Link vernieuwen mislukt.';
+      calendarError = err instanceof Error ? err.message : 'Could not refresh link.';
     }
   };
 
@@ -134,21 +134,21 @@
       strava = await getStravaStatus();
       stravaMessage = describeSync(result.counts);
     } catch (err) {
-      stravaError = err instanceof Error ? err.message : 'Synchroniseren mislukt.';
+      stravaError = err instanceof Error ? err.message : 'Sync failed.';
     } finally {
       stravaBusy = false;
     }
   };
 
   const stopStrava = async () => {
-    if (!confirm('Strava ontkoppelen? Al geïmporteerde hardlooptrainingen blijven bewaard.')) return;
+    if (!confirm('Disconnect Strava? Previously imported running workouts will be kept.')) return;
     stravaBusy = true;
     try {
       await disconnectStrava();
       strava = await getStravaStatus();
-      stravaMessage = 'Strava ontkoppeld.';
+      stravaMessage = 'Strava disconnected.';
     } catch (err) {
-      stravaError = err instanceof Error ? err.message : 'Ontkoppelen mislukt.';
+      stravaError = err instanceof Error ? err.message : 'Could not disconnect Strava.';
     } finally {
       stravaBusy = false;
     }
@@ -168,7 +168,7 @@
         keyConfigured = settings.api_key_set;
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'AI-instellingen konden niet worden geladen.';
+      error = err instanceof Error ? err.message : 'AI settings could not be loaded.';
     } finally {
       loading = false;
     }
@@ -184,9 +184,9 @@
       keyConfigured = saved.api_key_set;
       setAIAvailability(saved.api_key_set, user);
       apiKey = '';
-      success = 'AI-instellingen opgeslagen. De API-sleutel wordt niet teruggestuurd naar de browser.';
+      success = 'AI settings saved. The API key is never sent back to the browser.';
     } catch (err) {
-      error = err instanceof Error ? err.message : 'AI-instellingen konden niet worden opgeslagen.';
+      error = err instanceof Error ? err.message : 'AI settings could not be saved.';
     } finally {
       saving = false;
     }
@@ -194,37 +194,37 @@
 </script>
 
 <svelte:head>
-  <title>Instellingen · T.O.P. Trainer</title>
+  <title>Settings · T.O.P. Trainer</title>
 </svelte:head>
 
 <div class="space-y-5">
   <a href="/" class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300">
-    <ArrowLeft size={18} /> Terug naar tijdlijn
+    <ArrowLeft size={18} /> Back to timeline
   </a>
   <div>
-    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Persoonlijke configuratie</p>
-    <h2 class="mt-1 text-3xl font-black">Instellingen</h2>
-    <p class="mt-2 text-gray-600 dark:text-gray-300">Koppel je eigen OpenAI-compatibele API om trainingsperiodes te laten plannen.</p>
+    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Personal configuration</p>
+    <h2 class="mt-1 text-3xl font-black">Settings</h2>
+    <p class="mt-2 text-gray-600 dark:text-gray-300">Connect your own OpenAI-compatible API to generate training plans.</p>
   </div>
 
   <section class="card space-y-3">
     <h3 class="text-xl font-bold">Strava</h3>
     {#if !strava}
-      <p class="animate-pulse text-gray-600 dark:text-gray-300">Strava laden...</p>
+      <p class="animate-pulse text-gray-600 dark:text-gray-300">Loading Strava...</p>
     {:else if !strava.configured}
-      <p class="text-gray-600 dark:text-gray-300">De beheerder moet de Strava-integratie instellen voordat je je account kunt koppelen.</p>
+      <p class="text-gray-600 dark:text-gray-300">An administrator must configure the Strava integration before you can connect your account.</p>
     {:else if strava.connected}
       <p class="text-gray-600 dark:text-gray-300">
-        Gekoppeld{#if strava.athlete_name} als <strong>{strava.athlete_name}</strong>{/if}. Hardloopactiviteiten worden automatisch geïmporteerd en gekoppeld aan een geplande hardlooptraining van dezelfde dag.
-        {#if strava.last_synced_at}Laatst gesynchroniseerd: {new Date(strava.last_synced_at.replace(' ', 'T')).toLocaleString('nl-NL')}.{/if}
+        Connected{#if strava.athlete_name} as <strong>{strava.athlete_name}</strong>{/if}. Running activities are imported automatically and linked to a planned running workout on the same day.
+        {#if strava.last_synced_at}Last synced: {new Date(strava.last_synced_at.replace(' ', 'T')).toLocaleString('en-US')}.{/if}
       </p>
       <div class="flex flex-wrap gap-2">
-        <button class="btn-primary" type="button" disabled={stravaBusy} on:click={runStravaSync}><RefreshCw size={18} /> {stravaBusy ? 'Bezig...' : 'Nu synchroniseren'}</button>
-        <button class="btn-secondary" type="button" disabled={stravaBusy} on:click={stopStrava}>Ontkoppelen</button>
+        <button class="btn-primary" type="button" disabled={stravaBusy} on:click={runStravaSync}><RefreshCw size={18} /> {stravaBusy ? 'Working...' : 'Sync now'}</button>
+        <button class="btn-secondary" type="button" disabled={stravaBusy} on:click={stopStrava}>Disconnect</button>
       </div>
     {:else}
-      <p class="text-gray-600 dark:text-gray-300">Koppel Strava om je hardloopactiviteiten automatisch te importeren.</p>
-      <button class="btn-primary" type="button" disabled={stravaBusy} on:click={startStravaAuth}>{stravaBusy ? 'Bezig...' : 'Koppel met Strava'}</button>
+      <p class="text-gray-600 dark:text-gray-300">Connect Strava to import your running activities automatically.</p>
+      <button class="btn-primary" type="button" disabled={stravaBusy} on:click={startStravaAuth}>{stravaBusy ? 'Working...' : 'Connect to Strava'}</button>
     {/if}
     {#if stravaError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaError}</p>{/if}
     {#if stravaMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaMessage}</p>{/if}
@@ -232,10 +232,10 @@
 
   {#if $isAdmin}
     <section class="card space-y-3">
-      <h3 class="text-xl font-bold">Strava-integratie beheren</h3>
-      <p class="text-gray-600 dark:text-gray-300">Deze app-brede configuratie wordt door alle gebruikers gedeeld. Strava-toegang en geïmporteerde trainingen blijven per gebruiker gescheiden.</p>
+      <h3 class="text-xl font-bold">Manage Strava integration</h3>
+      <p class="text-gray-600 dark:text-gray-300">This app-wide configuration is shared by all users. Strava access and imported workouts remain separate for each user.</p>
       {#if !stravaConfig}
-        <p class="animate-pulse text-gray-600 dark:text-gray-300">Configuratie laden...</p>
+        <p class="animate-pulse text-gray-600 dark:text-gray-300">Loading configuration...</p>
       {:else}
         <form class="space-y-3" on:submit|preventDefault={saveStravaConfiguration}>
           <div>
@@ -243,26 +243,26 @@
             <input id="strava-client-id" class="input" bind:value={stravaClientId} required maxlength="100" />
           </div>
           <div>
-            <label class="label" for="strava-client-secret">Strava Client Secret {#if stravaConfig.client_secret_set}<span class="font-normal text-green-700 dark:text-green-300">· ingesteld</span>{/if}</label>
-            <input id="strava-client-secret" class="input" type="password" bind:value={stravaClientSecret} autocomplete="new-password" required={!stravaConfig.client_secret_set} placeholder={stravaConfig.client_secret_set ? 'Laat leeg om de huidige secret te behouden' : 'Vul je Strava Client Secret in'} />
+            <label class="label" for="strava-client-secret">Strava client secret {#if stravaConfig.client_secret_set}<span class="font-normal text-green-700 dark:text-green-300">· configured</span>{/if}</label>
+            <input id="strava-client-secret" class="input" type="password" bind:value={stravaClientSecret} autocomplete="new-password" required={!stravaConfig.client_secret_set} placeholder={stravaConfig.client_secret_set ? 'Leave blank to keep the current secret' : 'Enter your Strava client secret'} />
           </div>
           {#if stravaConfigError}<p role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{stravaConfigError}</p>{/if}
           {#if stravaConfigMessage}<p role="status" class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaConfigMessage}</p>{/if}
-          <button class="btn-primary" type="submit" disabled={stravaConfigBusy}><Save size={18} /> {stravaConfigBusy ? 'Opslaan...' : 'Strava-configuratie opslaan'}</button>
+          <button class="btn-primary" type="submit" disabled={stravaConfigBusy}><Save size={18} /> {stravaConfigBusy ? 'Saving...' : 'Save Strava settings'}</button>
         </form>
       {/if}
     </section>
   {/if}
 
   <section class="card space-y-3">
-    <h3 class="text-xl font-bold">Agenda (iCal)</h3>
-    <p class="text-gray-600 dark:text-gray-300">Abonneer je agenda-app (Apple, Google, Outlook) op deze link. Elke training verschijnt als afspraak met een directe link om te starten. Deel de link niet: wie hem heeft, kan je tijdlijn zien.</p>
+    <h3 class="text-xl font-bold">Calendar (iCal)</h3>
+    <p class="text-gray-600 dark:text-gray-300">Subscribe to this link in your calendar app (Apple, Google, Outlook). Each workout appears as an event with a direct link to start it. Do not share the link: anyone with it can view your timeline.</p>
     {#if calendarUrl}
       <input class="input" readonly value={calendarUrl} on:focus={(e) => e.currentTarget.select()} aria-label="iCal-link" />
       <div class="flex flex-wrap gap-2">
-        <button class="btn-primary" type="button" on:click={copyCalendar}>Kopieer link</button>
-        <a class="btn-secondary" href={calendarUrl.replace(/^https?:/, 'webcal:')}>Abonneren</a>
-        <button class="btn-secondary" type="button" aria-label="Nieuwe agenda-link" on:click={resetCalendar}>Nieuw</button>
+        <button class="btn-primary" type="button" on:click={copyCalendar}>Copy link</button>
+        <a class="btn-secondary" href={calendarUrl.replace(/^https?:/, 'webcal:')}>Subscribe</a>
+        <button class="btn-secondary" type="button" aria-label="New calendar link" on:click={resetCalendar}>New</button>
       </div>
     {/if}
     {#if calendarError}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{calendarError}</p>{/if}
@@ -270,44 +270,44 @@
   </section>
 
   {#if loading}
-    <div class="card animate-pulse">Instellingen laden...</div>
+    <div class="card animate-pulse">Loading settings...</div>
   {:else}
     <form class="card space-y-5" on:submit|preventDefault={save}>
       <div class="flex items-start gap-3 rounded-xl bg-primary-50 p-4 text-sm text-primary-900 dark:bg-primary-950 dark:text-primary-100">
         <KeyRound class="mt-0.5 shrink-0" size={20} />
-        <p>Je API-sleutel wordt bij jouw account in PocketBase opgeslagen als verborgen veld. De sleutel blijft op de server en wordt niet aan de frontend teruggegeven. Stel je API-limieten in bij je provider.</p>
+        <p>Your API key is stored as a hidden field in your PocketBase account. It stays on the server and is never returned to the frontend. Set API usage limits with your provider.</p>
       </div>
 
       <div>
         <label class="label" for="endpoint">API-endpoint</label>
         <input id="endpoint" class="input" type="url" bind:value={endpoint} placeholder="https://api.openai.com/v1" required />
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">OpenAI-compatible chat completions. Gebruik HTTPS, of localhost voor een lokale modelserver.</p>
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">OpenAI-compatible chat completions. Use HTTPS, or localhost for a local model server.</p>
       </div>
 
       <div>
-        <label class="label" for="model">Modelnaam</label>
+        <label class="label" for="model">Model name</label>
         <input id="model" class="input" bind:value={model} placeholder="gpt-4o-mini" required />
       </div>
 
       <div>
-        <label class="label" for="api-key">API-sleutel {#if keyConfigured}<span class="font-normal text-green-700 dark:text-green-300">· sleutel ingesteld</span>{/if}</label>
+        <label class="label" for="api-key">API key {#if keyConfigured}<span class="font-normal text-green-700 dark:text-green-300">· configured</span>{/if}</label>
         <input
           id="api-key"
           class="input"
           type="password"
           bind:value={apiKey}
           autocomplete="new-password"
-          placeholder={keyConfigured ? 'Laat leeg om de huidige sleutel te behouden' : 'Plak je provider API-sleutel'}
+          placeholder={keyConfigured ? 'Leave blank to keep the current key' : 'Paste your provider API key'}
           required={!keyConfigured}
         />
-        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Vul alleen iets in wanneer je de sleutel toevoegt of vervangt. De eerder opgeslagen sleutel wordt nooit getoond.</p>
+        <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Only enter a key when adding or replacing it. The previously saved key is never shown.</p>
       </div>
 
       {#if error}<p class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
       {#if success}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{success}</p>{/if}
 
       <button class="btn-primary w-full" type="submit" disabled={saving}>
-        <Save size={18} /> {saving ? 'Opslaan...' : 'Instellingen opslaan'}
+        <Save size={18} /> {saving ? 'Saving...' : 'Save settings'}
       </button>
     </form>
   {/if}

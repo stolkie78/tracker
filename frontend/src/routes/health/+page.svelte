@@ -5,4 +5,4 @@
   onMount(() => goto('/health/fasting', { replaceState: true }));
 </script>
 
-<div class="card animate-pulse">Laden...</div>
+<div class="card animate-pulse">Loading...</div>

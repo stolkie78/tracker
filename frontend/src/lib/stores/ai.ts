@@ -23,7 +23,7 @@ export const loadAIAvailability = async () => {
     if (request === revision && user === currentUserId()) {
       aiAvailability.set({
         user, loading: false, enabled: false,
-        error: error instanceof Error ? error.message : 'AI-instellingen konden niet worden geladen.'
+        error: error instanceof Error ? error.message : 'AI settings could not be loaded.'
       });
     }
   }

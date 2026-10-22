@@ -45,27 +45,27 @@
   <div>
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Health · Braintraining</p>
     <h2 class="mt-1 flex items-center gap-2 text-3xl font-black"><Brain size={28} /> Braintraining</h2>
-    <p class="mt-1 text-gray-600 dark:text-gray-300">Cijfergeheugen: onthoud de reeks en tik hem daarna in. Bij elke goede reeks wordt hij één cijfer langer.</p>
+    <p class="mt-1 text-gray-600 dark:text-gray-300">Number memory: remember the sequence and enter it. Each correct sequence adds one digit.</p>
   </div>
 
   <section class="card space-y-5 text-center">
-    <p class="text-sm text-gray-600 dark:text-gray-300">Niveau {level} · Record {best} cijfers</p>
+    <p class="text-sm text-gray-600 dark:text-gray-300">Level {level} · Best: {best} digits</p>
     {#if phase === 'idle'}
       <button class="btn-primary w-full" on:click={() => start(3)}>Start</button>
     {:else if phase === 'show'}
       <p class="py-8 text-5xl font-black tracking-[0.3em]" aria-live="polite">{sequence}</p>
-      <p class="text-gray-600 dark:text-gray-300">Onthoud de cijfers...</p>
+      <p class="text-gray-600 dark:text-gray-300">Remember the numbers...</p>
     {:else if phase === 'input'}
       <form class="space-y-4" on:submit|preventDefault={submit}>
-        <label class="label" for="answer">Welke cijfers zag je?</label>
+        <label class="label" for="answer">Which numbers did you see?</label>
         <!-- svelte-ignore a11y_autofocus -->
         <input id="answer" class="input text-center text-2xl tracking-[0.3em]" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autofocus bind:value={answer} />
-        <button class="btn-primary w-full" type="submit">Controleren</button>
+        <button class="btn-primary w-full" type="submit">Check</button>
       </form>
     {:else}
-      <p class="text-2xl font-black {correct ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}">{correct ? 'Goed!' : 'Helaas'}</p>
-      {#if !correct}<p class="text-gray-600 dark:text-gray-300">De reeks was <span class="font-bold">{sequence}</span>.</p>{/if}
-      <button class="btn-primary w-full" on:click={next}>{correct ? `Volgende: ${level + 1} cijfers` : 'Opnieuw proberen'}</button>
+      <p class="text-2xl font-black {correct ? 'text-emerald-600 dark:text-emerald-300' : 'text-red-600 dark:text-red-300'}">{correct ? 'Correct!' : 'Not quite'}</p>
+      {#if !correct}<p class="text-gray-600 dark:text-gray-300">The sequence was <span class="font-bold">{sequence}</span>.</p>{/if}
+      <button class="btn-primary w-full" on:click={next}>{correct ? `Next: ${level + 1} digits` : 'Try again'}</button>
     {/if}
   </section>
 </div>

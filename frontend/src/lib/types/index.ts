@@ -11,8 +11,8 @@ export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' 
 
 export const EXPERIENCE_LEVEL_LABELS: Record<ExperienceLevel, string> = {
   beginner: 'Beginner',
-  intermediate: 'Gemiddeld',
-  advanced: 'Gevorderd'
+  intermediate: 'Intermediate',
+  advanced: 'Advanced'
 };
 
 export const DEFAULT_STRENGTH_REST_SECONDS = 90;
@@ -29,16 +29,16 @@ export interface TopProtocol {
 }
 
 export const TOP_PROTOCOLS: TopProtocol[] = [
-  { index: 1, name: 'Coordination', reps_min: 5, reps_max: 12, rest_min_seconds: 60, rest_max_seconds: 60, recovery: '3-4 uur' },
-  { index: 2, name: 'Strength endurance', reps_min: 30, reps_max: 60, rest_min_seconds: 30, rest_max_seconds: 60, recovery: '12 uur' },
-  { index: 3, name: 'Endurance / hypertrophy', reps_min: 20, reps_max: 30, rest_min_seconds: 60, rest_max_seconds: 90, recovery: '12 uur' },
-  { index: 4, name: 'Hypertrophy / endurance', reps_min: 15, reps_max: 20, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '24 uur' },
-  { index: 5, name: 'Hypertrophy', reps_min: 8, reps_max: 15, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '48 uur' },
-  { index: 6, name: 'Hypertrophy / strength', reps_min: 6, reps_max: 10, rest_min_seconds: 120, rest_max_seconds: 180, recovery: '48 uur' },
-  { index: 7, name: 'Strength / hypertrophy', reps_min: 5, reps_max: 8, rest_min_seconds: 180, rest_max_seconds: 240, recovery: '72 uur' },
-  { index: 8, name: 'Strength', reps_min: 2, reps_max: 5, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 uur' },
-  { index: 9, name: 'Maximum strength', reps_min: 1, reps_max: 3, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 uur' },
-  { index: 10, name: 'Retro gravity', reps_min: 1, reps_max: 3, rest_min_seconds: 180, rest_max_seconds: 300, recovery: '72 uur' }
+  { index: 1, name: 'Coordination', reps_min: 5, reps_max: 12, rest_min_seconds: 60, rest_max_seconds: 60, recovery: '3-4 hours' },
+  { index: 2, name: 'Strength endurance', reps_min: 30, reps_max: 60, rest_min_seconds: 30, rest_max_seconds: 60, recovery: '12 hours' },
+  { index: 3, name: 'Endurance / hypertrophy', reps_min: 20, reps_max: 30, rest_min_seconds: 60, rest_max_seconds: 90, recovery: '12 hours' },
+  { index: 4, name: 'Hypertrophy / endurance', reps_min: 15, reps_max: 20, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '24 hours' },
+  { index: 5, name: 'Hypertrophy', reps_min: 8, reps_max: 15, rest_min_seconds: 60, rest_max_seconds: 120, recovery: '48 hours' },
+  { index: 6, name: 'Hypertrophy / strength', reps_min: 6, reps_max: 10, rest_min_seconds: 120, rest_max_seconds: 180, recovery: '48 hours' },
+  { index: 7, name: 'Strength / hypertrophy', reps_min: 5, reps_max: 8, rest_min_seconds: 180, rest_max_seconds: 240, recovery: '72 hours' },
+  { index: 8, name: 'Strength', reps_min: 2, reps_max: 5, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 hours' },
+  { index: 9, name: 'Maximum strength', reps_min: 1, reps_max: 3, rest_min_seconds: 240, rest_max_seconds: 300, recovery: '72 hours' },
+  { index: 10, name: 'Retro gravity', reps_min: 1, reps_max: 3, rest_min_seconds: 180, rest_max_seconds: 300, recovery: '72 hours' }
 ];
 
 export const getTopProtocol = (repsMin: number, repsMax: number, restSeconds: number) => {
@@ -137,17 +137,17 @@ export interface TrainingPlan extends BaseRecord {
 export type ScheduleMode = 'fixed_weekdays' | 'flexible_cycle';
 
 export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
-  fixed_weekdays: 'Vaste cyclus',
-  flexible_cycle: 'Flexibele cyclus'
+  fixed_weekdays: 'Fixed cycle',
+  flexible_cycle: 'Flexible cycle'
 };
 
 export type DayPart = 'morning' | 'afternoon' | 'evening';
 
 export const DAY_PARTS: DayPart[] = ['morning', 'afternoon', 'evening'];
 export const DAY_PART_LABELS: Record<DayPart, string> = {
-  morning: 'Ochtend',
-  afternoon: 'Middag',
-  evening: 'Avond'
+  morning: 'Morning',
+  afternoon: 'Afternoon',
+  evening: 'Evening'
 };
 export const DAY_PART_HOURS: Record<DayPart, number> = { morning: 9, afternoon: 14, evening: 19 };
 export const DAY_PART_OPTIONS = DAY_PARTS.map((value) => ({ value, label: DAY_PART_LABELS[value] }));
@@ -266,14 +266,14 @@ export interface WorkoutSet extends BaseRecord {
 }
 
 export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
-  strength: 'Kracht',
+  strength: 'Strength',
   cardio: 'Cardio',
   interval: 'Interval',
-  recovery: 'Herstel',
-  sport: 'Sporten'
+  recovery: 'Recovery',
+  sport: 'Sports'
 };
 
-// Voorvoegsel voor bouwblokken in keuzelijsten: bij cardio de activiteit (Hardlopen), anders het type (Kracht).
+// Prefix for workout templates in selectors: the activity for cardio, otherwise the workout type.
 export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode; sport_activity?: SportActivity }) => {
   const prefix =
     template.type === 'cardio' && template.cardio_mode
@@ -285,10 +285,10 @@ export const templateLabel = (template: { title: string; type: WorkoutType; card
 };
 
 export const WORKOUT_STATUS_LABELS: Record<WorkoutStatus, string> = {
-  planned: 'Gepland',
-  in_progress: 'Bezig',
-  completed: 'Voltooid',
-  skipped: 'Overgeslagen'
+  planned: 'Planned',
+  in_progress: 'In progress',
+  completed: 'Completed',
+  skipped: 'Skipped'
 };
 
 export const WORKOUT_STATUS_CARD_STYLES: Record<WorkoutStatus, string> = {
@@ -299,48 +299,48 @@ export const WORKOUT_STATUS_CARD_STYLES: Record<WorkoutStatus, string> = {
 };
 
 export const CARDIO_MODE_LABELS: Record<CardioMode, string> = {
-  running: 'Hardlopen',
-  cycling: 'Fietsen',
-  rowing: 'Roeien',
-  swimming: 'Zwemmen',
-  walking: 'Wandelen',
-  other: 'Anders'
+  running: 'Running',
+  cycling: 'Cycling',
+  rowing: 'Rowing',
+  swimming: 'Swimming',
+  walking: 'Walking',
+  other: 'Other'
 };
 
 export const RECOVERY_ACTIVITY_LABELS: Record<RecoveryActivity, string> = {
-  rest: 'Rust',
-  mobility: 'Mobiliteit',
+  rest: 'Rest',
+  mobility: 'Mobility',
   yoga: 'Yoga',
-  walking: 'Wandelen',
-  stretching: 'Rekken',
-  other: 'Anders'
+  walking: 'Walking',
+  stretching: 'Stretching',
+  other: 'Other'
 };
 
 export const SPORT_ACTIVITY_LABELS: Record<SportActivity, string> = {
-  indoor_volleyball: 'Zaalvolleybal',
-  beach_volleyball: 'Beachvolleybal',
+  indoor_volleyball: 'Indoor volleyball',
+  beach_volleyball: 'Beach volleyball',
   pickleball: 'Pickleball',
-  football: 'Voetbal',
+  football: 'Football',
   tennis: 'Tennis',
-  basketball: 'Basketbal'
+  basketball: 'Basketball'
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  admin: 'Beheerder',
+  admin: 'Administrator',
   coach: 'Coach',
-  athlete: 'Atleet'
+  athlete: 'Athlete'
 };
 
 export type MuscleGroup = 'chest' | 'back' | 'shoulders' | 'biceps' | 'triceps' | 'legs' | 'glutes' | 'core' | 'full_body';
 
 export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Borst',
-  back: 'Rug',
-  shoulders: 'Schouders',
+  chest: 'Chest',
+  back: 'Back',
+  shoulders: 'Shoulders',
   biceps: 'Biceps',
   triceps: 'Triceps',
-  legs: 'Benen',
-  glutes: 'Billen',
+  legs: 'Legs',
+  glutes: 'Glutes',
   core: 'Core',
   full_body: 'Full body'
 };
@@ -356,9 +356,9 @@ export const EXERCISE_EQUIPMENT_LABELS: Record<ExerciseEquipment, string> = {
   kettlebell: 'Kettlebell',
   barbell: 'Barbell',
   machine: 'Machine',
-  bodyweight: 'Lichaamsgewicht',
-  band: 'Weerstandsband',
-  other: 'Overig'
+  bodyweight: 'Bodyweight',
+  band: 'Resistance band',
+  other: 'Other'
 };
 
 export const EXERCISE_EQUIPMENT_OPTIONS = (

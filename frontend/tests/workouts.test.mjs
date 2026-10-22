@@ -54,16 +54,16 @@ test('actual distance and time preserve seconds and calculate pace', () => {
 
 test('missing, zero, negative and non-finite distances are rejected', () => {
   for (const distance of [undefined, null, '', '5', 0, -1, NaN, Infinity]) {
-    assert.throws(() => distanceCompletionData(distance, '00:30:00'), /afstand/);
+    assert.throws(() => distanceCompletionData(distance, '00:30:00'), /distance/);
   }
 });
 
 test('time requires hours, minutes and seconds with a positive duration', () => {
   for (const time of ['', '30', '30:00', '-1:00:00', '00:60:00', '00:00:60', '00:1:00', 'abc', 'Infinity:00:00']) {
-    assert.throws(() => distanceCompletionData(5, time), /tijd/);
+    assert.throws(() => distanceCompletionData(5, time), /time/);
   }
-  assert.throws(() => distanceCompletionData(5, '00:00:00'), /groter dan 0/);
-  assert.throws(() => distanceCompletionData(5, '9999999999999999:00:00'), /groter dan 0/);
+  assert.throws(() => distanceCompletionData(5, '00:00:00'), /greater than 0/);
+  assert.throws(() => distanceCompletionData(5, '9999999999999999:00:00'), /greater than 0/);
 });
 
 test('every second round-trips through the existing duration field', () => {
