@@ -206,6 +206,19 @@ STRAVA_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection strava_connections base "$STRAVA_FIELDS" \
   __locked__ __locked__ __locked__ __locked__ __locked__
 
+APP_CONFIG_FIELDS="$(jq -cn --argjson key "$(text_field key true)" \
+  --argjson client_id "$(text_field strava_client_id)" \
+  --argjson client_secret "$(secret_field strava_client_secret)" \
+  '[$key,$client_id,$client_secret]')"
+# App-brede sleutels zijn uitsluitend via server-hooks beschikbaar.
+ensure_collection app_config base "$APP_CONFIG_FIELDS" \
+  __locked__ __locked__ __locked__ __locked__ __locked__
+APP_CONFIG_ID="$(collection_id app_config)"
+APP_CONFIG_INDEXES="$(api "$PB_URL/api/collections/$APP_CONFIG_ID" | jq -c \
+  '{indexes: ((.indexes // []) + ["CREATE UNIQUE INDEX idx_app_config_key ON app_config (key)"] | unique)}')"
+api -X PATCH "$PB_URL/api/collections/$APP_CONFIG_ID" -H 'Content-Type: application/json' \
+  --data "$APP_CONFIG_INDEXES" >/dev/null
+
 CALENDAR_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson token "$(secret_field token)" \
   '[$owner,$token]')"

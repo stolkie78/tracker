@@ -2,16 +2,28 @@ var API = "https://www.strava.com/api/v3";
 var RUN_TYPES = { Run: true, TrailRun: true, VirtualRun: true };
 var DAY_MS = 86400000;
 
-function config() {
+function config(app) {
+  var records = app.findRecordsByFilter("app_config", "key = {:key}", "", 1, 0, { key: "global" });
+  var record = records.length ? records[0] : null;
   return {
-    clientId: $os.getenv("STRAVA_CLIENT_ID") || "",
-    clientSecret: $os.getenv("STRAVA_CLIENT_SECRET") || "",
+    clientId: record ? record.getString("strava_client_id") : "",
+    clientSecret: record ? record.getString("strava_client_secret") : "",
   };
 }
 
-function isConfigured() {
-  var c = config();
+function isConfigured(app) {
+  var c = config(app);
   return !!(c.clientId && c.clientSecret);
+}
+
+function saveConfig(app, clientId, clientSecret) {
+  var records = app.findRecordsByFilter("app_config", "key = {:key}", "", 1, 0, { key: "global" });
+  var record = records.length ? records[0] : new Record(app.findCollectionByNameOrId("app_config"));
+  record.set("key", "global");
+  record.set("strava_client_id", clientId);
+  if (clientSecret) record.set("strava_client_secret", clientSecret);
+  app.save(record);
+  return record;
 }
 
 function form(values) {
@@ -22,8 +34,9 @@ function form(values) {
     .join("&");
 }
 
-function tokenRequest(values) {
-  var c = config();
+function tokenRequest(app, values) {
+  var c = config(app);
+  if (!isConfigured(app)) throw new BadRequestError("Strava is niet geconfigureerd.");
   values.client_id = c.clientId;
   values.client_secret = c.clientSecret;
   var res = $http.send({
@@ -58,13 +71,13 @@ function accessToken(app, record) {
   if (record.getInt("expires_at") > Math.floor(Date.now() / 1000) + 120) {
     return record.getString("access_token");
   }
-  var token = tokenRequest({ grant_type: "refresh_token", refresh_token: record.getString("refresh_token") });
+  var token = tokenRequest(app, { grant_type: "refresh_token", refresh_token: record.getString("refresh_token") });
   storeTokens(app, record, token);
   return token.access_token;
 }
 
 function connect(app, ownerId, code) {
-  var token = tokenRequest({ grant_type: "authorization_code", code: code });
+  var token = tokenRequest(app, { grant_type: "authorization_code", code: code });
   var record = findConnection(app, ownerId);
   if (!record) {
     record = new Record(app.findCollectionByNameOrId("strava_connections"));
@@ -191,6 +204,7 @@ function sync(app, record) {
 module.exports = {
   config: config,
   isConfigured: isConfigured,
+  saveConfig: saveConfig,
   findConnection: findConnection,
   connect: connect,
   sync: sync,

@@ -106,6 +106,13 @@ test('personal records, relationships and protected photos stay with their owner
     await denied(path('body_measurements', measurement.id), alice.token, 'PATCH', { measured_at: '2099-01-01 12:00:00Z' });
     const sorted = await ok(`${path('body_measurements')}?sort=-measured_at,-created`, alice.token);
     assert.equal(sorted.items[0].id, measurement.id);
+    await denied('top-trainer/strava-config', alice.token);
+    await denied('top-trainer/strava-config', alice.token, 'POST', { client_id: '123', client_secret: 'test-only' });
+    await denied(path('app_config'), carol.token);
+    const stravaConfig = await ok('top-trainer/strava-config', carol.token);
+    assert.equal(typeof stravaConfig.configured, 'boolean');
+    assert.equal(typeof stravaConfig.client_secret_set, 'boolean');
+    assert.equal('client_secret' in stravaConfig, false);
     assert.equal((await ok(path('ai_settings', ai.id), alice.token)).api_key, undefined);
     await ok(path('workouts', workout.id), alice.token, 'PATCH', { owner: alice.id, plan: plan.id, template: template.id, status: 'completed' });
     await ok(path('workout_exercises', workoutExercise.id), alice.token, 'PATCH', { workout: workout.id, exercise: exercise.id, starting_weight: 42 });

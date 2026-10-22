@@ -425,6 +425,12 @@ export interface StravaStatus {
   last_synced_at: string;
 }
 
+export interface StravaConfigStatus {
+  configured: boolean;
+  client_id: string;
+  client_secret_set: boolean;
+}
+
 export interface StravaSyncCounts {
   created: number;
   linked: number;
