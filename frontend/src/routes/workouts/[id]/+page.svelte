@@ -38,6 +38,7 @@
   type ExerciseLog = { record: WorkoutExercise; name: string; sets: WorkoutSet[] };
 
   let workout: Workout | null = null;
+  let selectedStatus: Workout['status'] = 'planned';
   let exerciseLogs: ExerciseLog[] = [];
   let loading = true;
   let error = '';
@@ -159,6 +160,7 @@
       const workoutId = $page.params.id;
       if (!workoutId) throw new Error('Workout ID is missing.');
       workout = await getWorkout(workoutId);
+      selectedStatus = workout.status;
       await loadExerciseLogs();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Workout could not be loaded.';
@@ -190,6 +192,7 @@
         ...results,
         ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
       });
+      selectedStatus = workout.status;
       return true;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Workout could not be updated.';
@@ -309,10 +312,12 @@
   const changeStatus = async (status: Workout['status']) => {
     if (!workout || statusSaving) return;
     if (status === 'completed' && workout.status !== 'completed' && requiresDistanceAndTime(workout)) {
+      selectedStatus = workout.status;
       await finishWorkout();
       return;
     }
     if (await persistStatus(status)) showDistanceCompletion = false;
+    else selectedStatus = workout.status;
   };
 
   const finishDistanceWorkout = async () => {
@@ -323,6 +328,13 @@
     } catch (err) {
       error = err instanceof Error ? err.message : 'Check the distance and time.';
     }
+  };
+
+  const selectStatus = (event: Event) => {
+    const target = event.currentTarget;
+    if (!(target instanceof HTMLSelectElement)) return;
+    const option = WORKOUT_STATUS_OPTIONS.find(({ value }) => value === target.value);
+    if (option) void changeStatus(option.value);
   };
 </script>
 
@@ -398,11 +410,10 @@
     {/if}
     <div class="mt-5 grid gap-3 sm:grid-cols-2">
       {#if workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Duration</span><p class="font-bold">{requiresDistanceAndTime(workout) ? formatWorkoutTime(workout.duration_minutes) : `${workout.duration_minutes} minutes`}</p></div>{/if}
-      {#if workout.type === 'interval' && workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Distance</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
+      {#if requiresDistanceAndTime(workout) && workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Distance</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
       {#if requiresDistanceAndTime(workout) && workout.cardio_mode !== 'cycling' && workout.distance_km && workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Average pace</span><p class="font-bold">{formatPace(workout.distance_km, workout.duration_minutes)}</p></div>{/if}
       {#if workout.type === 'cardio'}
         {#if workout.cardio_mode}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activity</span><p class="font-bold">{CARDIO_MODE_LABELS[workout.cardio_mode]}</p></div>{/if}
-        {#if workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Distance</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
         {#if workout.elevation_gain_m}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Elevation gain</span><p class="font-bold">{workout.elevation_gain_m} m</p></div>{/if}
         {#if workout.average_heart_rate}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Average heart rate</span><p class="font-bold">{workout.average_heart_rate} bpm</p></div>{/if}
       {:else if workout.type === 'interval'}
@@ -420,8 +431,11 @@
       <label class="label" for="workout-status">Status</label>
       <div class="flex flex-wrap items-center gap-2">
         <div class="w-full sm:w-64">
-          <CycleChoice id="workout-status" label="Status" value={workout.status} options={WORKOUT_STATUS_OPTIONS}
-            disabled={statusSaving} onChange={changeStatus} />
+          <select id="workout-status" class="input" bind:value={selectedStatus} disabled={statusSaving} on:change={selectStatus}>
+            {#each WORKOUT_STATUS_OPTIONS as option}
+              <option value={option.value}>{option.label}</option>
+            {/each}
+          </select>
         </div>
       </div>
     </div>

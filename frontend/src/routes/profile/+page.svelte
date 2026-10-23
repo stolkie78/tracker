@@ -106,7 +106,7 @@
       <h3 class="text-xl font-bold">Personal details</h3>
       <fieldset disabled={saving} class="space-y-4">
         {#if photoUrl && !removePhoto}
-          <img src={photoUrl} alt="My profile photo" class="h-28 w-28 rounded-full object-cover" on:error={() => { error = 'Your profile photo could not be loaded. Refresh the page to try again.'; }} />
+          <img src={photoUrl} alt={displayName} class="h-28 w-28 rounded-full object-cover" on:error={() => { error = 'Your profile photo could not be loaded. Refresh the page to try again.'; }} />
         {/if}
         <div>
           <label class="label" for="photo">Profile photo (JPG, PNG, or WebP, up to 5 MB)</label>
