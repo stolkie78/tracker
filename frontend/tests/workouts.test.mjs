@@ -32,6 +32,15 @@ test('running, walking and cycling require distance and time for cardio and inte
   }
 });
 
+test('walking completion records distance and duration', () => {
+  assert.equal(requiresDistanceAndTime({ type: 'cardio', cardio_mode: 'walking' }), true);
+  assert.equal(requiresDistanceAndTime({ type: 'recovery', recovery_activity: 'walking' }), true);
+  assert.deepEqual(distanceCompletionData(3.25, '00:42:30'), {
+    distance_km: 3.25,
+    duration_minutes: 42.5
+  });
+});
+
 test('other workout types do not require distance and time', () => {
   for (const type of ['cardio', 'interval', 'strength', 'recovery', 'sport']) {
     assert.equal(requiresDistanceAndTime({ type }), false);

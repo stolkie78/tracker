@@ -24,9 +24,10 @@ export const workoutsInRange = (records: Workout[], filter: DateRangeFilter, now
   });
 };
 
-export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode'>) =>
-  (workout.type === 'cardio' || workout.type === 'interval') &&
-  (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling');
+export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode' | 'recovery_activity'>) =>
+  ((workout.type === 'cardio' || workout.type === 'interval') &&
+    (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling')) ||
+  (workout.type === 'recovery' && workout.recovery_activity === 'walking');
 
 export const distanceCompletionData = (distance: number | undefined, time: string) => {
   if (typeof distance !== 'number' || !Number.isFinite(distance) || distance <= 0) {
