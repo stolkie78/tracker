@@ -1,8 +1,8 @@
 export type ID = string;
 
-export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport';
+export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport' | 'life';
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
-export type CardioMode = 'running' | 'cycling' | 'rowing' | 'swimming' | 'walking' | 'other';
+export type CardioMode = 'running' | 'cycling' | 'rowing' | 'swimming' | 'walking' | 'hiking' | 'other';
 export type RecoveryActivity = 'rest' | 'mobility' | 'yoga' | 'walking' | 'stretching' | 'other';
 export type SportActivity = 'indoor_volleyball' | 'beach_volleyball' | 'pickleball' | 'football' | 'tennis' | 'basketball';
 export type UserRole = 'admin' | 'coach' | 'athlete';
@@ -270,13 +270,13 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   cardio: 'Cardio',
   interval: 'Interval',
   recovery: 'Recovery',
-  sport: 'Sports'
+  sport: 'Sports',
+  life: 'Life'
 };
 
-// Prefix for workout templates in selectors: the activity for cardio, otherwise the workout type.
 export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode; sport_activity?: SportActivity }) => {
   const prefix =
-    template.type === 'cardio' && template.cardio_mode
+    (template.type === 'cardio' || template.type === 'life') && template.cardio_mode
       ? CARDIO_MODE_LABELS[template.cardio_mode]
       : template.type === 'sport' && template.sport_activity
         ? SPORT_ACTIVITY_LABELS[template.sport_activity]
@@ -304,6 +304,7 @@ export const CARDIO_MODE_LABELS: Record<CardioMode, string> = {
   rowing: 'Rowing',
   swimming: 'Swimming',
   walking: 'Walking',
+  hiking: 'Hiking',
   other: 'Other'
 };
 
@@ -373,12 +374,17 @@ export const WORKOUT_TYPE_OPTIONS = Object.entries(WORKOUT_TYPE_LABELS).map(([va
   label
 }));
 
-export const CARDIO_MODE_OPTIONS = Object.entries(CARDIO_MODE_LABELS).map(([value, label]) => ({
+export const CARDIO_MODE_OPTIONS = Object.entries(CARDIO_MODE_LABELS).filter(([value]) => value !== 'walking' && value !== 'hiking').map(([value, label]) => ({
   value: value as CardioMode,
   label
 }));
 
-export const RECOVERY_ACTIVITY_OPTIONS = Object.entries(RECOVERY_ACTIVITY_LABELS).map(([value, label]) => ({
+export const LIFE_ACTIVITY_OPTIONS = (['walking', 'hiking'] as const).map((value) => ({
+  value,
+  label: CARDIO_MODE_LABELS[value]
+}));
+
+export const RECOVERY_ACTIVITY_OPTIONS = Object.entries(RECOVERY_ACTIVITY_LABELS).filter(([value]) => value !== 'walking').map(([value, label]) => ({
   value: value as RecoveryActivity,
   label
 }));
@@ -411,7 +417,8 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, { icon: string; badge: str
   cardio: { icon: 'bg-sky-500 text-white', badge: 'bg-sky-500 text-white' },
   interval: { icon: 'bg-rose-500 text-white', badge: 'bg-rose-500 text-white' },
   recovery: { icon: 'bg-emerald-500 text-white', badge: 'bg-emerald-500 text-white' },
-  sport: { icon: 'bg-violet-500 text-white', badge: 'bg-violet-500 text-white' }
+  sport: { icon: 'bg-violet-500 text-white', badge: 'bg-violet-500 text-white' },
+  life: { icon: 'bg-teal-600 text-white', badge: 'bg-teal-600 text-white' }
 };
 
 export const exerciseLabel = (name: string, equipment?: ExerciseEquipment | '') =>

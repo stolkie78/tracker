@@ -1,5 +1,5 @@
 var COLLECTION = "calendar_feeds";
-var TYPE_LABELS = { strength: "Strength", cardio: "Cardio", interval: "Interval", recovery: "Recovery" };
+var TYPE_LABELS = { strength: "Strength", cardio: "Cardio", interval: "Interval", recovery: "Recovery", life: "Life" };
 var STATUS_LABELS = { planned: "Planned", in_progress: "In progress", completed: "Completed" };
 
 function randomToken() {
@@ -80,7 +80,7 @@ function detailLines(w) {
   lines.push((TYPE_LABELS[type] || type) + " - " + (STATUS_LABELS[w.getString("status")] || w.getString("status")));
   var part = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" }[w.getString("day_part")];
   if (part) lines.push("Day part: " + part);
-  if (type === "cardio" && w.getFloat("distance_km")) lines.push("Distance: " + w.getFloat("distance_km") + " km");
+  if ((type === "cardio" || type === "life") && w.getFloat("distance_km")) lines.push("Distance: " + w.getFloat("distance_km") + " km");
   if (type === "interval" && w.getInt("interval_rounds")) {
     lines.push(
       w.getInt("interval_rounds") + " x " + w.getInt("interval_work_seconds") + "s work / " + w.getInt("interval_rest_seconds") + "s rest"

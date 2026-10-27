@@ -29,19 +29,25 @@ export interface ExerciseProgress {
   repsChange: number;
 }
 
-export interface RunStats {
-  runs: number;
+export interface DistanceActivityStats {
+  sessions: number;
   km: number;
   minutes: number;
   paceMinPerKm: number;
   elevation: number;
   averageHeartRate: number;
   fastestPaceMinPerKm: number;
+  longestKm: number;
   recent: Workout[];
+}
+
+export interface RunStats extends DistanceActivityStats {
+  runs: number;
 }
 
 export interface Stats {
   run: RunStats;
+  activities: Record<'walking' | 'hiking' | 'cycling', DistanceActivityStats>;
   total: number;
   perWeek: number;
   totalMinutes: number;
@@ -61,30 +67,51 @@ export const periodStart = (period: PeriodKey): Date | null => {
   return days ? new Date(Date.now() - days * 86_400_000) : null;
 };
 
+const distanceStats = (records: Workout[]): DistanceActivityStats => {
+  const km = records.reduce((sum, workout) => sum + (Number(workout.distance_km) || 0), 0);
+  const minutes = records.reduce((sum, workout) => sum + (Number(workout.duration_minutes) || 0), 0);
+  const timed = records.filter((workout) => Number(workout.distance_km) > 0 && Number(workout.duration_minutes) > 0);
+  const timedKm = timed.reduce((sum, workout) => sum + Number(workout.distance_km), 0);
+  const timedMinutes = timed.reduce((sum, workout) => sum + Number(workout.duration_minutes), 0);
+  const heartRecords = records.filter((workout) => Number(workout.average_heart_rate) > 0);
+  const paces = timed.map((workout) => Number(workout.duration_minutes) / Number(workout.distance_km));
+  return {
+    sessions: records.length,
+    km: round1(km),
+    minutes,
+    paceMinPerKm: timedKm ? timedMinutes / timedKm : 0,
+    elevation: Math.round(records.reduce((sum, workout) => sum + (Number(workout.elevation_gain_m) || 0), 0)),
+    averageHeartRate: heartRecords.length ? Math.round(heartRecords.reduce((sum, workout) => sum + Number(workout.average_heart_rate), 0) / heartRecords.length) : 0,
+    fastestPaceMinPerKm: paces.length ? Math.min(...paces) : 0,
+    longestKm: round1(Math.max(0, ...records.map((workout) => Number(workout.distance_km) || 0))),
+    recent: [...records].reverse().slice(0, 5)
+  };
+};
+
 export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
   const start = periodStart(period);
   const done = workouts
     .filter((workout) => workout.status === 'completed' && (!start || new Date(workout.performed_at) >= start))
     .sort((a, b) => a.performed_at.localeCompare(b.performed_at));
 
-  const byType: Record<WorkoutType, number> = { strength: 0, cardio: 0, interval: 0, recovery: 0, sport: 0 };
+  const byType: Record<WorkoutType, number> = { strength: 0, cardio: 0, interval: 0, recovery: 0, sport: 0, life: 0 };
   const cardioKm: Partial<Record<CardioMode, number>> = {};
   let totalMinutes = 0;
   let longestRunKm = 0;
   const runs = done.filter((workout) => workout.cardio_mode === 'running' && (workout.type === 'cardio' || workout.type === 'interval') && Number(workout.distance_km) > 0);
-  const runKm = runs.reduce((sum, workout) => sum + Number(workout.distance_km), 0);
-  const runMinutes = runs.reduce((sum, workout) => sum + (Number(workout.duration_minutes) || 0), 0);
-  const heartRuns = runs.filter((workout) => Number(workout.average_heart_rate) > 0);
-  const paces = runs.filter((workout) => Number(workout.duration_minutes) > 0).map((workout) => Number(workout.duration_minutes) / Number(workout.distance_km));
   const run: RunStats = {
+    ...distanceStats(runs),
     runs: runs.length,
-    km: round1(runKm),
-    minutes: Math.round(runMinutes),
-    paceMinPerKm: runKm && runMinutes ? runMinutes / runKm : 0,
-    elevation: Math.round(runs.reduce((sum, workout) => sum + (Number(workout.elevation_gain_m) || 0), 0)),
-    averageHeartRate: heartRuns.length ? Math.round(heartRuns.reduce((sum, workout) => sum + Number(workout.average_heart_rate), 0) / heartRuns.length) : 0,
-    fastestPaceMinPerKm: paces.length ? Math.min(...paces) : 0,
-    recent: [...runs].reverse().slice(0, 5)
+    minutes: Math.round(runs.reduce((sum, workout) => sum + (Number(workout.duration_minutes) || 0), 0))
+  };
+  const activities = {
+    walking: distanceStats(done.filter((workout) =>
+      (workout.type === 'life' || workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'walking'
+      || workout.type === 'recovery' && workout.recovery_activity === 'walking')),
+    hiking: distanceStats(done.filter((workout) =>
+      (workout.type === 'life' || workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'hiking')),
+    cycling: distanceStats(done.filter((workout) =>
+      (workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'cycling'))
   };
   const perExercise = new Map<string, { name: string; sessions: ExerciseSession[] }>();
 
@@ -144,6 +171,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
 
   return {
     run,
+    activities,
     total: done.length,
     perWeek: round1(done.length / weeks),
     totalMinutes,

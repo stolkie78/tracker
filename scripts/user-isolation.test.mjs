@@ -190,6 +190,18 @@ test('personal records, relationships and protected photos stay with their owner
     const sport = await ok(path('workout_templates', template.id), alice.token);
     assert.equal(sport.sport_activity, 'tennis');
     assert.equal(sport.interval_rounds, 0);
+    for (const mode of ['walking', 'hiking']) {
+      await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'life', cardio_mode: mode, distance_km: 8 }, exercises: [] });
+      const life = await ok(path('workout_templates', template.id), alice.token);
+      assert.equal(life.type, 'life');
+      assert.equal(life.cardio_mode, mode);
+      assert.equal(life.distance_km, 8);
+      assert.equal(life.recovery_activity, '');
+      assert.equal(life.sport_activity, '');
+      assert.equal(life.interval_rounds, 0);
+    }
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'life', cardio_mode: 'cycling' }, exercises: [] });
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'recovery', recovery_activity: 'walking' }, exercises: [] });
     await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, duration_minutes: 0 }, exercises: [exerciseData] });
     // The original child was replaced by the transaction.
     records.splice(records.findIndex(([collection, id]) => collection === 'template_exercises' && id === templateExercise.id), 1);

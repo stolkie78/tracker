@@ -10,7 +10,7 @@
   <div class="grid gap-3 sm:grid-cols-2">
     <a class="card transition hover:border-primary-300" href="/stats/training">
       <h3 class="text-xl font-bold">Training</h3>
-      <p class="mt-1 text-gray-600 dark:text-gray-300">Workout frequency, duration, cardio, running, and breakdown by type.</p>
+      <p class="mt-1 text-gray-600 dark:text-gray-300">Workout frequency, duration, running, cycling, Life activities (walking and hiking), and breakdown by type.</p>
       <span class="mt-3 inline-block font-bold text-overload-signal">View training insights →</span>
     </a>
     <a class="card transition hover:border-primary-300" href="/stats/exercises">

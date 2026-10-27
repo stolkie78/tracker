@@ -230,9 +230,9 @@ PLAN_ID="$(collection_id training_plans)"
 EXERCISE_ID="$(collection_id exercises)"
 TEMPLATE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson title "$(text_field title true)" \
-  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport"]' true)" \
+  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life"]' true)" \
   --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
-  --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","other"]')" \
+  --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","hiking","other"]')" \
   --argjson distance "$(number_field distance_km)" \
   --argjson interval_work "$(number_field interval_work_seconds)" --argjson interval_rest "$(number_field interval_rest_seconds)" \
   --argjson rounds "$(number_field interval_rounds)" \
@@ -262,11 +262,11 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson template "$(relation_field template "$TEMPLATE_ID")" \
   --argjson due "$(date_field due_date)" \
   --argjson title "$(text_field title true)" \
-  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport"]' true)" \
+  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life"]' true)" \
   --argjson status "$(select_field status '["planned","in_progress","completed","skipped"]' true)" \
   --argjson date "$(jq -cn '{name:"performed_at",type:"date",required:true}')" \
   --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
-  --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","other"]')" \
+  --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","hiking","other"]')" \
   --argjson distance "$(number_field distance_km)" --argjson heart "$(number_field average_heart_rate)" \
   --argjson interval_work "$(number_field interval_work_seconds)" --argjson interval_rest "$(number_field interval_rest_seconds)" \
   --argjson rounds "$(number_field interval_rounds)" \
@@ -322,7 +322,7 @@ ensure_collection health_checkins base "$HEALTH_CHECKIN_FIELDS" \
 
 ensure_select_values workout_templates level '["beginner","intermediate","advanced"]'
 ensure_select_values training_plans schedule_mode '["fixed_weekdays","flexible_cycle"]'
-ensure_select_values workouts type '["strength","cardio","interval","recovery","sport"]'
+ensure_select_values workouts type '["strength","cardio","interval","recovery","sport","life"]'
 ensure_select_values workouts sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
 ensure_select_values workout_templates sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
 ensure_select_values workouts status '["planned","in_progress","completed","skipped"]'
@@ -330,6 +330,27 @@ ensure_select_values exercises category '["compound","isolation","bodyweight","o
 ensure_select_values exercises muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]'
 ensure_select_values health_programs kind '["omad","16_8","12_12"]'
 ensure_select_values exercises equipment_options '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]'
+
+# Read the first page repeatedly: updated records no longer match the filter.
+for collection in workout_templates workouts; do
+  while true; do
+    records="$(api --get \
+      --data-urlencode 'filter=(type="recovery" && recovery_activity="walking") || ((type="cardio" || type="interval") && (cardio_mode="walking" || cardio_mode="hiking"))' \
+      --data-urlencode perPage=100 "$PB_URL/api/collections/$collection/records")"
+    [ "$(printf '%s' "$records" | jq '.items | length')" -gt 0 ] || break
+    while IFS= read -r record; do
+      id="$(printf '%s' "$record" | jq -r '.id')"
+      payload="$(printf '%s' "$record" | jq -c '{
+        type:"life",
+        cardio_mode:(if .type == "recovery" then "walking" else .cardio_mode end),
+        recovery_activity:""
+      }')"
+      api -X PATCH "$PB_URL/api/collections/$collection/records/$id" \
+        -H 'Content-Type: application/json' --data "$payload" >/dev/null
+    done < <(printf '%s' "$records" | jq -c '.items[]')
+  done
+  ensure_select_values "$collection" recovery_activity '["rest","mobility","yoga","stretching","other"]'
+done
 
 seed_exercise() {
   local name="$1" category="$2" muscle="$3" equipment="$4"
@@ -576,7 +597,8 @@ seed_library() {
   seed_template "$owner" "Fietstocht 30 km" cardio 75 beginner "Duurconditie" "fietsen,duur" "Constant tempo." '{"cardio_mode":"cycling","distance_km":30}' >/dev/null
   seed_template "$owner" "Intervallen 8 × 30/60" interval 30 intermediate "Snelheid en VO2max" "interval,hardlopen" "8 rondes: 30 sec hard, 60 sec rustig." '{"cardio_mode":"running","interval_work_seconds":30,"interval_rest_seconds":60,"interval_rounds":8}' >/dev/null
   seed_template "$owner" "Mobiliteit" recovery 20 beginner "Herstel" "mobiliteit,herstel" "Rustige mobiliteitsoefeningen." '{"recovery_activity":"mobility"}' >/dev/null
-  seed_template "$owner" "Wandelen herstel" recovery 40 beginner "Herstel" "wandelen,herstel" "Actief herstel." '{"recovery_activity":"walking"}' >/dev/null
+  seed_template "$owner" "Wandelen herstel" life 40 beginner "Life" "wandelen,life" "Rustig wandelen." '{"cardio_mode":"walking"}' >/dev/null
+  seed_template "$owner" "Hiking" life 90 beginner "Life" "hiking,life" "Een wandeling in de natuur." '{"cardio_mode":"hiking"}' >/dev/null
   echo "Standaard bouwblokken toegevoegd aan de bibliotheek."
 }
 

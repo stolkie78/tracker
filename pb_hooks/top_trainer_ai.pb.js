@@ -233,12 +233,12 @@ routerAdd(
                 weight_increment: 2.5,
               },
             ],
-            cardio_mode: "running | cycling | rowing | swimming | walking | other",
+            cardio_mode: "running | cycling | rowing | swimming | other",
             distance_km: 0,
             interval_work_seconds: 30,
             interval_rest_seconds: 60,
             interval_rounds: 8,
-            recovery_activity: "rest | mobility | yoga | walking | stretching | other",
+            recovery_activity: "rest | mobility | yoga | stretching | other",
           },
         ],
       },
@@ -305,8 +305,8 @@ routerAdd(
     }
 
     var validTypes = ["strength", "cardio", "interval", "recovery"];
-    var validCardio = ["running", "cycling", "rowing", "swimming", "walking", "other"];
-    var validRecovery = ["rest", "mobility", "yoga", "walking", "stretching", "other"];
+    var validCardio = ["running", "cycling", "rowing", "swimming", "other"];
+    var validRecovery = ["rest", "mobility", "yoga", "stretching", "other"];
     var weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     var expectedTypeCounts = {
       strength: strengthCount * weeks,

@@ -28,8 +28,11 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     if (!Number.isFinite(duration) || duration < 1 || duration > 600) {
       throw new BadRequestError("Enter a workout duration between 1 and 600 minutes.");
     }
-    if (type !== "cardio" && type !== "interval") record.set("cardio_mode", "");
-    if (type !== "cardio") record.set("distance_km", 0);
+    if (type === "life" && ["walking", "hiking"].indexOf(record.getString("cardio_mode")) < 0) {
+      throw new BadRequestError("Choose walking or hiking for a Life activity.");
+    }
+    if (type !== "cardio" && type !== "interval" && type !== "life") record.set("cardio_mode", "");
+    if (type !== "cardio" && type !== "life") record.set("distance_km", 0);
     if (type !== "interval") {
       record.set("interval_work_seconds", 0);
       record.set("interval_rest_seconds", 0);

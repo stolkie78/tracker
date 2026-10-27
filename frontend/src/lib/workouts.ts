@@ -30,6 +30,7 @@ export const openPastWorkouts = (records: Workout[], now = new Date()) =>
 export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode' | 'recovery_activity'>) =>
   ((workout.type === 'cardio' || workout.type === 'interval') &&
     (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling')) ||
+  (workout.type === 'life' && (workout.cardio_mode === 'walking' || workout.cardio_mode === 'hiking')) ||
   (workout.type === 'recovery' && workout.recovery_activity === 'walking');
 
 export const distanceCompletionData = (distance: number | undefined, time: string) => {

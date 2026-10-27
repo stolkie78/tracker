@@ -13,6 +13,7 @@
   import {
     CARDIO_MODE_LABELS,
     CARDIO_MODE_OPTIONS,
+    LIFE_ACTIVITY_OPTIONS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
     DAY_PART_HOURS,
@@ -65,6 +66,7 @@
   let goal = '';
   let tags = '';
   let cardioMode: CardioMode = 'running';
+  let lifeActivity: 'walking' | 'hiking' = 'walking';
   let distance = 0;
   let intervalWork = 30;
   let intervalRest = 60;
@@ -109,6 +111,7 @@
     duration = 60;
     level = 'beginner';
     cardioMode = 'running';
+    lifeActivity = 'walking';
     intervalWork = 30;
     intervalRest = 60;
     intervalRounds = 8;
@@ -134,7 +137,8 @@
     level = template.level ?? 'beginner';
     goal = template.goal ?? '';
     tags = template.tags ?? '';
-    cardioMode = template.cardio_mode ?? 'running';
+    cardioMode = template.type === 'life' ? 'running' : template.cardio_mode ?? 'running';
+    lifeActivity = template.cardio_mode === 'hiking' ? 'hiking' : 'walking';
     distance = template.distance_km ?? 0;
     intervalWork = template.interval_work_seconds ?? 30;
     intervalRest = template.interval_rest_seconds ?? 60;
@@ -162,7 +166,7 @@
   const detailsOf = (template: WorkoutTemplate) => {
     const parts: string[] = [`${template.duration_minutes} min`];
     if (template.type === 'strength') parts.push(`${template.expand?.template_exercises_via_template?.length ?? 0} exercises`);
-    if (template.type === 'cardio') {
+    if (template.type === 'cardio' || template.type === 'life') {
       if (template.cardio_mode) parts.push(CARDIO_MODE_LABELS[template.cardio_mode]);
       if (template.distance_km) parts.push(`${template.distance_km} km`);
     }
@@ -195,8 +199,8 @@
         level,
         goal: goal.trim(),
         tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean).join(','),
-        cardio_mode: type === 'cardio' || type === 'interval' ? cardioMode : undefined,
-        distance_km: type === 'cardio' ? distance : 0,
+        cardio_mode: type === 'life' ? lifeActivity : type === 'cardio' || type === 'interval' ? cardioMode : undefined,
+        distance_km: type === 'cardio' || type === 'life' ? distance : 0,
         interval_work_seconds: type === 'interval' ? intervalWork : 0,
         interval_rest_seconds: type === 'interval' ? intervalRest : 0,
         interval_rounds: type === 'interval' ? intervalRounds : 0,
@@ -308,7 +312,7 @@
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="tpl-title">Name</label>
-          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'For example: Upper body' : type === 'recovery' ? 'For example: Mobility' : type === 'sport' ? 'For example: Volleyball practice' : 'For example: 10K run'} required />
+          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'For example: Upper body' : type === 'recovery' ? 'For example: Mobility' : type === 'sport' ? 'For example: Volleyball practice' : type === 'life' ? 'For example: Weekend hike' : 'For example: 10K run'} required />
         </div>
         <div>
           <label class="label" for="tpl-duration">Duration (min)</label>
@@ -320,7 +324,13 @@
             <CycleChoice id="tpl-cardio" label="Activity" options={CARDIO_MODE_OPTIONS} bind:value={cardioMode} />
           </div>
         {/if}
-        {#if type === 'cardio'}
+        {#if type === 'life'}
+          <div>
+            <label class="label" for="tpl-life">Activity</label>
+            <CycleChoice id="tpl-life" label="Activity" options={LIFE_ACTIVITY_OPTIONS} bind:value={lifeActivity} />
+          </div>
+        {/if}
+        {#if type === 'cardio' || type === 'life'}
           <div>
             <label class="label" for="tpl-distance">Distance (km)</label>
             <input id="tpl-distance" class="input" type="number" min="0" step="0.1" bind:value={distance} />

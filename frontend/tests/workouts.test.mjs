@@ -33,6 +33,10 @@ test('running, walking and cycling require distance and time for cardio and inte
 });
 
 test('walking completion records distance and duration', () => {
+  for (const cardio_mode of ['walking', 'hiking']) {
+    assert.equal(requiresDistanceAndTime({ type: 'life', cardio_mode }), true);
+  }
+  assert.equal(requiresDistanceAndTime({ type: 'life', cardio_mode: 'cycling' }), false);
   assert.equal(requiresDistanceAndTime({ type: 'cardio', cardio_mode: 'walking' }), true);
   assert.equal(requiresDistanceAndTime({ type: 'recovery', recovery_activity: 'walking' }), true);
   assert.deepEqual(distanceCompletionData(3.25, '00:42:30'), {

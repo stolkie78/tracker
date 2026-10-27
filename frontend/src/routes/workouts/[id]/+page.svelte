@@ -20,6 +20,7 @@
     SPORT_ACTIVITY_LABELS,
     SPORT_ACTIVITY_OPTIONS,
     CARDIO_MODE_OPTIONS,
+    LIFE_ACTIVITY_OPTIONS,
     RECOVERY_ACTIVITY_OPTIONS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
@@ -248,7 +249,7 @@
         day_part: editDayPart,
         duration_minutes: edit.duration,
         notes: edit.notes,
-        ...(type === 'cardio' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
+        ...(type === 'cardio' || type === 'life' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
         ...(type === 'interval' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance, interval_work_seconds: edit.work, interval_rest_seconds: edit.rest, interval_rounds: edit.rounds } : {}),
         ...(type === 'recovery' ? { recovery_activity: edit.recovery as Workout['recovery_activity'] } : {}),
         ...(type === 'sport' ? { sport_activity: edit.sport as Workout['sport_activity'] } : {})
@@ -378,13 +379,13 @@
             options={[{ value: '', label: 'No day part' }, ...DAY_PART_OPTIONS]} />
         </div>
         <div><label class="label" for="edit-duration">Duration (minutes)</label><input id="edit-duration" class="input" type="number" min="0" step="any" bind:value={edit.duration} /></div>
-        {#if workout.type === 'cardio' || workout.type === 'interval'}
+        {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
           <div>
             <label class="label" for="edit-cardio">Activity</label>
-            <CycleChoice id="edit-cardio" label="Activity" options={CARDIO_MODE_OPTIONS} bind:value={edit.cardio} />
+            <CycleChoice id="edit-cardio" label="Activity" options={workout.type === 'life' ? LIFE_ACTIVITY_OPTIONS : CARDIO_MODE_OPTIONS} bind:value={edit.cardio} />
           </div>
         {/if}
-        {#if workout.type === 'cardio' || workout.type === 'interval'}
+        {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
           <div><label class="label" for="edit-distance">Distance (km)</label><input id="edit-distance" class="input" type="number" min="0" step="any" bind:value={edit.distance} /></div>
         {/if}
         {#if workout.type === 'interval'}
@@ -412,7 +413,7 @@
       {#if workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Duration</span><p class="font-bold">{requiresDistanceAndTime(workout) ? formatWorkoutTime(workout.duration_minutes) : `${workout.duration_minutes} minutes`}</p></div>{/if}
       {#if requiresDistanceAndTime(workout) && workout.distance_km}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Distance</span><p class="font-bold">{workout.distance_km} km</p></div>{/if}
       {#if requiresDistanceAndTime(workout) && workout.cardio_mode !== 'cycling' && workout.distance_km && workout.duration_minutes}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Average pace</span><p class="font-bold">{formatPace(workout.distance_km, workout.duration_minutes)}</p></div>{/if}
-      {#if workout.type === 'cardio'}
+      {#if workout.type === 'cardio' || workout.type === 'life'}
         {#if workout.cardio_mode}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activity</span><p class="font-bold">{CARDIO_MODE_LABELS[workout.cardio_mode]}</p></div>{/if}
         {#if workout.elevation_gain_m}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Elevation gain</span><p class="font-bold">{workout.elevation_gain_m} m</p></div>{/if}
         {#if workout.average_heart_rate}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Average heart rate</span><p class="font-bold">{workout.average_heart_rate} bpm</p></div>{/if}

@@ -9,6 +9,7 @@
   let loading = true;
   let error = '';
   let period: PeriodKey = '12w';
+  const activityModes = ['walking', 'hiking', 'cycling'] as const;
 
   $: stats = computeStats(workouts, period);
   $: hours = Math.floor(stats.totalMinutes / 60);
@@ -70,6 +71,33 @@
         </ul>
       </section>
     {/if}
+
+    {#each activityModes as mode}
+      {@const activity = stats.activities[mode]}
+      <section class="card space-y-3">
+        <h3 class="text-xl font-bold">{CARDIO_MODE_LABELS[mode]} <span class="text-sm font-normal text-gray-500 dark:text-gray-400">{mode === 'cycling' ? 'Cardio' : 'Life'}</span></h3>
+        {#if activity.sessions === 0}
+          <p class="text-sm text-gray-600 dark:text-gray-300">No completed {CARDIO_MODE_LABELS[mode].toLowerCase()} sessions in this period yet.</p>
+        {:else}
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Sessions</p><p class="text-2xl font-black">{activity.sessions}</p></div>
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Distance</p><p class="text-2xl font-black">{activity.km} km</p></div>
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Time</p><p class="text-2xl font-black">{Math.floor(Math.round(activity.minutes) / 60)}h {Math.round(activity.minutes) % 60}m</p></div>
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800">
+              <p class="text-xs font-semibold text-gray-600 dark:text-gray-300">{mode === 'cycling' ? 'Average speed' : 'Average pace'}</p>
+              <p class="text-2xl font-black">{mode === 'cycling' ? activity.paceMinPerKm > 0 ? `${(60 / activity.paceMinPerKm).toFixed(1)} km/h` : '-' : formatPace(1, activity.paceMinPerKm) || '-'}</p>
+            </div>
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Longest distance</p><p class="text-2xl font-black">{activity.longestKm} km</p></div>
+            <div class="rounded-xl bg-gray-100 p-3 dark:bg-gray-800"><p class="text-xs font-semibold text-gray-600 dark:text-gray-300">Elevation gain</p><p class="text-2xl font-black">{activity.elevation} m</p></div>
+          </div>
+          <ul class="divide-y divide-gray-200 text-sm dark:divide-gray-700">
+            {#each activity.recent as session}
+              <li><a class="flex items-center justify-between gap-3 py-2" href={`/workouts/${session.id}`}><span>{dateLabel(session.performed_at)} · {session.title}</span><span class="shrink-0 font-bold">{session.distance_km ?? 0} km</span></a></li>
+            {/each}
+          </ul>
+        {/if}
+      </section>
+    {/each}
 
     <section class="card space-y-3">
       <h3 class="text-xl font-bold">Workouts by type</h3>

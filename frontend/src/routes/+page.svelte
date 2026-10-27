@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
-  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy };
+  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints };
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
@@ -170,7 +170,7 @@
     <div>
       <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Your activity</p>
       <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Workout log</h2>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your strength, cardio, interval, recovery, and sports sessions.</p>
+      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your strength, cardio, interval, recovery, sports, and Life sessions.</p>
     </div>
     <button class="btn-primary w-full sm:w-auto" on:click={() => goto('/library')}>
       <Plus size={19} /> Choose a workout
