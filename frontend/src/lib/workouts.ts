@@ -24,6 +24,9 @@ export const workoutsInRange = (records: Workout[], filter: DateRangeFilter, now
   });
 };
 
+export const openPastWorkouts = (records: Workout[], now = new Date()) =>
+  workoutsInRange(records, 'past', now).filter((workout) => workout.status === 'planned' || workout.status === 'in_progress');
+
 export const requiresDistanceAndTime = (workout: Pick<Workout, 'type' | 'cardio_mode' | 'recovery_activity'>) =>
   ((workout.type === 'cardio' || workout.type === 'interval') &&
     (workout.cardio_mode === 'running' || workout.cardio_mode === 'walking' || workout.cardio_mode === 'cycling')) ||
