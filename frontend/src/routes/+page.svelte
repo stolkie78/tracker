@@ -8,7 +8,7 @@
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
   import { groupByDayPart } from '$lib/programs';
-  import { formatWorkoutTime, requiresDistanceAndTime, workoutsInRange, type DateRangeFilter } from '$lib/workouts';
+  import { formatWorkoutTime, requiresDistanceAndTime, openPastWorkouts, workoutsInRange, type DateRangeFilter } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
@@ -28,6 +28,7 @@
   let error = '';
   let requestId = 0;
   let dateRangeFilter: DateRangeFilter = 'today';
+  let openOnly = false;
   const DATE_RANGE_OPTIONS: { value: DateRangeFilter; label: string }[] = [
     { value: 'today', label: 'Today' },
     { value: 'week', label: 'This week' },
@@ -88,7 +89,16 @@
     });
   };
 
-  $: rangedWorkouts = workoutsInRange(workouts, dateRangeFilter);
+  $: openPastCount = openPastWorkouts(workouts).length;
+  const selectRange = (range: DateRangeFilter) => {
+    dateRangeFilter = range;
+    openOnly = false;
+  };
+  const showOpenPast = () => {
+    dateRangeFilter = 'past';
+    openOnly = true;
+  };
+  $: rangedWorkouts = openOnly ? openPastWorkouts(workouts) : workoutsInRange(workouts, dateRangeFilter);
   $: visibleWorkouts = dateRangeFilter === 'past'
     ? [...rangedWorkouts].sort((a, b) => new Date(b.performed_at).getTime() - new Date(a.performed_at).getTime())
     : sortWorkouts(rangedWorkouts);
@@ -167,6 +177,17 @@
     </button>
   </div>
 
+  {#if openPastCount > 0 || openOnly}
+    <div class="card flex flex-wrap items-center justify-between gap-3 border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950">
+      <button type="button" class="text-left text-sm font-bold text-amber-900 underline dark:text-amber-200" on:click={showOpenPast}>
+        Open activities in the past ({openPastCount}) →
+      </button>
+      {#if openOnly}
+        <button type="button" class="btn-secondary" on:click={() => selectRange('past')}>Show all past</button>
+      {/if}
+    </div>
+  {/if}
+
   {#if selectedPlan}
     <div class="card flex flex-wrap items-center justify-between gap-3">
       <p class="text-sm font-semibold">Timeline filtered by program: {planTitles.get(selectedPlan) ?? 'unknown'}.</p>
@@ -183,7 +204,7 @@
           type="button"
           class="touch-target w-full rounded-xl px-2 text-sm font-bold transition sm:w-auto sm:px-4 {dateRangeFilter === option.value ? 'bg-primary-600 text-white' : 'border border-gray-300 bg-white text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100'}"
           aria-pressed={dateRangeFilter === option.value}
-          on:click={() => (dateRangeFilter = option.value)}>{option.label}</button>
+          on:click={() => selectRange(option.value)}>{option.label}</button>
       {/each}
       </div>
     </div>
