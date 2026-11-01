@@ -48,7 +48,9 @@
   let actualDistance: number | undefined = undefined;
   let actualTime = '';
 
-  $: workoutDate = workout
+  $: workoutDate = workout?.free_period && workout.status !== 'completed'
+    ? (workout.status === 'in_progress' ? 'Free period · in progress' : 'Free period · no fixed date')
+    : workout
     ? new Intl.DateTimeFormat('en-US', {
         weekday: 'long',
         day: 'numeric',
@@ -219,7 +221,7 @@
     editDayPart = workout.day_part || '';
     edit = {
       title: workout.title,
-      when: toLocalInput(workout.performed_at),
+      when: workout.performed_at ? toLocalInput(workout.performed_at) : '',
       duration: workout.duration_minutes ?? 0,
       notes: workout.notes ?? '',
       cardio: workout.cardio_mode ?? 'running',
@@ -235,7 +237,7 @@
 
   const saveEdit = async () => {
     if (!workout) return;
-    if (!edit.title.trim() || !edit.when) {
+    if (!edit.title.trim() || ((!workout.free_period || workout.status === 'completed') && !edit.when)) {
       error = 'Title and date are required.';
       return;
     }
@@ -245,7 +247,7 @@
       const type = workout.type;
       const updated = await updateWorkout(workout.id, {
         title: edit.title.trim(),
-        performed_at: new Date(edit.when).toISOString(),
+        ...(!workout.free_period || workout.status === 'completed' ? { performed_at: new Date(edit.when).toISOString() } : {}),
         day_part: editDayPart,
         duration_minutes: edit.duration,
         notes: edit.notes,
@@ -372,12 +374,16 @@
     {#if editing}
       <form class="mt-5 grid gap-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:grid-cols-2" on:submit|preventDefault={saveEdit}>
         <div><label class="label" for="edit-title">Title</label><input id="edit-title" class="input" bind:value={edit.title} maxlength="120" required /></div>
+        {#if !workout.free_period || workout.status === 'completed'}
         <div><label class="label" for="edit-when">Date and time</label><input id="edit-when" class="input" type="datetime-local" bind:value={edit.when} required /></div>
+        {/if}
+        {#if !workout.free_period}
         <div>
           <label class="label" for="edit-day-part">Day part</label>
           <CycleChoice id="edit-day-part" label="Day part" bind:value={editDayPart}
             options={[{ value: '', label: 'No day part' }, ...DAY_PART_OPTIONS]} />
         </div>
+        {/if}
         <div><label class="label" for="edit-duration">Duration (minutes)</label><input id="edit-duration" class="input" type="number" min="0" step="any" bind:value={edit.duration} /></div>
         {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
           <div>

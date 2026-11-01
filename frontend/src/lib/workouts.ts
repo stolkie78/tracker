@@ -3,6 +3,7 @@ import type { Workout } from './types';
 export type DateRangeFilter = 'today' | 'week' | 'month' | 'planned' | 'past';
 
 export const workoutsInRange = (records: Workout[], filter: DateRangeFilter, now = new Date()) => {
+  records = records.filter((workout) => !workout.free_period || workout.status === 'completed');
   if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);
