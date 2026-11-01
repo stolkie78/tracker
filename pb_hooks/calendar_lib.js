@@ -94,7 +94,7 @@ function buildCalendar(app, base, ownerId) {
   var from = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
   var workouts = app.findRecordsByFilter(
     "workouts",
-    "owner = {:owner} && status != 'skipped' && performed_at >= {:from}",
+    "owner = {:owner} && status != 'skipped' && (free_period = false || status = 'completed') && performed_at >= {:from}",
     "performed_at",
     1000,
     0,
@@ -112,6 +112,7 @@ function buildCalendar(app, base, ownerId) {
     "X-PUBLISHED-TTL:PT1H",
   ];
   workouts.forEach(function (w) {
+    if (w.getBool("free_period") && w.getString("status") !== "completed") return;
     var start = parseDate(w.getString("performed_at"));
     if (isNaN(start.getTime())) return;
     var minutes = w.getInt("duration_minutes") || 45;

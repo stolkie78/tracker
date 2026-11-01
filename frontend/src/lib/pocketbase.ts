@@ -173,7 +173,11 @@ export const updateTrainingPlan = (id: ID, data: Partial<TrainingPlan>) =>
 
 // Deletes a program and its planned workouts; completed workouts are kept.
 export const deleteTrainingPlan = async (id: ID) => {
-  const planned = (await getPlanWorkouts(id)).filter((workout) => workout.status === 'planned');
+  const workouts = await getPlanWorkouts(id);
+  if (workouts.some((workout) => workout.free_period && workout.status === 'in_progress')) {
+    throw new Error('Finish or reset in-progress workouts before deleting their period.');
+  }
+  const planned = workouts.filter((workout) => workout.status === 'planned');
   for (const workout of planned) await deleteWorkout(workout.id);
   await pb.collection('training_plans').delete(id);
 };
@@ -385,9 +389,10 @@ export const deleteTemplate = async (id: ID) => {
 // Creates a workout from a template, including its exercises and sets.
 export const instantiateTemplate = async (
   template: WorkoutTemplate,
-  performedAt: Date,
-  options: { status?: Workout['status']; plan?: ID; notes?: string; dueDate?: string; dayPart?: Workout['day_part'] } = {}
+  performedAt: Date | null,
+  options: { status?: Workout['status']; plan?: ID; notes?: string; dueDate?: string; dayPart?: Workout['day_part']; freePeriod?: boolean } = {}
 ) => {
+  if (!performedAt && !options.freePeriod) throw new Error('A scheduled workout needs a date.');
   const created = await createWorkout({
     template: template.id,
     ...(options.plan ? { plan: options.plan } : {}),
@@ -396,7 +401,8 @@ export const instantiateTemplate = async (
     title: template.title,
     type: template.type,
     status: options.status ?? 'planned',
-    performed_at: performedAt.toISOString(),
+    performed_at: performedAt?.toISOString() ?? '',
+    free_period: options.freePeriod ?? false,
     duration_minutes: template.duration_minutes,
     notes: options.notes ?? template.notes ?? '',
     ...(template.cardio_mode ? { cardio_mode: template.cardio_mode } : {}),

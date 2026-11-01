@@ -99,6 +99,7 @@ export interface Workout extends BaseRecord {
   title: string;
   type: WorkoutType;
   status: WorkoutStatus;
+  free_period?: boolean;
   performed_at: string;
   day_part?: DayPart | '';
   duration_minutes: number;
@@ -134,11 +135,12 @@ export interface TrainingPlan extends BaseRecord {
   cycle_pattern?: string;
 }
 
-export type ScheduleMode = 'fixed_weekdays' | 'flexible_cycle';
+export type ScheduleMode = 'fixed_weekdays' | 'flexible_cycle' | 'free_period';
 
 export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
-  fixed_weekdays: 'Fixed cycle',
-  flexible_cycle: 'Flexible cycle'
+  fixed_weekdays: 'Planned',
+  flexible_cycle: 'Flexible cycle',
+  free_period: 'Free'
 };
 
 export type DayPart = 'morning' | 'afternoon' | 'evening';

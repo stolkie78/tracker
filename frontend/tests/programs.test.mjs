@@ -154,6 +154,7 @@ test('calendar export keeps all combined blocks and identifies their dayparts', 
   ].map((data) => ({
     id: data.id,
     getString: (name) => data[name] ?? (name === 'status' ? 'planned' : ''),
+    getBool: () => false,
     getInt: (name) => name === 'duration_minutes' ? 30 : 0,
     getFloat: () => 0
   }));

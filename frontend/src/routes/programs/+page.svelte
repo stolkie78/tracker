@@ -3,7 +3,7 @@
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { Check, ChevronDown, ChevronUp, LoaderCircle, Pencil, Plus, Repeat, Trash2 } from '@lucide/svelte';
   import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
-  import { blockTime, buildCycleSchedule, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, replanCycle, type ScheduledBlock } from '$lib/programs';
+  import { blockTime, buildCycleSchedule, buildFreePeriod, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, normalizePeriodTargets, replanCycle, replanFreePeriod, type PeriodTarget, type ScheduledBlock } from '$lib/programs';
   import { DAY_PARTS, DAY_PART_LABELS, templateLabel, WORKOUT_TYPE_STYLES, type CycleSlot, type DayPart, type TrainingPlan, type WorkoutTemplate } from '$lib/types';
 
   const MAX_WORKOUTS = 200;
@@ -14,6 +14,9 @@
   let selectedWeek = 0;
   let cycles = 4;
   let slots: CycleSlot[] = Array.from({ length: 7 }, emptyCycleSlot);
+  let mode: 'fixed_weekdays' | 'free_period' = 'fixed_weekdays';
+  let periodWeeks = 1;
+  let targets: PeriodTarget[] = [];
   let plans: TrainingPlan[] = [];
   let templates: WorkoutTemplate[] = [];
   let pageLoading = true;
@@ -28,12 +31,17 @@
   $: templateById = new Map(templates.map((template) => [template.id, template]));
   $: preview = previewSchedule(startDate, cycleWeeks, cycles, slots, templateById);
   $: schedule = preview.entries;
+  $: freePreview = previewPeriod(startDate, periodWeeks, targets, templateById);
 
   onMount(async () => {
     try {
       const [allPlans, allTemplates] = await Promise.all([getTrainingPlans(), getTemplates()]);
       plans = allPlans.filter((plan) => plan.schedule_mode);
       templates = allTemplates;
+      if (new URLSearchParams(window.location.search).get('mode') === 'free_period') {
+        startCreate();
+        mode = 'free_period';
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Programs could not be loaded.';
     } finally {
@@ -46,6 +54,14 @@
       return { entries: buildCycleSchedule(start, weeks, repeats, pattern, lookup), error: '' };
     } catch (err) {
       return { entries: [] as ScheduledBlock[], error: err instanceof Error ? err.message : 'The schedule is invalid.' };
+    }
+  }
+
+  function previewPeriod(start: string, weeks: number, items: PeriodTarget[], lookup: Map<string, WorkoutTemplate>) {
+    try {
+      return { entries: buildFreePeriod(start, weeks, items, lookup), end: localDate(cycleDate(start, weeks * 7 - 1)), error: '' };
+    } catch (err) {
+      return { entries: [] as WorkoutTemplate[], end: '', error: err instanceof Error ? err.message : 'The period is invalid.' };
     }
   }
 
@@ -95,6 +111,10 @@
       error = 'Enter a program name.';
       return;
     }
+    if (mode === 'free_period') {
+      await saveFreePeriod();
+      return;
+    }
     if (preview.error) {
       error = preview.error;
       return;
@@ -133,6 +153,7 @@
         cycles,
         cycle_pattern: JSON.stringify(slots)
       };
+
       const plan = editingPlan ? await updateTrainingPlan(editingPlan.id, data) : await createTrainingPlan(data);
       planId = plan.id;
       changed = true;
@@ -170,6 +191,55 @@
     }
   };
 
+  const saveFreePeriod = async () => {
+    if (freePreview.error || !freePreview.entries.length) {
+      error = freePreview.error || 'Choose at least one workout.';
+      return;
+    }
+    saving = true;
+    let changed = false;
+    let created = 0;
+    let savedPlan: TrainingPlan | null = null;
+    try {
+      const existing = editingPlan ? await getPlanWorkouts(editingPlan.id) : [];
+      const replanning = replanFreePeriod(freePreview.entries, existing);
+      const data = {
+        title: title.trim(),
+        goal: goal.trim() || title.trim(),
+        start_date: `${startDate}T12:00:00.000Z`,
+        end_date: `${freePreview.end}T12:00:00.000Z`,
+        weeks: periodWeeks,
+        summary: `${periodWeeks}-week free period · ${freePreview.entries.length} workouts`,
+        schedule_mode: 'free_period' as const,
+        cycle_days: periodWeeks * 7,
+        cycles: 1,
+        cycle_pattern: JSON.stringify(targets)
+      };
+      savedPlan = editingPlan ? await updateTrainingPlan(editingPlan.id, data) : await createTrainingPlan(data);
+      const saved = savedPlan;
+      changed = true;
+      for (const workout of replanning.removable) await deleteWorkout(workout.id);
+      for (const template of replanning.pending) {
+        await instantiateTemplate(template, null, { plan: saved.id, freePeriod: true });
+        created += 1;
+      }
+      plans = editingPlan ? plans.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...plans];
+      success = `Period saved: ${created} workouts ready to pick up, ${replanning.retained.length} existing workouts kept.`;
+      cancelEdit();
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'The period could not be saved.';
+      error = changed ? `The period was saved, but only ${created} new workouts were created. Open the period again to restore the remaining targets. ${reason}` : reason;
+      if (savedPlan) {
+        const saved = savedPlan;
+        plans = plans.some((plan) => plan.id === saved.id) ? plans.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...plans];
+        editingPlan = saved;
+        isCreating = false;
+      }
+    } finally {
+      saving = false;
+    }
+  };
+
   const startEdit = (plan: TrainingPlan) => {
     error = '';
     if (plan.schedule_mode === 'flexible_cycle') {
@@ -177,6 +247,20 @@
       return;
     }
     try {
+      if (plan.schedule_mode === 'free_period') {
+        targets = normalizePeriodTargets(JSON.parse(plan.cycle_pattern || '[]'));
+        mode = 'free_period';
+        periodWeeks = plan.weeks;
+        editingPlan = plan;
+        isCreating = false;
+        success = '';
+        title = plan.title;
+        goal = plan.goal === plan.title ? '' : plan.goal;
+        startDate = plan.start_date.slice(0, 10);
+        window.setTimeout(() => document.getElementById('program-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+        return;
+      }
+      mode = 'fixed_weekdays';
       const days = plan.cycle_days || 7;
       if (![7, 14, 21].includes(days)) throw new Error('This program has an unsupported cycle length.');
       const parsed: unknown = JSON.parse(plan.cycle_pattern || '[]');
@@ -220,6 +304,9 @@
     selectedWeek = 0;
     cycles = 4;
     slots = Array.from({ length: 7 }, emptyCycleSlot);
+    mode = 'fixed_weekdays';
+    periodWeeks = 1;
+    targets = [];
   };
 
   const removePlan = async (plan: TrainingPlan) => {
@@ -241,7 +328,7 @@
     <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Multiple workouts</p>
     <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programs</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
-      Schedule your <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> in a fixed cycle of one, two, or three weeks, with multiple workouts per day part.
+      Choose Planned to schedule your <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> by day, or Free to pick up sessions in any order during a period of one to four weeks.
     </p>
   </div>
 
@@ -265,6 +352,9 @@
               <div class="flex flex-wrap items-start justify-between gap-3">
                 <div class="flex flex-wrap items-center gap-2">
                   <p class="font-bold">{plan.title}</p>
+                  {#if plan.schedule_mode !== 'flexible_cycle'}
+                    <span class="badge bg-primary-50 text-primary-800 dark:bg-primary-950 dark:text-primary-200">{plan.schedule_mode === 'free_period' ? 'Free' : 'Planned'}</span>
+                  {/if}
                   <span class="badge {planState(plan) === 'active' ? 'bg-emerald-600' : planState(plan) === 'upcoming' ? 'bg-sky-600' : 'bg-gray-500'} text-white">
                     {planState(plan) === 'active' ? 'Active' : planState(plan) === 'upcoming' ? 'Upcoming' : 'Ended'}
                   </span>
@@ -275,7 +365,7 @@
                 </div>
               </div>
               <p class="text-sm text-gray-500 dark:text-gray-400">
-                {plan.schedule_mode === 'flexible_cycle' ? 'Legacy flexible program' : `${(plan.cycle_days || 7) / 7}-week cycle × ${plan.cycles || 1}`} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
+                {plan.schedule_mode === 'free_period' ? `${plan.weeks}-week free period` : plan.schedule_mode === 'flexible_cycle' ? 'Legacy flexible program' : `${(plan.cycle_days || 7) / 7}-week cycle × ${plan.cycles || 1}`} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
               </p>
               <a class="text-sm font-semibold text-primary-700 underline dark:text-primary-300" href={`/?plan=${plan.id}`}>View on timeline</a>
             </div>
@@ -290,7 +380,12 @@
     {#if showForm}
       <form id="program-form" class="card scroll-mt-4 space-y-5" on:submit|preventDefault={save}>
         <fieldset class="min-w-0 space-y-5" disabled={saving}>
-          {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Editing “{editingPlan.title}”. Completed and in-progress workouts will be kept. Planned workouts from today onward will be rescheduled.</p>{/if}
+          {#if editingPlan}<p class="rounded-xl bg-primary-50 p-3 text-sm dark:bg-primary-950">Editing “{editingPlan.title}”. Completed, skipped and in-progress workouts will be kept. {mode === 'free_period' ? 'Remaining counts are updated across the entire period, including overdue sessions.' : 'Planned workouts from today onward will be rescheduled.'}</p>{/if}
+          <div>
+            <label class="label" for="prog-mode">Planning mode</label>
+            <CycleChoice id="prog-mode" label="Planning mode" bind:value={mode} disabled={editingPlan !== null}
+              options={[{ value: 'fixed_weekdays', label: 'Planned · scheduled by day' }, { value: 'free_period', label: 'Free · pick up in any order' }]} />
+          </div>
           <div class="grid gap-4 sm:grid-cols-2">
             <div>
               <label class="label" for="prog-title">Name</label>
@@ -300,6 +395,13 @@
               <label class="label" for="prog-start">Start date</label>
               <input id="prog-start" class="input" type="date" bind:value={startDate} required />
             </div>
+            {#if mode === 'free_period'}
+            <div>
+              <label class="label" for="period-weeks">Period length</label>
+              <CycleChoice id="period-weeks" label="Period length" bind:value={periodWeeks}
+                options={[1, 2, 3, 4].map((value) => ({ value, label: `${value} ${value === 1 ? 'week' : 'weeks'}` }))} />
+            </div>
+            {:else}
             <div>
               <label class="label" for="prog-cycle">Cycle length</label>
               <CycleChoice id="prog-cycle" label="Cycle length" value={cycleWeeks} onChange={resizeCycle}
@@ -309,7 +411,34 @@
               <label class="label" for="prog-cycles">Number of cycle repeats</label>
               <input id="prog-cycles" class="input" type="number" min="1" max="52" step="1" bind:value={cycles} required />
             </div>
+            {/if}
           </div>
+          {#if mode === 'free_period'}
+            <p class="text-sm text-gray-600 dark:text-gray-300">Choose the total number of sessions for the entire period, not per week. Sessions have no fixed day or order and appear on the calendar only after completion. Unfinished sessions remain available after the end date.</p>
+            {#each targets as target, index}
+              <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-[1fr_8rem_auto]">
+                <div>
+                  <label class="label" for={`period-template-${index}`}>Workout</label>
+                  <select id={`period-template-${index}`} class="input" bind:value={target.template} required>
+                    <option value="">Choose a workout...</option>
+                    {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
+                  </select>
+                </div>
+                <div>
+                  <label class="label" for={`period-count-${index}`}>Total sessions</label>
+                  <input id={`period-count-${index}`} class="input" type="number" min="1" max="200" step="1" bind:value={target.count} required />
+                </div>
+                <button class="btn-secondary self-end" type="button" aria-label={`Remove workout ${index + 1}`} on:click={() => targets = targets.filter((_, item) => item !== index)}><Trash2 size={16} /></button>
+              </div>
+            {/each}
+            <button class="btn-secondary w-full" type="button" on:click={() => targets = [...targets, { template: '', count: 1 }]}><Plus size={16} /> Add workout</button>
+            {#if !templates.length}<p class="text-sm text-amber-800 dark:text-amber-200">Create a workout in <a class="underline" href="/library">Workouts</a> first.</p>{/if}
+            <div class="rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-900">
+              <p class="font-bold">Preview: {freePreview.entries.length} sessions for this period</p>
+              {#if freePreview.error}<p class="mt-1 text-amber-800 dark:text-amber-200">{freePreview.error}</p>
+              {:else}<p class="mt-1">{formatDate(startDate)} – {formatDate(freePreview.end)}</p>{/if}
+            </div>
+          {:else}
           <p class="text-sm text-gray-600 dark:text-gray-300">The cycle starts on the start date and repeats every {cycleWeeks * 7} days. Configure each week separately; leave a day part empty for rest.</p>
 
           {#if templates.length === 0}
@@ -380,10 +509,11 @@
             {/if}
             {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximum {MAX_WORKOUTS} workouts per program. Choose fewer repeats or workouts.</p>{/if}
           </div>
+          {/if}
 
           {#if error}<p role="alert" class="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">{error}</p>{/if}
           <button class="btn-primary w-full" type="submit" disabled={saving}>
-            {#if saving}<LoaderCircle class="animate-spin" size={18} /> Saving...{:else}<Check size={18} /> {editingPlan ? 'Save changes and reschedule future workouts' : 'Save program to my timeline'}{/if}
+            {#if saving}<LoaderCircle class="animate-spin" size={18} /> Saving...{:else}<Check size={18} /> {mode === 'free_period' ? (editingPlan ? 'Save period changes' : 'Prepare free period') : editingPlan ? 'Save changes and reschedule future workouts' : 'Save program to my timeline'}{/if}
           </button>
           <button class="btn-secondary w-full" type="button" on:click={cancelEdit}>Cancel</button>
         </fieldset>

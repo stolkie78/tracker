@@ -1,4 +1,4 @@
-import { DAY_PARTS, DAY_PART_HOURS, DAY_PART_LABELS, type CycleSlot, type DayPart, type Workout, type WorkoutTemplate } from '$lib/types';
+import { DAY_PARTS, DAY_PART_HOURS, DAY_PART_LABELS, CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, WORKOUT_TYPE_LABELS, type TrainingPlan, type CycleSlot, type DayPart, type Workout, type WorkoutTemplate } from '$lib/types';
 
 export const emptyCycleSlot = (): CycleSlot => ({ periods: { morning: [], afternoon: [], evening: [] } });
 
@@ -116,4 +116,92 @@ export function replanCycle(entries: ScheduledBlock[], existing: Workout[], toda
     return false;
   });
   return { removable, retained, pending };
+}
+
+export interface PeriodTarget {
+  template: string;
+  count: number;
+}
+
+export function buildFreePeriod(start: string, weeks: number, targets: PeriodTarget[], lookup: Map<string, WorkoutTemplate>) {
+  cycleDate(start, 0);
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 4) throw new Error('Choose a period of one to four weeks.');
+  const entries: WorkoutTemplate[] = [];
+  for (const target of targets) {
+    const template = lookup.get(target.template);
+    if (!template) throw new Error('Choose an available workout.');
+    if (!Number.isInteger(target.count) || target.count < 1 || target.count > 200) {
+      throw new Error('Choose a whole number of workouts between 1 and 200.');
+    }
+    if (entries.length + target.count > 200) throw new Error('A period can contain at most 200 workouts.');
+    entries.push(...Array.from({ length: target.count }, () => template));
+  }
+  return entries;
+}
+
+export function normalizePeriodTargets(raw: unknown): PeriodTarget[] {
+  if (!Array.isArray(raw)) throw new Error('The saved period targets are invalid.');
+  return raw.map((item: unknown) => {
+    if (!isRecord(item) || typeof item.template !== 'string' || typeof item.count !== 'number' || !Number.isInteger(item.count) || item.count < 1 || item.count > 200) {
+      throw new Error('The saved period targets are invalid.');
+    }
+    return { template: item.template, count: item.count };
+  });
+}
+
+export function replanFreePeriod(entries: WorkoutTemplate[], existing: Workout[]) {
+  const removable = existing.filter((workout) => workout.status === 'planned');
+  const retained = existing.filter((workout) => workout.status !== 'planned');
+  const counts = new Map<string, number>();
+  for (const workout of retained) {
+    counts.set(workout.template ?? '', (counts.get(workout.template ?? '') ?? 0) + 1);
+  }
+  const pending = entries.filter((template) => {
+    const count = counts.get(template.id) ?? 0;
+    if (!count) return true;
+    counts.set(template.id, count - 1);
+    return false;
+  });
+  return { removable, retained, pending };
+}
+
+export function groupFreePeriods(plans: TrainingPlan[], workouts: Workout[], today = new Date(), includeEnded = false) {
+  const day = localDate(today);
+  return plans.filter((plan) => plan.schedule_mode === 'free_period').map((plan) => {
+    const records = workouts.filter((workout) => workout.free_period && workout.plan === plan.id);
+    const groups = new Map<string, { label: string; workouts: Workout[]; completed: number }>();
+    for (const workout of records) {
+      const activity = (workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life') ? workout.cardio_mode
+        : workout.type === 'recovery' ? workout.recovery_activity : workout.type === 'sport' ? workout.sport_activity : '';
+      const key = `${workout.type}:${activity || ''}`;
+      const label = (workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life') && workout.cardio_mode ? CARDIO_MODE_LABELS[workout.cardio_mode]
+        : workout.type === 'recovery' && workout.recovery_activity ? RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]
+        : workout.type === 'sport' && workout.sport_activity ? SPORT_ACTIVITY_LABELS[workout.sport_activity] : WORKOUT_TYPE_LABELS[workout.type];
+      const group = groups.get(key) ?? { label: activity ? `${WORKOUT_TYPE_LABELS[workout.type]} · ${label}` : label, workouts: [], completed: 0 };
+      group.workouts.push(workout);
+      if (workout.status === 'completed') group.completed += 1;
+      groups.set(key, group);
+    }
+
+    return { plan, groups: [...groups.values()], total: records.length, completed: records.filter((workout) => workout.status === 'completed').length };
+  }).filter(({ plan, total, groups }) => total > 0 && (
+    includeEnded || plan.end_date.slice(0, 10) >= day || groups.some((group) => group.workouts.some((workout) => workout.status === 'planned' || workout.status === 'in_progress'))
+  ));
+}
+
+export function groupPeriodWorkouts(workouts: Workout[]) {
+  const groups = new Map<string, Workout[]>();
+  for (const workout of workouts) {
+    const key = `${workout.template || workout.title}:${workout.title}`;
+    const records = groups.get(key) ?? [];
+    records.push(workout);
+    groups.set(key, records);
+  }
+  return [...groups.values()].map((records) => ({
+    title: records[0].title,
+    workouts: records,
+    completed: records.filter((workout) => workout.status === 'completed').length,
+    remaining: records.filter((workout) => workout.status === 'planned' || workout.status === 'in_progress').length,
+    next: records.find((workout) => workout.status === 'in_progress') ?? records.find((workout) => workout.status === 'planned')
+  }));
 }

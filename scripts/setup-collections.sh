@@ -181,7 +181,7 @@ PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson end "$(date_field end_date true)" \
   --argjson weeks "$(number_field weeks true)" \
   --argjson summary "$(text_field summary)" \
-  --argjson mode "$(select_field schedule_mode '["fixed_weekdays","flexible_cycle"]')" \
+  --argjson mode "$(select_field schedule_mode '["fixed_weekdays","flexible_cycle","free_period"]')" \
   --argjson cycle_days "$(number_field cycle_days)" --argjson cycles "$(number_field cycles)" \
   --argjson pattern "$(text_field cycle_pattern)" \
   '[$owner,$title,$goal,$start,$end,$weeks,$summary,$mode,$cycle_days,$cycles,$pattern]')"
@@ -258,13 +258,14 @@ ensure_collection template_exercises base "$TEMPLATE_EXERCISE_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson day_part "$(select_field day_part '["morning","afternoon","evening"]')" \
+  --argjson free "$(bool_field free_period)" \
   --argjson plan "$(relation_field plan "$PLAN_ID")" \
   --argjson template "$(relation_field template "$TEMPLATE_ID")" \
   --argjson due "$(date_field due_date)" \
   --argjson title "$(text_field title true)" \
   --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life"]' true)" \
   --argjson status "$(select_field status '["planned","in_progress","completed","skipped"]' true)" \
-  --argjson date "$(jq -cn '{name:"performed_at",type:"date",required:true}')" \
+  --argjson date "$(date_field performed_at)" \
   --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
   --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","hiking","other"]')" \
   --argjson distance "$(number_field distance_km)" --argjson heart "$(number_field average_heart_rate)" \
@@ -274,7 +275,7 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson sport "$(select_field sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$effort,$series,$strava,$elevation,$template,$due,$day_part]')"
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$effort,$series,$strava,$elevation,$template,$due,$day_part,$free]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
@@ -321,7 +322,7 @@ ensure_collection health_checkins base "$HEALTH_CHECKIN_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
 ensure_select_values workout_templates level '["beginner","intermediate","advanced"]'
-ensure_select_values training_plans schedule_mode '["fixed_weekdays","flexible_cycle"]'
+ensure_select_values training_plans schedule_mode '["fixed_weekdays","flexible_cycle","free_period"]'
 ensure_select_values workouts type '["strength","cardio","interval","recovery","sport","life"]'
 ensure_select_values workouts sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
 ensure_select_values workout_templates sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
