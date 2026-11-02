@@ -41,4 +41,9 @@ test('catalog choices follow categories, preserve archived labels and exclude ar
   assert.equal(types.CARDIO_MODE_LABELS.custom_paddling, 'Renamed');
   assert.ok(!activityOptions('life').some((option) => option.value === 'custom_paddling'));
   assert.equal(activityOptions('life', 'custom_paddling').find((option) => option.value === 'custom_paddling').label, 'Renamed (inactive)');
+  applyCatalog([entry('cycling', 'movement', ['life'])]);
+  assert.equal(types.CARDIO_MODE_LABELS.custom_paddling, undefined, 'Labels from a previous account are removed');
+  assert.equal(types.EXERCISE_EQUIPMENT_LABELS.custom_machine, undefined);
+  assert.deepEqual(activityOptions('life').map((option) => option.value), ['cycling']);
+  assert.equal(activityOptions('life', 'legacy_choice').find((option) => option.value === 'legacy_choice').label, 'legacy_choice (inactive)');
 });

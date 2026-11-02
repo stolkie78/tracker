@@ -1,6 +1,5 @@
 routerAdd("POST", "/api/top-trainer/catalog", function (e) {
   var lib = require(__hooks + "/catalog_lib.js");
-  lib.requireAdmin(e.app, e.auth.id);
   var body = e.requestInfo().body || {};
   var name = typeof body.label === "string" ? body.label.trim() : "";
   var kind = body.kind;
@@ -15,8 +14,10 @@ routerAdd("POST", "/api/top-trainer/catalog", function (e) {
   var result;
   e.app.runInTransaction(function (app) {
     var entry = body.id ? app.findRecordById("training_catalog", body.id) : new Record(app.findCollectionByNameOrId("training_catalog"));
+    if (body.id) lib.requireEditable(app, entry, e.auth.id);
+    else entry.set("owner", e.auth.id);
     if (body.id && entry.getString("kind") !== kind) throw new BadRequestError("The entry type cannot be changed.");
-    var duplicates = app.findRecordsByFilter("training_catalog", "kind = {:kind} && label ~ {:label}", "", 0, 0, { kind: kind, label: name });
+    var duplicates = app.findRecordsByFilter("training_catalog", "kind = {:kind} && label ~ {:label} && (owner = '' || owner = {:owner})", "", 0, 0, { kind: kind, label: name, owner: entry.getString("owner") });
     if (duplicates.some(function (item) { return item.id !== entry.id && item.getString("label").toLowerCase() === name.toLowerCase(); })) {
       throw new BadRequestError("An entry with this name already exists.");
     }
@@ -36,7 +37,6 @@ routerAdd("POST", "/api/top-trainer/catalog", function (e) {
 
 routerAdd("POST", "/api/top-trainer/catalog/exercises", function (e) {
   var lib = require(__hooks + "/catalog_lib.js");
-  lib.requireAdmin(e.app, e.auth.id);
   var body = e.requestInfo().body || {};
   if (typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 120 ||
       !Array.isArray(body.equipment_options) || !body.equipment_options.length ||
@@ -46,15 +46,16 @@ routerAdd("POST", "/api/top-trainer/catalog/exercises", function (e) {
   var result;
   e.app.runInTransaction(function (app) {
     var exercise = body.id ? app.findRecordById("exercises", body.id) : new Record(app.findCollectionByNameOrId("exercises"));
-    if (exercise.getString("owner")) throw new ForbiddenError("Personal exercises cannot be edited in the shared catalog.");
-    var duplicates = app.findRecordsByFilter("exercises", "owner = '' && name ~ {:name}", "", 0, 0, { name: body.name.trim() });
+    if (body.id) lib.requireEditable(app, exercise, e.auth.id);
+    else exercise.set("owner", e.auth.id);
+    var duplicates = app.findRecordsByFilter("exercises", "(owner = '' || owner = {:owner}) && name ~ {:name}", "", 0, 0, { name: body.name.trim(), owner: exercise.getString("owner") });
     if (duplicates.some(function (item) { return item.id !== exercise.id && item.getString("name").toLowerCase() === body.name.trim().toLowerCase(); })) {
-      throw new BadRequestError("A shared exercise with this name already exists.");
+      throw new BadRequestError("An exercise with this name already exists.");
     }
     var previous = exercise.getStringSlice("equipment_options");
     body.equipment_options.forEach(function (key) {
       if (typeof key !== "string") throw new BadRequestError("Choose valid equipment.");
-      lib.validateChoice(app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "");
+      lib.validateChoice(app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "", exercise.getString("owner"));
     });
     exercise.set("name", body.name.trim());
     exercise.set("category", body.category);
@@ -77,7 +78,7 @@ onRecordValidate(function (e) {
     if (!e.record.getString(field)) throw new BadRequestError("Choose an activity for this category.");
     var original = e.record.original();
     var previous = !e.record.isNew() && original.getString("type") === type ? original.getString(field) : "";
-    lib.validateChoice(e.app, field === "cardio_mode" ? "movement" : type, e.record.getString(field), type, previous);
+    lib.validateChoice(e.app, field === "cardio_mode" ? "movement" : type, e.record.getString(field), type, previous, e.record.getString("owner"));
   }
   e.next();
 }, "workout_templates");
@@ -94,7 +95,7 @@ onRecordValidate(function (e) {
         previous = template.getString(field);
       }
     }
-    require(__hooks + "/catalog_lib.js").validateChoice(e.app, kind, e.record.getString(field), type, previous);
+    require(__hooks + "/catalog_lib.js").validateChoice(e.app, kind, e.record.getString(field), type, previous, e.record.getString("owner"));
   }
   e.next();
 }, "workouts");
@@ -103,7 +104,13 @@ onRecordValidate(function (e) {
   var lib = require(__hooks + "/catalog_lib.js");
   var previous = e.record.isNew() ? [] : e.record.original().getStringSlice("equipment_options");
   e.record.getStringSlice("equipment_options").forEach(function (key) {
-    lib.validateChoice(e.app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "");
+    lib.validateChoice(e.app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "", e.record.getString("owner"));
   });
   e.next();
 }, "exercises");
+
+onRecordValidate(function (e) {
+  var key = e.record.getString("equipment");
+  require(__hooks + "/catalog_lib.js").validateChoice(e.app, "equipment", key, "strength", key, e.record.getString("owner"));
+  e.next();
+}, "template_exercises", "workout_exercises");

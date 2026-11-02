@@ -64,7 +64,7 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
         return old.getString("exercise") === entry.exercise && old.getString("equipment") === entry.equipment;
       });
       if (entry.equipment && !retainedEquipment) {
-        require(__hooks + "/catalog_lib.js").validateChoice(app, "equipment", entry.equipment, "strength", "");
+        require(__hooks + "/catalog_lib.js").validateChoice(app, "equipment", entry.equipment, "strength", "", e.auth.id);
       }
       if (entry.equipment && exercise.getStringSlice("equipment_options").indexOf(entry.equipment) < 0 && !retainedEquipment) {
         throw new BadRequestError("Choose valid equipment for the exercise.");

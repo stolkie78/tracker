@@ -32,10 +32,10 @@ pb.autoCancellation(false);
 
 export const currentUserId = () => pb.authStore.model?.id ?? '';
 export const getCatalog = () => pb.collection('training_catalog').getFullList<CatalogEntry>({ sort: 'label', requestKey: null });
-export const saveCatalogEntry = (entry: Omit<CatalogEntry, 'id' | 'key'> & { id?: string }) =>
+export const saveCatalogEntry = (entry: Omit<CatalogEntry, 'id' | 'key' | 'owner'> & { id?: string }) =>
   pb.send<CatalogEntry>('/api/top-trainer/catalog', { method: 'POST', body: entry, requestKey: null });
 export const getCatalogExercises = () =>
-  pb.collection('exercises').getFullList<Exercise>({ filter: 'owner = ""', sort: 'name', requestKey: null });
+  pb.collection('exercises').getFullList<Exercise>({ sort: 'name', requestKey: null });
 export const saveCatalogExercise = (exercise: Pick<Exercise, 'name' | 'category' | 'muscle_group' | 'equipment_options' | 'active'> & { id?: string }) =>
   pb.send<Exercise>('/api/top-trainer/catalog/exercises', { method: 'POST', body: exercise, requestKey: null });
 const ownerFilter = () => `owner = "${currentUserId()}"`;

@@ -230,12 +230,12 @@
     {#if stravaMessage}<p class="rounded-xl bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">{stravaMessage}</p>{/if}
   </section>
 
-  {#if $isAdmin}
-    <section class="card space-y-3">
+  <section class="card space-y-3">
       <h3 class="text-xl font-bold">Training catalog</h3>
-      <p class="text-gray-600 dark:text-gray-300">Manage shared activities, strength materials, machines and exercises.</p>
+      <p class="text-gray-600 dark:text-gray-300">Add your own activities, strength materials, machines and exercises alongside the standard catalog.</p>
       <a class="btn-secondary" href="/catalog">Manage training catalog</a>
-    </section>
+  </section>
+  {#if $isAdmin}
     <section class="card space-y-3">
       <h3 class="text-xl font-bold">Manage Strava integration</h3>
       <p class="text-gray-600 dark:text-gray-300">This app-wide configuration is shared by all users. Strava access and imported workouts remain separate for each user.</p>
