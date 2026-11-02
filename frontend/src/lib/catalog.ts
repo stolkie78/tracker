@@ -1,7 +1,7 @@
 import {
   CARDIO_MODE_LABELS, CARDIO_MODE_OPTIONS, LIFE_ACTIVITY_OPTIONS,
   RECOVERY_ACTIVITY_LABELS, RECOVERY_ACTIVITY_OPTIONS, SPORT_ACTIVITY_LABELS, SPORT_ACTIVITY_OPTIONS,
-  EXERCISE_EQUIPMENT_LABELS, EXERCISE_EQUIPMENT_OPTIONS, type WorkoutType
+  EXERCISE_EQUIPMENT_LABELS, EXERCISE_EQUIPMENT_OPTIONS, type WorkoutType, type Exercise
 } from './types';
 
 export type CatalogKind = 'movement' | 'recovery' | 'sport' | 'equipment';
@@ -22,11 +22,21 @@ export const CATALOG_CATEGORIES: Record<CatalogKind, WorkoutType[]> = {
   movement: ['cardio', 'interval', 'life'], recovery: ['recovery'], sport: ['sport'], equipment: ['strength']
 };
 let entries: CatalogEntry[] = [];
+export function effectiveCatalog(records: CatalogEntry[]) {
+  const personal = new Set(records.filter((entry) => entry.owner).map((entry) => `${entry.kind}:${entry.key}`));
+  return records.filter((entry) => entry.owner || !personal.has(`${entry.kind}:${entry.key}`));
+}
+
+export function effectiveExercises(records: Exercise[]) {
+  const customized = new Set(records.filter((entry) => entry.owner && entry.source_id).map((entry) => entry.source_id));
+  return records.filter((entry) => entry.owner || !customized.has(entry.id));
+}
 const defaultLabels = [
   CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, EXERCISE_EQUIPMENT_LABELS
 ].map((labels) => ({ labels, defaults: { ...labels } }));
 
 export function applyCatalog(records: CatalogEntry[]) {
+  records = effectiveCatalog(records);
   entries = records;
   for (const { labels, defaults } of defaultLabels) {
     for (const key of Object.keys(labels)) delete labels[key];

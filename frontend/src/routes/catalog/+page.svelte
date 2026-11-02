@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Check, Pencil, Plus, X } from '@lucide/svelte';
-  import { isAdmin } from '$lib/stores/role';
-  import { currentUserId, getCatalog, getCatalogExercises, saveCatalogEntry, saveCatalogExercise } from '$lib/pocketbase';
+  import { getCatalog, getCatalogExercises, saveCatalogEntry, saveCatalogExercise } from '$lib/pocketbase';
   import { applyCatalog, CATALOG_CATEGORIES, CATALOG_KIND_LABELS, type CatalogEntry, type CatalogKind } from '$lib/catalog';
   import { EXERCISE_EQUIPMENT_LABELS, MUSCLE_GROUP_OPTIONS, WORKOUT_TYPE_LABELS, type Exercise, type WorkoutType } from '$lib/types';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
@@ -16,13 +15,12 @@
   let selectedCategory: WorkoutType = 'life';
   let search = '';
   let showInactive = false;
-  let entryForm: { id?: string; kind: CatalogKind; label: string; categories: WorkoutType[]; active: boolean } | null = null;
-  let exerciseForm: { id?: string; name: string; category: string; muscle_group: string; equipment_options: string[]; active: boolean } | null = null;
+  let entryForm: { id?: string; personalize?: boolean; kind: CatalogKind; label: string; categories: WorkoutType[]; active: boolean } | null = null;
+  let exerciseForm: { id?: string; personalize?: boolean; name: string; category: string; muscle_group: string; equipment_options: string[]; active: boolean } | null = null;
   let kind: CatalogKind;
   $: kind = selectedCategory === 'strength' ? 'equipment' : selectedCategory === 'sport' ? 'sport' : selectedCategory === 'recovery' ? 'recovery' : 'movement';
   $: visibleEntries = entries.filter((entry) => entry.categories.includes(selectedCategory) && (showInactive || entry.active) && entry.label.toLowerCase().includes(search.toLowerCase()));
   $: visibleExercises = exercises.filter((exercise) => (showInactive || exercise.active) && exercise.name.toLowerCase().includes(search.toLowerCase()));
-  $: editingStandardExercise = !!exerciseForm?.id && !exercises.find((exercise) => exercise.id === exerciseForm?.id)?.owner;
   $: equipmentLabels = Object.fromEntries(entries.filter((entry) => entry.kind === 'equipment').map((entry) => [entry.key, entry.label]));
 
   const load = async () => {
@@ -39,14 +37,14 @@
 
   const editEntry = (entry?: CatalogEntry) => {
     exerciseForm = null;
-    entryForm = entry ? { id: entry.id, kind: entry.kind, label: entry.label, categories: [...entry.categories], active: entry.active }
+    entryForm = entry ? { id: entry.id, personalize: !entry.owner, kind: entry.kind, label: entry.label, categories: [...entry.categories], active: entry.active }
       : { kind, label: '', categories: [selectedCategory], active: true };
     error = '';
     success = '';
   };
   const editExercise = (exercise?: Exercise) => {
     entryForm = null;
-    exerciseForm = exercise ? { id: exercise.id, name: exercise.name, category: exercise.category, muscle_group: exercise.muscle_group ?? '', equipment_options: [...exercise.equipment_options], active: exercise.active }
+    exerciseForm = exercise ? { id: exercise.id, personalize: !exercise.owner, name: exercise.name, category: exercise.category, muscle_group: exercise.muscle_group ?? '', equipment_options: [...exercise.equipment_options], active: exercise.active }
       : { name: '', category: 'compound', muscle_group: '', equipment_options: [], active: true };
     error = '';
     success = '';
@@ -57,7 +55,7 @@
     error = '';
     try {
       const saved = await saveCatalogEntry(entryForm);
-      entries = [...entries.filter((entry) => entry.id !== saved.id), saved].sort((a, b) => a.label.localeCompare(b.label));
+      entries = [...entries.filter((entry) => entry.kind !== saved.kind || entry.key !== saved.key), saved].sort((a, b) => a.label.localeCompare(b.label));
       applyCatalog(entries);
       entryForm = null;
       success = saved.owner ? 'Personal choice saved. Only you can see and use it.' : 'Standard choice saved. Other users see the change on their next page load.';
@@ -71,7 +69,7 @@
     try {
       const muscle = MUSCLE_GROUP_OPTIONS.find((option) => option.value === exerciseForm?.muscle_group)?.value;
       const saved = await saveCatalogExercise({ ...exerciseForm, muscle_group: muscle });
-      exercises = [...exercises.filter((exercise) => exercise.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name));
+      exercises = [...exercises.filter((exercise) => exercise.id !== saved.id && exercise.id !== saved.source_id), saved].sort((a, b) => a.name.localeCompare(b.name));
       exerciseForm = null;
       success = saved.owner ? 'Personal exercise saved. Only you can see and use it.' : 'Standard exercise saved. Existing workout prescriptions remain unchanged.';
     } catch (err) { error = err instanceof Error ? err.message : 'The exercise could not be saved.'; }
@@ -93,7 +91,7 @@
     <header>
       <p class="text-sm font-bold uppercase tracking-wide text-overload-signal">Your training choices</p>
       <h2 class="mt-1 text-3xl font-black">Training catalog</h2>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">Use the standard catalog and add your own activities, strength materials, machines and exercises. Your additions are private. The six main categories stay fixed.</p>
+      <p class="mt-2 text-gray-600 dark:text-gray-300">Edit any item to save a personal version, or add your own activities, materials, machines and exercises. Your changes are private. The six main categories stay fixed.</p>
     </header>
     <div class="flex flex-wrap gap-2" role="group" aria-label="Catalog category">
       {#each Object.entries(WORKOUT_TYPE_LABELS) as [value, label]}
@@ -108,6 +106,7 @@
         <form class="card" on:submit|preventDefault={saveEntry}>
           <fieldset class="space-y-4" disabled={saving}>
             <h3 class="text-xl font-bold">{entryForm.id ? 'Edit' : 'New personal'} {CATALOG_KIND_LABELS[entryForm.kind].toLowerCase()}</h3>
+            {#if entryForm.personalize}<p class="text-sm text-gray-600 dark:text-gray-300">Save a personal version for your account. The standard item stays unchanged for everyone else.</p>{/if}
             <div><label class="label" for="catalog-label">Name</label><input id="catalog-label" class="input" bind:value={entryForm.label} required maxlength="80" /></div>
             <fieldset>
               <legend class="label">Available under</legend>
@@ -129,6 +128,7 @@
         <form class="card" on:submit|preventDefault={saveExercise}>
           <fieldset class="space-y-4" disabled={saving}>
             <h3 class="text-xl font-bold">{exerciseForm.id ? 'Edit exercise' : 'New personal exercise'}</h3>
+            {#if exerciseForm.personalize}<p class="text-sm text-gray-600 dark:text-gray-300">Save a personal version for future workout selections. Existing workouts keep their original exercise.</p>{/if}
             <div><label class="label" for="exercise-name">Name</label><input id="exercise-name" class="input" bind:value={exerciseForm.name} required maxlength="120" /></div>
             <div class="grid gap-4 sm:grid-cols-2">
               <div><label class="label" for="exercise-category">Exercise category</label><CycleChoice id="exercise-category" label="Exercise category" bind:value={exerciseForm.category} options={[{ value: 'compound', label: 'Compound' }, { value: 'isolation', label: 'Isolation' }, { value: 'bodyweight', label: 'Bodyweight' }, { value: 'other', label: 'Other' }]} /></div>
@@ -137,7 +137,7 @@
             <fieldset>
               <legend class="label">Materials / machines (1–8)</legend>
               <div class="grid gap-2 sm:grid-cols-2">
-                {#each entries.filter((entry) => entry.kind === 'equipment' && (!editingStandardExercise || !entry.owner) && (entry.active || exerciseForm?.equipment_options.includes(entry.key))) as entry}
+                {#each entries.filter((entry) => entry.kind === 'equipment' && (entry.active || exerciseForm?.equipment_options.includes(entry.key))) as entry}
                   <label class="flex min-h-12 items-center gap-2 rounded-xl border border-gray-200 px-3 dark:border-gray-700"><input type="checkbox" value={entry.key} bind:group={exerciseForm.equipment_options} />{entry.label}{entry.active ? '' : ' (inactive)'}</label>
                 {/each}
               </div>
@@ -162,22 +162,18 @@
           {#each visibleEntries as entry (entry.id)}
             <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
               <div><p class="font-bold">{entry.label}{#if !entry.active}<span class="ml-2 text-xs text-gray-500">Inactive</span>{/if}</p><p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{entry.owner ? 'Personal' : 'Standard'} · {entry.categories.map((category) => WORKOUT_TYPE_LABELS[category]).join(' · ')}</p></div>
-              {#if entry.owner === currentUserId() || !entry.owner && $isAdmin}
                 <button type="button" class="btn-secondary" aria-label={`Edit ${entry.label}`} on:click={() => editEntry(entry)}><Pencil size={16} />Edit</button>
-              {/if}
             </div>
           {:else}<p class="py-4 text-sm text-gray-600 dark:text-gray-300">No entries match this filter.</p>{/each}
         </section>
         {#if selectedCategory === 'strength'}
           <section class="card space-y-3">
             <div class="flex flex-wrap items-center justify-between gap-3"><h3 class="text-xl font-bold">Strength exercises</h3><button type="button" class="btn-primary" on:click={() => editExercise()}><Plus size={18} />New exercise</button></div>
-            <p class="text-sm text-gray-600 dark:text-gray-300">Add personal exercises and assign materials or machines so they appear in your workout choices. Standard exercises remain available.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300">Edit a standard exercise to create your own version, or add a new exercise. Assign materials or machines for your workout choices.</p>
             {#each visibleExercises as exercise (exercise.id)}
               <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
                 <div class="min-w-0"><p class="font-bold">{exercise.name}{#if !exercise.active}<span class="ml-2 text-xs text-gray-500">Inactive</span>{/if}</p><p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{exercise.owner ? 'Personal' : 'Standard'} · {exercise.equipment_options.map((key) => equipmentLabels[key] ?? EXERCISE_EQUIPMENT_LABELS[key] ?? key).join(' · ')}</p></div>
-                {#if exercise.owner === currentUserId() || !exercise.owner && $isAdmin}
                   <button type="button" class="btn-secondary" aria-label={`Edit exercise ${exercise.name}`} on:click={() => editExercise(exercise)}><Pencil size={16} />Edit</button>
-                {/if}
               </div>
             {:else}<p class="py-4 text-sm text-gray-600 dark:text-gray-300">No exercises match this filter.</p>{/each}
           </section>

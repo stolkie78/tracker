@@ -387,7 +387,7 @@
                 onChange={(muscle) => entries[index] = { ...entry, muscle, exercise: '', equipment: '' }} />
               <select class="input" aria-label="Exercise" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
                 <option value="">Choose an exercise…</option>
-                {#each exercises.filter((item) => (item.active || editing && item.id === entry.exercise) && (!entry.muscle || item.muscle_group === entry.muscle)) as exercise}<option value={exercise.id}>{exercise.name}{exercise.active ? '' : ' (inactive)'}</option>{/each}
+                {#each exercises.filter((item) => (item.active && !exercises.some((custom) => custom.source_id === item.id) || editing && item.id === entry.exercise) && (!entry.muscle || item.muscle_group === entry.muscle)) as exercise}<option value={exercise.id}>{exercise.name}{exercise.active ? '' : ' (inactive)'}</option>{/each}
               </select>
               <CycleChoice label="Equipment" bind:value={entry.equipment} placeholder="Choose an exercise first"
                 options={optionsFor(entry.exercise, editing ? entry.equipment : '').map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />

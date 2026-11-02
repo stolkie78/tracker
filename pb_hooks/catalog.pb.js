@@ -14,11 +14,21 @@ routerAdd("POST", "/api/top-trainer/catalog", function (e) {
   var result;
   e.app.runInTransaction(function (app) {
     var entry = body.id ? app.findRecordById("training_catalog", body.id) : new Record(app.findCollectionByNameOrId("training_catalog"));
+    var source = null;
+    if (body.id && body.personalize === true && !entry.getString("owner")) {
+      source = entry;
+      var overrides = app.findRecordsByFilter("training_catalog", "owner = {:owner} && kind = {:kind} && key = {:key}", "", 1, 0,
+        { owner: e.auth.id, kind: source.getString("kind"), key: source.getString("key") });
+      entry = overrides.length ? overrides[0] : new Record(app.findCollectionByNameOrId("training_catalog"));
+      entry.set("owner", e.auth.id);
+      entry.set("kind", source.getString("kind"));
+      entry.set("key", source.getString("key"));
+    }
     if (body.id) lib.requireEditable(app, entry, e.auth.id);
     else entry.set("owner", e.auth.id);
     if (body.id && entry.getString("kind") !== kind) throw new BadRequestError("The entry type cannot be changed.");
     var duplicates = app.findRecordsByFilter("training_catalog", "kind = {:kind} && label ~ {:label} && (owner = '' || owner = {:owner})", "", 0, 0, { kind: kind, label: name, owner: entry.getString("owner") });
-    if (duplicates.some(function (item) { return item.id !== entry.id && item.getString("label").toLowerCase() === name.toLowerCase(); })) {
+    if (duplicates.some(function (item) { return item.id !== entry.id && item.getString("key") !== entry.getString("key") && item.getString("label").toLowerCase() === name.toLowerCase(); })) {
       throw new BadRequestError("An entry with this name already exists.");
     }
     if (!body.id) {
@@ -46,13 +56,21 @@ routerAdd("POST", "/api/top-trainer/catalog/exercises", function (e) {
   var result;
   e.app.runInTransaction(function (app) {
     var exercise = body.id ? app.findRecordById("exercises", body.id) : new Record(app.findCollectionByNameOrId("exercises"));
+    var source = null;
+    if (body.id && body.personalize === true && !exercise.getString("owner")) {
+      source = exercise;
+      var overrides = app.findRecordsByFilter("exercises", "owner = {:owner} && source_id = {:source}", "", 1, 0, { owner: e.auth.id, source: source.id });
+      exercise = overrides.length ? overrides[0] : new Record(app.findCollectionByNameOrId("exercises"));
+      exercise.set("owner", e.auth.id);
+      exercise.set("source_id", source.id);
+    }
     if (body.id) lib.requireEditable(app, exercise, e.auth.id);
     else exercise.set("owner", e.auth.id);
     var duplicates = app.findRecordsByFilter("exercises", "(owner = '' || owner = {:owner}) && name ~ {:name}", "", 0, 0, { name: body.name.trim(), owner: exercise.getString("owner") });
-    if (duplicates.some(function (item) { return item.id !== exercise.id && item.getString("name").toLowerCase() === body.name.trim().toLowerCase(); })) {
+    if (duplicates.some(function (item) { return item.id !== exercise.id && item.id !== exercise.getString("source_id") && item.getString("name").toLowerCase() === body.name.trim().toLowerCase(); })) {
       throw new BadRequestError("An exercise with this name already exists.");
     }
-    var previous = exercise.getStringSlice("equipment_options");
+    var previous = source && exercise.isNew() ? source.getStringSlice("equipment_options") : exercise.getStringSlice("equipment_options");
     body.equipment_options.forEach(function (key) {
       if (typeof key !== "string") throw new BadRequestError("Choose valid equipment.");
       lib.validateChoice(app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "", exercise.getString("owner"));
@@ -103,6 +121,13 @@ onRecordValidate(function (e) {
 onRecordValidate(function (e) {
   var lib = require(__hooks + "/catalog_lib.js");
   var previous = e.record.isNew() ? [] : e.record.original().getStringSlice("equipment_options");
+  var sourceId = e.record.getString("source_id");
+  if (sourceId) {
+    var source = e.app.findRecordById("exercises", sourceId);
+    if (source.getString("owner") || !e.record.getString("owner")) throw new BadRequestError("Choose a standard exercise to customize.");
+    if (e.record.isNew()) previous = source.getStringSlice("equipment_options");
+  }
+  if (!e.record.isNew() && sourceId !== e.record.original().getString("source_id")) throw new BadRequestError("The original exercise cannot be changed.");
   e.record.getStringSlice("equipment_options").forEach(function (key) {
     lib.validateChoice(e.app, "equipment", key, "strength", previous.indexOf(key) >= 0 ? key : "", e.record.getString("owner"));
   });

@@ -84,6 +84,7 @@ export interface BodyMeasurement extends BaseRecord {
 
 export interface Exercise extends BaseRecord {
   owner?: ID;
+  source_id?: ID;
   name: string;
   category: string;
   muscle_group?: MuscleGroup;
