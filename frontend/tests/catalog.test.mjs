@@ -10,7 +10,7 @@ const server = await createServer({
   server: { middlewareMode: true, ws: false }, appType: 'custom'
 });
 after(() => server.close());
-const { applyCatalog, activityOptions, equipmentOptions } = await server.ssrLoadModule('/src/lib/catalog.ts');
+const { applyCatalog, activityOptions, equipmentOptions, effectiveCatalog, effectiveExercises } = await server.ssrLoadModule('/src/lib/catalog.ts');
 const types = await server.ssrLoadModule('/src/lib/types/index.ts');
 const entry = (key, kind, categories, active = true) => ({ id: key, key, kind, categories, active, label: key.toUpperCase() });
 
@@ -46,4 +46,24 @@ test('catalog choices follow categories, preserve archived labels and exclude ar
   assert.equal(types.EXERCISE_EQUIPMENT_LABELS.custom_machine, undefined);
   assert.deepEqual(activityOptions('life').map((option) => option.value), ['cycling']);
   assert.equal(activityOptions('life', 'legacy_choice').find((option) => option.value === 'legacy_choice').label, 'legacy_choice (inactive)');
+});
+
+test('personal versions replace standard choices, including inactive versions, without changing original records', () => {
+  const standard = { ...entry('rowing', 'movement', ['cardio']), owner: '' };
+  const personal = { ...standard, id: 'my-rowing', owner: 'me', label: 'My rowing', categories: ['life'], active: false };
+  assert.deepEqual(effectiveCatalog([personal, standard]), [personal]);
+  assert.deepEqual(effectiveCatalog([standard, personal]), [personal]);
+  applyCatalog([standard, personal]);
+  assert.deepEqual(activityOptions('cardio'), []);
+  assert.deepEqual(activityOptions('life'), []);
+  assert.equal(activityOptions('cardio', 'rowing')[0].label, 'My rowing (inactive)');
+  assert.equal(types.CARDIO_MODE_LABELS.rowing, 'My rowing');
+  applyCatalog([standard]);
+  assert.equal(types.CARDIO_MODE_LABELS.rowing, 'ROWING', 'Another account still uses the shared label');
+  assert.equal(standard.active, true);
+
+  const exercise = { id: 'squat', owner: '', name: 'Squat', active: true };
+  const custom = { ...exercise, id: 'my-squat', owner: 'me', source_id: 'squat', active: false };
+  assert.deepEqual(effectiveExercises([exercise, custom]), [custom]);
+  assert.deepEqual(effectiveExercises([exercise]), [exercise]);
 });

@@ -176,12 +176,15 @@ routerAdd(
       fail(400, "Use an HTTPS endpoint or a local endpoint on localhost.");
     }
 
-    var exercises = $app.findRecordsByFilter("exercises", 'active = true && (owner = "" || owner = {:owner})', "name", 500, 0, { owner: e.auth.id });
+    var lib = require(__hooks + "/catalog_lib.js");
+    var exercises = lib.effective($app.findRecordsByFilter("exercises", 'owner = "" || owner = {:owner}', "name", 0, 0, { owner: e.auth.id }),
+      function (record) { return record.getString("source_id") || record.id; }).filter(function (record) { return record.getBool("active"); });
     if (exercises.length === 0) {
       fail(400, "No exercises are available yet. Add exercises and try again.");
     }
 
-    var catalog = $app.findRecordsByFilter("training_catalog", "active = true && (owner = '' || owner = {:owner})", "label", 0, 0, { owner: e.auth.id });
+    var catalog = lib.effective($app.findRecordsByFilter("training_catalog", "owner = '' || owner = {:owner}", "label", 0, 0, { owner: e.auth.id }),
+      function (record) { return record.getString("kind") + ":" + record.getString("key"); }).filter(function (record) { return record.getBool("active"); });
     var equipmentKeys = catalog.filter(function (entry) { return entry.getString("kind") === "equipment"; }).map(function (entry) { return entry.getString("key"); });
     var activityKeys = function (kind, category) {
       return catalog.filter(function (entry) {

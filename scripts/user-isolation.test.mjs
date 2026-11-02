@@ -79,6 +79,35 @@ test('personal records, relationships and protected photos stay with their owner
     const standardActivity = (await ok(`${path('training_catalog')}?filter=${encodeURIComponent('kind="movement" && key="running"')}`, alice.token)).items[0];
     assert.equal(standardActivity.owner, '');
     await denied(catalogRoute, alice.token, 'POST', { ...standardActivity, label: 'Cannot edit the standard' });
+    const standardRowing = (await ok(`${path('training_catalog')}?filter=${encodeURIComponent('kind="movement" && key="rowing" && owner=""')}`, alice.token)).items[0];
+    const rowingOverride = await ok(catalogRoute, alice.token, 'POST', { ...standardRowing, personalize: true, label: 'My rowing', categories: ['life'] });
+    records.push(['training_catalog', rowingOverride.id]);
+    assert.equal(rowingOverride.owner, alice.id);
+    assert.equal(rowingOverride.key, 'rowing');
+    assert.notEqual(rowingOverride.id, standardRowing.id);
+    assert.deepEqual((await ok(path('training_catalog', standardRowing.id), bob.token)).categories, ['cardio', 'interval']);
+    await denied(path('training_catalog', rowingOverride.id), bob.token);
+    const rowingAgain = await ok(catalogRoute, alice.token, 'POST', { ...standardRowing, personalize: true, label: 'My rowing updated', active: false });
+    assert.equal(rowingAgain.id, rowingOverride.id, 'Editing the original again updates the existing personal version');
+    await denied('top-trainer/templates', alice.token, 'POST', {
+      template: { title: 'Hidden rowing', type: 'cardio', cardio_mode: 'rowing', duration_minutes: 30 }, exercises: []
+    });
+    const bobRowing = await ok('top-trainer/templates', bob.token, 'POST', {
+      template: { title: 'Standard rowing still available', type: 'cardio', cardio_mode: 'rowing', duration_minutes: 30 }, exercises: []
+    });
+    records.push(['workout_templates', bobRowing.id]);
+    const standardBand = (await ok(`${path('training_catalog')}?filter=${encodeURIComponent('kind="equipment" && key="band" && owner=""')}`, alice.token)).items[0];
+    const bandOverride = await ok(catalogRoute, alice.token, 'POST', { ...standardBand, personalize: true, label: 'My resistance band', active: false });
+    records.push(['training_catalog', bandOverride.id]);
+    assert.equal(bandOverride.key, standardBand.key);
+    await denied('top-trainer/catalog/exercises', alice.token, 'POST', {
+      name: 'Unavailable band', category: 'other', equipment_options: ['band'], active: true
+    });
+    const bobBandExercise = await ok('top-trainer/catalog/exercises', bob.token, 'POST', {
+      name: 'Available standard band', category: 'other', equipment_options: ['band'], active: true
+    });
+    records.push(['exercises', bobBandExercise.id]);
+    assert.equal((await ok(path('training_catalog', standardBand.id), bob.token)).active, true);
     await denied(path('training_catalog', activity.id), carol.token, 'PATCH', { label: 'Direct edits forbidden' });
     await denied(path('training_catalog', activity.id), carol.token, 'DELETE');
     await denied(path('training_catalog'), carol.token, 'POST', { ...catalogData, key: 'spoof' });
@@ -134,6 +163,19 @@ test('personal records, relationships and protected photos stay with their owner
     assert.equal(machineEntries[0].equipment, machine.key);
     const seeded = (await ok(`${path('exercises')}?filter=${encodeURIComponent('seed_key="Squat"')}`, carol.token)).items[0];
     assert.ok(seeded);
+    const personalSquatData = {
+      id: seeded.id, personalize: true, name: seeded.name, category: seeded.category,
+      muscle_group: seeded.muscle_group, equipment_options: [machine.key], active: true
+    };
+    const personalSquat = await ok('top-trainer/catalog/exercises', alice.token, 'POST', personalSquatData);
+    records.push(['exercises', personalSquat.id]);
+    assert.equal(personalSquat.owner, alice.id);
+    assert.equal(personalSquat.source_id, seeded.id);
+    assert.notEqual(personalSquat.id, seeded.id);
+    assert.deepEqual((await ok(path('exercises', seeded.id), bob.token)).equipment_options, seeded.equipment_options);
+    await denied(path('exercises', personalSquat.id), bob.token);
+    const updatedSquat = await ok('top-trainer/catalog/exercises', alice.token, 'POST', { ...personalSquatData, name: 'My squat' });
+    assert.equal(updatedSquat.id, personalSquat.id);
     await ok('top-trainer/catalog/exercises', carol.token, 'POST', {
       id: seeded.id, name: 'Renamed catalog squat', category: 'compound', muscle_group: 'legs', equipment_options: ['cable'], active: false
     });
@@ -166,6 +208,9 @@ test('personal records, relationships and protected photos stay with their owner
     assert.equal(seededAfter.active, false);
     assert.deepEqual(seededAfter.equipment_options, ['cable']);
     assert.equal(afterMigration.owner, alice.id);
+    assert.equal((await ok(path('training_catalog', rowingOverride.id), alice.token)).label, 'My rowing updated');
+    assert.equal((await ok(path('training_catalog', rowingOverride.id), alice.token)).active, false);
+    assert.equal((await ok(path('exercises', personalSquat.id), alice.token)).source_id, seeded.id);
     assert.equal((await ok(path('exercises', catalogExercise.id), alice.token)).owner, alice.id);
     assert.equal((await ok(`${path('exercises')}?filter=${encodeURIComponent('seed_key="Squat"')}`, carol.token)).items.length, 1);
     await ok(catalogRoute, alice.token, 'POST', { ...machineData, id: machine.id, active: true });

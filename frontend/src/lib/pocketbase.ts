@@ -1,5 +1,5 @@
 import PocketBase, { ClientResponseError } from 'pocketbase';
-import type { CatalogEntry } from './catalog';
+import { effectiveCatalog, effectiveExercises, type CatalogEntry } from './catalog';
 import {
   DEFAULT_STRENGTH_REST_SECONDS,
   DEFAULT_STRENGTH_TEMPO,
@@ -31,12 +31,12 @@ export const pb = new PocketBase(baseUrl);
 pb.autoCancellation(false);
 
 export const currentUserId = () => pb.authStore.model?.id ?? '';
-export const getCatalog = () => pb.collection('training_catalog').getFullList<CatalogEntry>({ sort: 'label', requestKey: null });
-export const saveCatalogEntry = (entry: Omit<CatalogEntry, 'id' | 'key' | 'owner'> & { id?: string }) =>
+export const getCatalog = async () => effectiveCatalog(await pb.collection('training_catalog').getFullList<CatalogEntry>({ sort: 'label', requestKey: null }));
+export const saveCatalogEntry = (entry: Omit<CatalogEntry, 'id' | 'key' | 'owner'> & { id?: string; personalize?: boolean }) =>
   pb.send<CatalogEntry>('/api/top-trainer/catalog', { method: 'POST', body: entry, requestKey: null });
-export const getCatalogExercises = () =>
-  pb.collection('exercises').getFullList<Exercise>({ sort: 'name', requestKey: null });
-export const saveCatalogExercise = (exercise: Pick<Exercise, 'name' | 'category' | 'muscle_group' | 'equipment_options' | 'active'> & { id?: string }) =>
+export const getCatalogExercises = async () =>
+  effectiveExercises(await pb.collection('exercises').getFullList<Exercise>({ sort: 'name', requestKey: null }));
+export const saveCatalogExercise = (exercise: Pick<Exercise, 'name' | 'category' | 'muscle_group' | 'equipment_options' | 'active'> & { id?: string; personalize?: boolean }) =>
   pb.send<Exercise>('/api/top-trainer/catalog/exercises', { method: 'POST', body: exercise, requestKey: null });
 const ownerFilter = () => `owner = "${currentUserId()}"`;
 
@@ -197,12 +197,7 @@ export const getTrainingPlans = () =>
     requestKey: null
   });
 
-export const getExercises = () =>
-  pb.collection('exercises').getFullList<Exercise>({
-    filter: 'active = true',
-    sort: 'name',
-    requestKey: null
-  });
+export const getExercises = async () => (await getCatalogExercises()).filter((exercise) => exercise.active);
 
 export const createExercise = (data: Pick<Exercise, 'name' | 'category' | 'muscle_group' | 'equipment_options'>) =>
   pb.collection('exercises').create<Exercise>({ ...data, owner: currentUserId(), active: true });

@@ -14,9 +14,10 @@ function requireEditable(app, record, user) {
 
 function validateChoice(app, kind, key, category, previous, owner) {
   if (!key) return;
-  var records = app.findRecordsByFilter("training_catalog", "kind = {:kind} && key = {:key}", "", 1, 0, { kind: kind, key: key });
+  var records = app.findRecordsByFilter("training_catalog", "kind = {:kind} && key = {:key} && (owner = '' || owner = {:owner})", "-owner", 1, 0, { kind: kind, key: key, owner: owner || "" });
   if (!records.length) {
-    if (key === previous) return;
+    var foreign = app.findRecordsByFilter("training_catalog", "kind = {:kind} && key = {:key}", "", 1, 0, { kind: kind, key: key });
+    if (!foreign.length && key === previous) return;
     throw new BadRequestError("Choose an available catalog entry.");
   }
   var entry = records[0];
@@ -26,6 +27,14 @@ function validateChoice(app, kind, key, category, previous, owner) {
   if ((!entry.getBool("active") || (category && entry.getStringSlice("categories").indexOf(category) < 0)) && key !== previous) {
     throw new BadRequestError("This catalog entry is not available for new selections.");
   }
+}
+
+function effective(records, identity) {
+  var personal = {};
+  records.forEach(function (record) {
+    if (record.getString("owner")) personal[identity(record)] = true;
+  });
+  return records.filter(function (record) { return record.getString("owner") || !personal[identity(record)]; });
 }
 
 function extendSchema(app, kind, key) {
@@ -43,4 +52,4 @@ function extendSchema(app, kind, key) {
   });
 }
 
-module.exports = { requireEditable: requireEditable, validateChoice: validateChoice, extendSchema: extendSchema };
+module.exports = { requireEditable: requireEditable, validateChoice: validateChoice, extendSchema: extendSchema, effective: effective };

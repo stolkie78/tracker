@@ -150,7 +150,7 @@ ensure_collection training_catalog base "$CATALOG_FIELDS" \
   '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' '__locked__' '__locked__' '__locked__'
 CATALOG_ID="$(collection_id training_catalog)"
 api -X PATCH "$PB_URL/api/collections/$CATALOG_ID" -H 'Content-Type: application/json' \
-  --data '{"indexes":["CREATE UNIQUE INDEX idx_catalog_kind_key ON training_catalog (kind, key)"]}' >/dev/null
+  --data '{"indexes":["CREATE UNIQUE INDEX idx_catalog_owner_kind_key ON training_catalog (owner, kind, key)"]}' >/dev/null
 while IFS= read -r entry; do
   key="$(printf '%s' "$entry" | jq -r '.key')"
   kind="$(printf '%s' "$entry" | jq -r '.kind')"
@@ -198,16 +198,19 @@ ensure_collection body_measurements base "$MEASUREMENT_FIELDS" \
   'owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)' 'owner = @request.auth.id'
 
 EXERCISE_FIELDS="$(jq -cn --argjson name "$(text_field name true)" \
+  --argjson source "$(text_field source_id)" \
   --argjson managed "$(bool_field catalog_managed)" --argjson seed "$(text_field seed_key)" \
   --argjson owner "$(relation_field owner _pb_users_auth_)" \
   --argjson category "$(select_field category '["compound","isolation","bodyweight","other"]' true)" \
   --argjson muscle "$(select_field muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]')" \
   --argjson equipment "$(jq -cn --argjson values '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]' '{name:"equipment_options",type:"select",required:false,maxSelect:8,values:$values}')" \
-  --argjson active "$(bool_field active)" '[$name,$category,$muscle,$equipment,$active,$owner,$managed,$seed]')"
+  --argjson active "$(bool_field active)" '[$name,$category,$muscle,$equipment,$active,$owner,$managed,$seed,$source]')"
 EXERCISE_EDIT_RULE='owner = @request.auth.id || (owner = "" && @collection.profiles:admin.user ?= @request.auth.id && @collection.profiles:admin.role ?= "admin")'
 ensure_collection exercises base "$EXERCISE_FIELDS" \
   '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' 'owner = @request.auth.id' \
   "($EXERCISE_EDIT_RULE) && (@request.body.owner:isset = false || @request.body.owner = owner)" "$EXERCISE_EDIT_RULE"
+api -X PATCH "$PB_URL/api/collections/$(collection_id exercises)" -H 'Content-Type: application/json' \
+  --data '{"indexes":["CREATE UNIQUE INDEX idx_exercises_owner_source ON exercises (owner, source_id) WHERE source_id != \"\""]}' >/dev/null
 
 PLAN_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson title "$(text_field title true)" \
