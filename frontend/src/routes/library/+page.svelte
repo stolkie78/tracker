@@ -191,7 +191,7 @@
       return;
     }
     if (type === 'strength' && entries.some((entry) => !entry.equipment && (exercises.find((exercise) => exercise.id === entry.exercise)?.equipment_options.length ?? 0) > 0)) {
-      error = 'This exercise has no active material or machine selected. Choose another exercise or ask an administrator to update the catalog.';
+      error = 'This exercise has no active material or machine selected. Choose another exercise or update your personal choices in Catalog.';
       return;
     }
     saving = true;

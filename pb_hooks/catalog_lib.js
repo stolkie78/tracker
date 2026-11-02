@@ -1,9 +1,18 @@
 function requireAdmin(app, user) {
   var profiles = app.findRecordsByFilter("profiles", "user = {:user} && role = 'admin'", "", 1, 0, { user: user });
-  if (!profiles.length) throw new ForbiddenError("Only administrators can manage the training catalog.");
+  if (!profiles.length) throw new ForbiddenError("Only administrators can change standard catalog entries.");
 }
 
-function validateChoice(app, kind, key, category, previous) {
+function requireEditable(app, record, user) {
+  var owner = record.getString("owner");
+  if (owner) {
+    if (owner !== user) throw new NotFoundError("Catalog entry not found.");
+  } else {
+    requireAdmin(app, user);
+  }
+}
+
+function validateChoice(app, kind, key, category, previous, owner) {
   if (!key) return;
   var records = app.findRecordsByFilter("training_catalog", "kind = {:kind} && key = {:key}", "", 1, 0, { kind: kind, key: key });
   if (!records.length) {
@@ -11,6 +20,9 @@ function validateChoice(app, kind, key, category, previous) {
     throw new BadRequestError("Choose an available catalog entry.");
   }
   var entry = records[0];
+  if (entry.getString("owner") && entry.getString("owner") !== owner) {
+    throw new BadRequestError("Choose an available catalog entry.");
+  }
   if ((!entry.getBool("active") || (category && entry.getStringSlice("categories").indexOf(category) < 0)) && key !== previous) {
     throw new BadRequestError("This catalog entry is not available for new selections.");
   }
@@ -31,4 +43,4 @@ function extendSchema(app, kind, key) {
   });
 }
 
-module.exports = { requireAdmin: requireAdmin, validateChoice: validateChoice, extendSchema: extendSchema };
+module.exports = { requireEditable: requireEditable, validateChoice: validateChoice, extendSchema: extendSchema };

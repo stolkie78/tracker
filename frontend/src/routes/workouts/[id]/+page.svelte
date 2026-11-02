@@ -102,7 +102,7 @@
       return;
     }
     if (!addEquipment && (catalog.find((exercise) => exercise.id === addExerciseId)?.equipment_options.length ?? 0) > 0) {
-      error = 'This exercise has no active material or machine. Choose another exercise or ask an administrator to update the catalog.';
+      error = 'This exercise has no active material or machine. Choose another exercise or update your personal choices in Catalog.';
       return;
     }
     adding = true;

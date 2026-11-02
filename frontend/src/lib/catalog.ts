@@ -7,6 +7,7 @@ import {
 export type CatalogKind = 'movement' | 'recovery' | 'sport' | 'equipment';
 export interface CatalogEntry {
   id: string;
+  owner: string;
   key: string;
   kind: CatalogKind;
   label: string;
@@ -21,9 +22,16 @@ export const CATALOG_CATEGORIES: Record<CatalogKind, WorkoutType[]> = {
   movement: ['cardio', 'interval', 'life'], recovery: ['recovery'], sport: ['sport'], equipment: ['strength']
 };
 let entries: CatalogEntry[] = [];
+const defaultLabels = [
+  CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, EXERCISE_EQUIPMENT_LABELS
+].map((labels) => ({ labels, defaults: { ...labels } }));
 
 export function applyCatalog(records: CatalogEntry[]) {
   entries = records;
+  for (const { labels, defaults } of defaultLabels) {
+    for (const key of Object.keys(labels)) delete labels[key];
+    Object.assign(labels, defaults);
+  }
   for (const entry of records) {
     const labels = entry.kind === 'movement' ? CARDIO_MODE_LABELS : entry.kind === 'recovery' ? RECOVERY_ACTIVITY_LABELS
       : entry.kind === 'sport' ? SPORT_ACTIVITY_LABELS : EXERCISE_EQUIPMENT_LABELS;

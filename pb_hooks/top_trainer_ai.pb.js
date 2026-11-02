@@ -181,7 +181,7 @@ routerAdd(
       fail(400, "No exercises are available yet. Add exercises and try again.");
     }
 
-    var catalog = $app.findRecordsByFilter("training_catalog", "active = true", "label", 0, 0);
+    var catalog = $app.findRecordsByFilter("training_catalog", "active = true && (owner = '' || owner = {:owner})", "label", 0, 0, { owner: e.auth.id });
     var equipmentKeys = catalog.filter(function (entry) { return entry.getString("kind") === "equipment"; }).map(function (entry) { return entry.getString("key"); });
     var activityKeys = function (kind, category) {
       return catalog.filter(function (entry) {
@@ -192,7 +192,7 @@ routerAdd(
     var validInterval = activityKeys("movement", "interval");
     var validRecovery = activityKeys("recovery", "recovery");
     if ((cardioCount && !validCardio.length) || (intervalCount && !validInterval.length) || (recoveryCount && !validRecovery.length)) {
-      fail(400, "The selected session types have no active activities. Ask an administrator to update the catalog.");
+      fail(400, "The selected session types have no active activities. Add an activity in the training catalog.");
     }
     var allowedExercises = {};
     var exerciseList = [];

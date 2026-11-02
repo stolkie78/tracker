@@ -141,12 +141,13 @@ secret_field() {
 
 OWNER_FIELD="$(relation_field owner _pb_users_auth_ true)"
 CATALOG_FIELDS="$(jq -cn \
+  --argjson owner "$(relation_field owner _pb_users_auth_)" \
   --argjson key "$(text_field key true)" --argjson label "$(text_field label true)" \
   --argjson kind "$(select_field kind '["movement","recovery","sport","equipment"]' true)" \
   --argjson categories "$(jq -cn '{name:"categories",type:"select",maxSelect:6,values:["strength","cardio","interval","recovery","sport","life"]}')" \
-  --argjson active "$(bool_field active)" '[$key,$label,$kind,$categories,$active]')"
+  --argjson active "$(bool_field active)" '[$key,$label,$kind,$categories,$active,$owner]')"
 ensure_collection training_catalog base "$CATALOG_FIELDS" \
-  'id != ""' 'id != ""' '__locked__' '__locked__' '__locked__'
+  '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' '__locked__' '__locked__' '__locked__'
 CATALOG_ID="$(collection_id training_catalog)"
 api -X PATCH "$PB_URL/api/collections/$CATALOG_ID" -H 'Content-Type: application/json' \
   --data '{"indexes":["CREATE UNIQUE INDEX idx_catalog_kind_key ON training_catalog (kind, key)"]}' >/dev/null
@@ -154,7 +155,7 @@ while IFS= read -r entry; do
   key="$(printf '%s' "$entry" | jq -r '.key')"
   kind="$(printf '%s' "$entry" | jq -r '.kind')"
   count="$(api -G "$PB_URL/api/collections/training_catalog/records" \
-    --data-urlencode "filter=key=\"$key\" && kind=\"$kind\"" | jq -r '.totalItems')"
+    --data-urlencode "filter=key=\"$key\" && kind=\"$kind\" && owner=\"\"" | jq -r '.totalItems')"
   if [ "$count" = 0 ]; then
     api -X POST "$PB_URL/api/collections/training_catalog/records" -H 'Content-Type: application/json' --data "$entry" >/dev/null
   fi

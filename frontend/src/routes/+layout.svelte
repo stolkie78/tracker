@@ -7,7 +7,7 @@
   import { darkTheme } from '$lib/stores/theme';
   import { aiAvailability, loadAIAvailability } from '$lib/stores/ai';
   import { currentUser, isAuthenticated } from '$lib/stores/auth';
-  import { loadUserRoles, rolesLoaded, isAdmin } from '$lib/stores/role';
+  import { loadUserRoles, rolesLoaded } from '$lib/stores/role';
   import { getCatalog, getStravaStatus, syncStrava } from '$lib/pocketbase';
   import { applyCatalog } from '$lib/catalog';
 
@@ -15,16 +15,26 @@
   let catalogLoaded = false;
   let catalogLoading = false;
   let catalogError = '';
+  let catalogUser = '';
+  $: if (catalogUser !== ($currentUser?.id ?? '')) {
+    catalogUser = $currentUser?.id ?? '';
+    catalogLoaded = false;
+    catalogLoading = false;
+    catalogError = '';
+  }
   const loadCatalog = async () => {
+    const user = $currentUser?.id;
     catalogLoading = true;
     catalogError = '';
     try {
-      applyCatalog(await getCatalog());
+      const entries = await getCatalog();
+      if ($currentUser?.id !== user) return;
+      applyCatalog(entries);
       catalogLoaded = true;
     } catch (error) {
-      catalogError = error instanceof Error ? error.message : 'The training catalog could not be loaded.';
+      if ($currentUser?.id === user) catalogError = error instanceof Error ? error.message : 'The training catalog could not be loaded.';
     } finally {
-      catalogLoading = false;
+      if ($currentUser?.id === user) catalogLoading = false;
     }
   };
   $: if (browser && $isAuthenticated && !catalogLoaded && !catalogLoading && !catalogError) void loadCatalog();
@@ -44,7 +54,7 @@
     { href: '/', label: 'Timeline' },
     { href: '/library', label: 'Workouts' },
     { href: '/programs', label: 'Programs' },
-    { href: '/catalog', label: 'Catalog', admin: true },
+    { href: '/catalog', label: 'Catalog' },
     { href: '/planner', label: 'AI planner', ai: true }
   ];
   const isActive = (path: string, href: string) =>
@@ -66,7 +76,7 @@
   $: inTraining = nav[0].match($page.url.pathname);
   $: inHealth = nav[1].match($page.url.pathname);
   $: inInsights = nav[2].match($page.url.pathname);
-  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => (!item.ai || $aiAvailability.enabled) && (!item.admin || $isAdmin)) : inInsights ? insightsNav : [];
+  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : inInsights ? insightsNav : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
