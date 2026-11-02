@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
+  import { activityOptions, equipmentOptions } from '$lib/catalog';
   import { CalendarPlus, LoaderCircle, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import {
     saveTemplate,
@@ -12,8 +13,6 @@
   } from '$lib/pocketbase';
   import {
     CARDIO_MODE_LABELS,
-    CARDIO_MODE_OPTIONS,
-    LIFE_ACTIVITY_OPTIONS,
     DEFAULT_STRENGTH_REST_SECONDS,
     DEFAULT_STRENGTH_TEMPO,
     DAY_PART_HOURS,
@@ -23,9 +22,7 @@
     EXPERIENCE_LEVEL_LABELS,
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
-    RECOVERY_ACTIVITY_OPTIONS,
     SPORT_ACTIVITY_LABELS,
-    SPORT_ACTIVITY_OPTIONS,
     WORKOUT_TYPE_LABELS,
     WORKOUT_TYPE_OPTIONS,
     WORKOUT_TYPE_STYLES,
@@ -66,7 +63,7 @@
   let goal = '';
   let tags = '';
   let cardioMode: CardioMode = 'running';
-  let lifeActivity: 'walking' | 'hiking' = 'walking';
+  let lifeActivity = 'walking';
   let distance = 0;
   let intervalWork = 30;
   let intervalRest = 60;
@@ -92,7 +89,8 @@
     }
   });
 
-  const optionsFor = (exerciseId: string) => exercises.find((exercise) => exercise.id === exerciseId)?.equipment_options ?? [];
+  const optionsFor = (exerciseId: string, current = '') =>
+    equipmentOptions(exercises.find((exercise) => exercise.id === exerciseId)?.equipment_options ?? [], current);
 
   const pickExercise = (index: number, exerciseId: string) => {
     entries[index] = { ...entries[index], exercise: exerciseId, equipment: optionsFor(exerciseId)[0] ?? '' };
@@ -122,6 +120,10 @@
 
   const chooseType = async (value: WorkoutType) => {
     type = value;
+    cardioMode = activityOptions(type)[0]?.value ?? '';
+    lifeActivity = activityOptions('life')[0]?.value ?? '';
+    recoveryActivity = activityOptions('recovery')[0]?.value ?? '';
+    sportActivity = activityOptions('sport')[0]?.value ?? '';
     wizardStep = 2;
     error = '';
     await tick();
@@ -138,7 +140,7 @@
     goal = template.goal ?? '';
     tags = template.tags ?? '';
     cardioMode = template.type === 'life' ? 'running' : template.cardio_mode ?? 'running';
-    lifeActivity = template.cardio_mode === 'hiking' ? 'hiking' : 'walking';
+    lifeActivity = template.type === 'life' ? template.cardio_mode ?? '' : activityOptions('life')[0]?.value ?? '';
     distance = template.distance_km ?? 0;
     intervalWork = template.interval_work_seconds ?? 30;
     intervalRest = template.interval_rest_seconds ?? 60;
@@ -186,6 +188,10 @@
     }
     if (type === 'strength' && entries.some((entry) => !entry.exercise || entry.sets < 1 || entry.repsMin < 1 || entry.repsMax < entry.repsMin)) {
       error = 'Choose an exercise for each entry and check the sets and rep range.';
+      return;
+    }
+    if (type === 'strength' && entries.some((entry) => !entry.equipment && (exercises.find((exercise) => exercise.id === entry.exercise)?.equipment_options.length ?? 0) > 0)) {
+      error = 'This exercise has no active material or machine selected. Choose another exercise or ask an administrator to update the catalog.';
       return;
     }
     saving = true;
@@ -321,13 +327,13 @@
         {#if type === 'cardio' || type === 'interval'}
           <div>
             <label class="label" for="tpl-cardio">Activity</label>
-            <CycleChoice id="tpl-cardio" label="Activity" options={CARDIO_MODE_OPTIONS} bind:value={cardioMode} />
+            <CycleChoice id="tpl-cardio" label="Activity" options={activityOptions(type, editing ? cardioMode : '')} bind:value={cardioMode} />
           </div>
         {/if}
         {#if type === 'life'}
           <div>
             <label class="label" for="tpl-life">Activity</label>
-            <CycleChoice id="tpl-life" label="Activity" options={LIFE_ACTIVITY_OPTIONS} bind:value={lifeActivity} />
+            <CycleChoice id="tpl-life" label="Activity" options={activityOptions('life', editing ? lifeActivity : '')} bind:value={lifeActivity} />
           </div>
         {/if}
         {#if type === 'cardio' || type === 'life'}
@@ -344,13 +350,13 @@
         {#if type === 'sport'}
           <div>
             <label class="label" for="tpl-sport">Sport</label>
-            <CycleChoice id="tpl-sport" label="Sport" options={SPORT_ACTIVITY_OPTIONS} bind:value={sportActivity} />
+            <CycleChoice id="tpl-sport" label="Sport" options={activityOptions('sport', editing ? sportActivity : '')} bind:value={sportActivity} />
           </div>
         {/if}
         {#if type === 'recovery'}
           <div>
             <label class="label" for="tpl-recovery">Activity</label>
-            <CycleChoice id="tpl-recovery" label="Activity" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={recoveryActivity} />
+            <CycleChoice id="tpl-recovery" label="Activity" options={activityOptions('recovery', editing ? recoveryActivity : '')} bind:value={recoveryActivity} />
           </div>
         {/if}
       </div>
@@ -381,10 +387,10 @@
                 onChange={(muscle) => entries[index] = { ...entry, muscle, exercise: '', equipment: '' }} />
               <select class="input" aria-label="Exercise" value={entry.exercise} required on:change={(event) => pickExercise(index, event.currentTarget.value)}>
                 <option value="">Choose an exercise…</option>
-                {#each exercises.filter((item) => !entry.muscle || item.muscle_group === entry.muscle) as exercise}<option value={exercise.id}>{exercise.name}</option>{/each}
+                {#each exercises.filter((item) => (item.active || editing && item.id === entry.exercise) && (!entry.muscle || item.muscle_group === entry.muscle)) as exercise}<option value={exercise.id}>{exercise.name}{exercise.active ? '' : ' (inactive)'}</option>{/each}
               </select>
               <CycleChoice label="Equipment" bind:value={entry.equipment} placeholder="Choose an exercise first"
-                options={optionsFor(entry.exercise).map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />
+                options={optionsFor(entry.exercise, editing ? entry.equipment : '').map((value) => ({ value, label: EXERCISE_EQUIPMENT_LABELS[value] }))} />
               <div class="grid grid-cols-2 gap-2 sm:col-span-2 sm:grid-cols-4">
                 <div><label class="label" for="e-sets-{index}">Sets</label><input id="e-sets-{index}" class="input" type="number" required min="1" bind:value={entry.sets} /></div>
                 <div><label class="label" for="e-min-{index}">Min reps</label><input id="e-min-{index}" class="input" type="number" required min="1" bind:value={entry.repsMin} /></div>

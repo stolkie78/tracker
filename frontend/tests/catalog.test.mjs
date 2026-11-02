@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import { after, test } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { createServer } from 'vite';
+
+const server = await createServer({
+  configFile: false,
+  resolve: { alias: { $lib: fileURLToPath(new URL('../src/lib', import.meta.url)) } },
+  optimizeDeps: { noDiscovery: true, include: [] },
+  server: { middlewareMode: true, ws: false }, appType: 'custom'
+});
+after(() => server.close());
+const { applyCatalog, activityOptions, equipmentOptions } = await server.ssrLoadModule('/src/lib/catalog.ts');
+const types = await server.ssrLoadModule('/src/lib/types/index.ts');
+const entry = (key, kind, categories, active = true) => ({ id: key, key, kind, categories, active, label: key.toUpperCase() });
+
+test('catalog choices follow categories, preserve archived labels and exclude archived choices from new input', () => {
+  const records = [
+    entry('running', 'movement', ['cardio', 'interval']),
+    entry('cycling', 'movement', ['life', 'cardio', 'interval']),
+    entry('custom_paddling', 'movement', ['life']),
+    entry('old_walk', 'movement', ['life'], false),
+    entry('yoga', 'recovery', ['recovery']),
+    entry('tennis', 'sport', ['sport']),
+    entry('custom_machine', 'equipment', ['strength']),
+    entry('old_machine', 'equipment', ['strength'], false)
+  ];
+  applyCatalog(records);
+  assert.deepEqual(activityOptions('life').map((option) => option.value), ['cycling', 'custom_paddling']);
+  assert.deepEqual(activityOptions('interval').map((option) => option.value), ['running', 'cycling']);
+  assert.equal(activityOptions('life', 'old_walk').at(-1).label, 'OLD_WALK (inactive)');
+  assert.equal(activityOptions('life', 'running')[0].label, 'RUNNING (inactive)', 'Existing selections survive category changes');
+  assert.deepEqual(equipmentOptions(['custom_machine', 'old_machine']), ['custom_machine']);
+  assert.deepEqual(equipmentOptions(['custom_machine', 'old_machine'], 'old_machine'), ['custom_machine', 'old_machine']);
+  assert.deepEqual(equipmentOptions(['custom_machine'], 'old_machine'), ['custom_machine', 'old_machine'], 'Preserve an existing prescription even if equipment is removed from the exercise');
+  assert.deepEqual(types.LIFE_ACTIVITY_OPTIONS.map((option) => option.value), ['cycling', 'custom_paddling']);
+  assert.deepEqual(types.EXERCISE_EQUIPMENT_OPTIONS.map((option) => option.value), ['custom_machine']);
+  assert.equal(types.exerciseLabel('Squat', 'custom_machine'), 'Squat · CUSTOM_MACHINE');
+  assert.equal(types.templateLabel({ title: 'River trip', type: 'life', cardio_mode: 'custom_paddling' }), 'CUSTOM_PADDLING · River trip');
+  applyCatalog(records.map((record) => ({ ...record, label: 'Renamed', active: record.key !== 'custom_paddling' })));
+  assert.equal(types.CARDIO_MODE_LABELS.custom_paddling, 'Renamed');
+  assert.ok(!activityOptions('life').some((option) => option.value === 'custom_paddling'));
+  assert.equal(activityOptions('life', 'custom_paddling').find((option) => option.value === 'custom_paddling').label, 'Renamed (inactive)');
+});

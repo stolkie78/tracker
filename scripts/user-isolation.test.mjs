@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 
 // Run only against a disposable instance after setup-collections.sh.
 const base = process.env.PB_TEST_URL;
@@ -52,6 +53,101 @@ test('personal records, relationships and protected photos stay with their owner
       users.push({ ...user, token, profile });
     }
     const [alice, bob, carol] = users;
+    const catalogRoute = 'top-trainer/catalog';
+    const catalogData = { kind: 'movement', label: `Trail activity ${crypto.randomUUID()}`, categories: ['life'], active: true };
+    for (const token of ['', alice.token, bob.token]) {
+      await denied(catalogRoute, token, 'POST', catalogData);
+      await denied('top-trainer/catalog/exercises', token, 'POST', { name: 'Unauthorized', equipment_options: ['barbell'], active: true });
+    }
+    const activity = await ok(catalogRoute, carol.token, 'POST', catalogData);
+    records.push(['training_catalog', activity.id]);
+    assert.match(activity.key, /^custom_[a-z0-9]+$/);
+    await denied(path('training_catalog', activity.id), carol.token, 'PATCH', { label: 'Direct edits forbidden' });
+    await denied(path('training_catalog', activity.id), carol.token, 'DELETE');
+    await denied(path('training_catalog'), carol.token, 'POST', { ...catalogData, key: 'spoof' });
+    await denied(catalogRoute, carol.token, 'POST', { ...catalogData, categories: ['strength'] });
+    await denied(catalogRoute, carol.token, 'POST', { ...catalogData, categories: [] });
+    await denied(catalogRoute, carol.token, 'POST', catalogData);
+    await denied(catalogRoute, carol.token, 'POST', { ...catalogData, id: activity.id, kind: 'equipment', categories: ['strength'] });
+    const activityTemplate = await ok('top-trainer/templates', alice.token, 'POST', {
+      template: { title: 'Custom activity template', type: 'life', cardio_mode: activity.key, duration_minutes: 30 }, exercises: []
+    });
+    records.push(['workout_templates', activityTemplate.id]);
+    const catalogWorkoutData = {
+      owner: alice.id, title: 'Custom activity session', type: 'life', cardio_mode: activity.key,
+      status: 'planned', performed_at: '2026-01-01 12:00:00.000Z'
+    };
+    const catalogWorkout = await create('workouts', alice.token, catalogWorkoutData);
+    await denied(path('workouts'), alice.token, 'POST', { ...catalogWorkoutData, type: 'cardio' });
+    const changedActivity = { ...catalogData, id: activity.id, label: `${catalogData.label} renamed`, active: false };
+    const archived = await ok(catalogRoute, carol.token, 'POST', changedActivity);
+    assert.equal(archived.key, activity.key);
+    await denied(path('workouts'), alice.token, 'POST', catalogWorkoutData);
+    await ok(path('workouts', catalogWorkout.id), alice.token, 'PATCH', { notes: 'Archived activity stays editable' });
+    await create('workouts', alice.token, { ...catalogWorkoutData, template: activityTemplate.id });
+    await denied('top-trainer/templates', alice.token, 'POST', {
+      template: { title: 'Inactive choice', type: 'life', cardio_mode: activity.key, duration_minutes: 30 }, exercises: []
+    });
+    await ok('top-trainer/templates', alice.token, 'POST', {
+      id: activityTemplate.id, template: { title: 'Preserved inactive activity', type: 'life', cardio_mode: activity.key, duration_minutes: 35 }, exercises: []
+    });
+    const machineData = { kind: 'equipment', label: `Hack squat machine ${crypto.randomUUID()}`, categories: ['strength'], active: true };
+    const machine = await ok(catalogRoute, carol.token, 'POST', machineData);
+    records.push(['training_catalog', machine.id]);
+    const sharedData = { name: 'Catalog test movement', category: 'compound', muscle_group: 'legs', equipment_options: [machine.key], active: true };
+    const catalogExercise = await ok('top-trainer/catalog/exercises', carol.token, 'POST', sharedData);
+    records.push(['exercises', catalogExercise.id]);
+    assert.equal(catalogExercise.owner, '');
+    assert.deepEqual(catalogExercise.equipment_options, [machine.key]);
+    const strength = await ok('top-trainer/templates', alice.token, 'POST', {
+      template: { title: 'Custom machine workout', type: 'strength', duration_minutes: 30 },
+      exercises: [{ exercise: catalogExercise.id, equipment: machine.key, set_order: 1, target_sets: 3, reps_min: 8, reps_max: 12, starting_weight: 10, weight_increment: 2.5, rest_seconds: 90 }]
+    });
+    records.push(['workout_templates', strength.id]);
+    const machineEntries = (await ok(`${path('template_exercises')}?filter=${encodeURIComponent(`template="${strength.id}"`)}`, alice.token)).items;
+    for (const child of machineEntries) records.push(['template_exercises', child.id]);
+    assert.equal(machineEntries[0].equipment, machine.key);
+    const seeded = (await ok(`${path('exercises')}?filter=${encodeURIComponent('seed_key="Squat"')}`, carol.token)).items[0];
+    assert.ok(seeded);
+    await ok('top-trainer/catalog/exercises', carol.token, 'POST', {
+      id: seeded.id, name: 'Renamed catalog squat', category: 'compound', muscle_group: 'legs', equipment_options: [machine.key], active: false
+    });
+    await ok(catalogRoute, carol.token, 'POST', { ...machineData, id: machine.id, active: false });
+    await denied('top-trainer/catalog/exercises', carol.token, 'POST', { ...sharedData, name: 'New inactive equipment' });
+    await ok('top-trainer/catalog/exercises', carol.token, 'POST', { ...sharedData, id: catalogExercise.id, name: 'Preserved machine choice' });
+    await ok('top-trainer/catalog/exercises', carol.token, 'POST', { ...sharedData, id: catalogExercise.id, equipment_options: ['barbell'], active: false });
+    const retainedStrength = {
+      template: { title: 'Preserved archived exercise and removed equipment', type: 'strength', duration_minutes: 35 },
+      exercises: [{ exercise: catalogExercise.id, equipment: machine.key, set_order: 1, target_sets: 3, reps_min: 8, reps_max: 12, starting_weight: 10, weight_increment: 2.5, rest_seconds: 90 }]
+    };
+    await denied('top-trainer/templates', alice.token, 'POST', retainedStrength);
+    await ok('top-trainer/templates', alice.token, 'POST', { ...retainedStrength, id: strength.id });
+    for (const child of (await ok(`${path('template_exercises')}?filter=${encodeURIComponent(`template="${strength.id}"`)}`, alice.token)).items) {
+      records.push(['template_exercises', child.id]);
+    }
+    await denied(path('training_catalog', activity.id), '', 'GET');
+    assert.equal((await ok(path('training_catalog', activity.id), alice.token)).label, changedActivity.label);
+    execFileSync('bash', ['scripts/setup-collections.sh'], {
+      env: { ...process.env, PB_URL: base, PB_SUPERUSER_EMAIL: identity, PB_SUPERUSER_PASSWORD: password },
+      stdio: 'pipe'
+    });
+    const afterMigration = await ok(path('training_catalog', activity.id), alice.token);
+    assert.equal(afterMigration.active, false);
+    assert.equal(afterMigration.label, changedActivity.label);
+    assert.equal((await ok(path('training_catalog', machine.id), alice.token)).active, false);
+    const seededAfter = await ok(path('exercises', seeded.id), alice.token);
+    assert.equal(seededAfter.name, 'Renamed catalog squat');
+    assert.equal(seededAfter.active, false);
+    assert.deepEqual(seededAfter.equipment_options, [machine.key]);
+    assert.equal((await ok(`${path('exercises')}?filter=${encodeURIComponent('seed_key="Squat"')}`, carol.token)).items.length, 1);
+    await ok(catalogRoute, carol.token, 'POST', { ...machineData, id: machine.id, active: true });
+    await ok('top-trainer/catalog/exercises', carol.token, 'POST', {
+      id: seeded.id, name: 'Squat', category: 'compound', muscle_group: 'legs', equipment_options: ['barbell', 'dumbbell', 'kettlebell'], active: true
+    });
+    await ok(catalogRoute, carol.token, 'POST', { ...catalogData, id: activity.id, categories: ['cardio', 'life'] });
+    await ok('top-trainer/templates', alice.token, 'POST', {
+      id: activityTemplate.id, template: { title: 'Custom after migration', type: 'cardio', cardio_mode: activity.key, duration_minutes: 30 }, exercises: []
+    });
     const date = '2026-01-01 12:00:00.000Z';
     const exercise = await create('exercises', alice.token, { owner: alice.id, name: 'Private movement', category: 'other', active: true });
     const plan = await create('training_plans', alice.token, { owner: alice.id, title: 'Private plan', goal: 'Fitness', start_date: date, end_date: date, weeks: 1 });
@@ -224,7 +320,7 @@ test('personal records, relationships and protected photos stay with their owner
     const sport = await ok(path('workout_templates', template.id), alice.token);
     assert.equal(sport.sport_activity, 'tennis');
     assert.equal(sport.interval_rounds, 0);
-    for (const mode of ['walking', 'hiking']) {
+    for (const mode of ['walking', 'hiking', 'cycling']) {
       await ok(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'life', cardio_mode: mode, distance_km: 8 }, exercises: [] });
       const life = await ok(path('workout_templates', template.id), alice.token);
       assert.equal(life.type, 'life');
@@ -234,7 +330,7 @@ test('personal records, relationships and protected photos stay with their owner
       assert.equal(life.sport_activity, '');
       assert.equal(life.interval_rounds, 0);
     }
-    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'life', cardio_mode: 'cycling' }, exercises: [] });
+    await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'life', cardio_mode: 'running' }, exercises: [] });
     await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, type: 'recovery', recovery_activity: 'walking' }, exercises: [] });
     await denied(templateRoute, alice.token, 'POST', { id: template.id, template: { ...templateData, duration_minutes: 0 }, exercises: [exerciseData] });
     // The original child was replaced by the transaction.

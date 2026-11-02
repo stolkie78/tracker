@@ -18,13 +18,14 @@ const workout = (id, type, cardio_mode, extra = {}) => ({
   distance_km: 5, duration_minutes: 60, ...extra
 });
 
-test('Life offers walking and hiking while cycling stays under Cardio', () => {
-  assert.deepEqual(LIFE_ACTIVITY_OPTIONS.map(({ value }) => value), ['walking', 'hiking']);
+test('Life offers walking, hiking and cycling while cycling also stays under Cardio', () => {
+  assert.deepEqual(LIFE_ACTIVITY_OPTIONS.map(({ value }) => value), ['walking', 'hiking', 'cycling']);
   assert.ok(CARDIO_MODE_OPTIONS.some(({ value }) => value === 'cycling'));
   for (const options of [CARDIO_MODE_OPTIONS, RECOVERY_ACTIVITY_OPTIONS]) {
     assert.ok(!options.some(({ value }) => value === 'walking' || value === 'hiking'));
   }
   assert.equal(templateLabel({ title: 'Weekend', type: 'life', cardio_mode: 'hiking' }), 'Hiking · Weekend');
+  assert.equal(templateLabel({ title: 'Weekend ride', type: 'life', cardio_mode: 'cycling' }), 'Cycling · Weekend ride');
 });
 
 test('walking, hiking and biking have independent insights and Life is not counted as cardio distance', () => {
@@ -33,15 +34,16 @@ test('walking, hiking and biking have independent insights and Life is not count
     workout('hike', 'life', 'hiking', { distance_km: 8, duration_minutes: 120, elevation_gain_m: 300 }),
     workout('bike', 'cardio', 'cycling', { distance_km: 30, duration_minutes: 90 }),
     workout('bike-interval', 'interval', 'cycling', { distance_km: 10, duration_minutes: 30 }),
+    workout('life-bike', 'life', 'cycling', { distance_km: 20, duration_minutes: 60 }),
     workout('run', 'cardio', 'running', { distance_km: 10, duration_minutes: 50 }),
     workout('planned', 'life', 'walking', { status: 'planned' }),
     workout('skipped', 'life', 'hiking', { status: 'skipped' })
   ];
   const snapshot = structuredClone(records);
   const stats = computeStats(records, 'all');
-  assert.equal(stats.total, 5);
-  assert.equal(stats.byType.life, 2);
-  assert.equal(stats.totalMinutes, 350);
+  assert.equal(stats.total, 6);
+  assert.equal(stats.byType.life, 3);
+  assert.equal(stats.totalMinutes, 410);
   assert.equal(stats.cardioKmTotal, 50);
   assert.equal(stats.runningKm, 10);
   assert.equal(stats.run.runs, 1);
@@ -53,9 +55,9 @@ test('walking, hiking and biking have independent insights and Life is not count
   assert.equal(stats.activities.hiking.km, 8);
   assert.equal(stats.activities.hiking.minutes, 120);
   assert.equal(stats.activities.hiking.elevation, 300);
-  assert.equal(stats.activities.cycling.sessions, 2);
-  assert.equal(stats.activities.cycling.km, 40);
-  assert.equal(stats.activities.cycling.minutes, 120);
+  assert.equal(stats.activities.cycling.sessions, 3);
+  assert.equal(stats.activities.cycling.km, 60);
+  assert.equal(stats.activities.cycling.minutes, 180);
   assert.equal(stats.activities.cycling.longestKm, 30);
   assert.equal(60 / stats.activities.cycling.paceMinPerKm, 20);
   assert.deepEqual(records, snapshot);

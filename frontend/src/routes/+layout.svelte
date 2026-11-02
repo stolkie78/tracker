@@ -7,12 +7,29 @@
   import { darkTheme } from '$lib/stores/theme';
   import { aiAvailability, loadAIAvailability } from '$lib/stores/ai';
   import { currentUser, isAuthenticated } from '$lib/stores/auth';
-  import { loadUserRoles, rolesLoaded } from '$lib/stores/role';
-  import { getStravaStatus, syncStrava } from '$lib/pocketbase';
+  import { loadUserRoles, rolesLoaded, isAdmin } from '$lib/stores/role';
+  import { getCatalog, getStravaStatus, syncStrava } from '$lib/pocketbase';
+  import { applyCatalog } from '$lib/catalog';
 
   let roleLoadError = '';
+  let catalogLoaded = false;
+  let catalogLoading = false;
+  let catalogError = '';
+  const loadCatalog = async () => {
+    catalogLoading = true;
+    catalogError = '';
+    try {
+      applyCatalog(await getCatalog());
+      catalogLoaded = true;
+    } catch (error) {
+      catalogError = error instanceof Error ? error.message : 'The training catalog could not be loaded.';
+    } finally {
+      catalogLoading = false;
+    }
+  };
+  $: if (browser && $isAuthenticated && !catalogLoaded && !catalogLoading && !catalogError) void loadCatalog();
 
-  const TRAINING_PATHS = ['/workouts', '/planner', '/programs', '/library'];
+  const TRAINING_PATHS = ['/workouts', '/planner', '/programs', '/library', '/catalog'];
   const nav = [
     { href: '/', label: 'Workout', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
     { href: '/health', label: 'Health', icon: HeartPulse, match: (path: string) => path.startsWith('/health') },
@@ -27,6 +44,7 @@
     { href: '/', label: 'Timeline' },
     { href: '/library', label: 'Workouts' },
     { href: '/programs', label: 'Programs' },
+    { href: '/catalog', label: 'Catalog', admin: true },
     { href: '/planner', label: 'AI planner', ai: true }
   ];
   const isActive = (path: string, href: string) =>
@@ -48,7 +66,7 @@
   $: inTraining = nav[0].match($page.url.pathname);
   $: inHealth = nav[1].match($page.url.pathname);
   $: inInsights = nav[2].match($page.url.pathname);
-  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : inInsights ? insightsNav : [];
+  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => (!item.ai || $aiAvailability.enabled) && (!item.admin || $isAdmin)) : inInsights ? insightsNav : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
@@ -169,7 +187,14 @@
         </div>
       {/if}
       {#key $currentUser?.id}
-        {#if $page.url.pathname.startsWith('/planner') && !$aiAvailability.enabled}
+        {#if !catalogLoaded}
+          <div class="card space-y-3">
+            {#if catalogError}
+              <p role="alert" class="text-red-700 dark:text-red-300">Could not load training catalog: {catalogError}</p>
+              <button type="button" class="btn-secondary" on:click={loadCatalog}>Try again</button>
+            {:else}<p>Loading training catalog...</p>{/if}
+          </div>
+        {:else if $page.url.pathname.startsWith('/planner') && !$aiAvailability.enabled}
           <div class="card space-y-3">
             {#if $aiAvailability.loading || $aiAvailability.user !== $currentUser?.id}
               <p>Loading AI settings...</p>

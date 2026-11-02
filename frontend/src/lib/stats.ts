@@ -111,7 +111,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
     hiking: distanceStats(done.filter((workout) =>
       (workout.type === 'life' || workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'hiking')),
     cycling: distanceStats(done.filter((workout) =>
-      (workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'cycling'))
+      (workout.type === 'life' || workout.type === 'cardio' || workout.type === 'interval') && workout.cardio_mode === 'cycling'))
   };
   const perExercise = new Map<string, { name: string; sessions: ExerciseSession[] }>();
 
@@ -150,7 +150,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
     1,
     (start ? Date.now() - start.getTime() : done.length ? Date.now() - new Date(done[0].performed_at).getTime() : 0) / (7 * 86_400_000)
   );
-  const cardioKmTotal = Object.values(cardioKm).reduce((sum, value) => sum + (value ?? 0), 0);
+  const cardioKmTotal = Object.values(cardioKm).reduce<number>((sum, value) => sum + (value ?? 0), 0);
 
   const exercises = [...perExercise.entries()]
     .map(([id, { name, sessions }]) => {

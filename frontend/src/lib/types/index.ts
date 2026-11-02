@@ -2,12 +2,12 @@ export type ID = string;
 
 export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport' | 'life';
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
-export type CardioMode = 'running' | 'cycling' | 'rowing' | 'swimming' | 'walking' | 'hiking' | 'other';
-export type RecoveryActivity = 'rest' | 'mobility' | 'yoga' | 'walking' | 'stretching' | 'other';
-export type SportActivity = 'indoor_volleyball' | 'beach_volleyball' | 'pickleball' | 'football' | 'tennis' | 'basketball';
+export type CardioMode = string;
+export type RecoveryActivity = string;
+export type SportActivity = string;
 export type UserRole = 'admin' | 'coach' | 'athlete';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
-export type ExerciseEquipment = 'cable' | 'dumbbell' | 'kettlebell' | 'barbell' | 'machine' | 'bodyweight' | 'band' | 'other';
+export type ExerciseEquipment = string;
 
 export const EXPERIENCE_LEVEL_LABELS: Record<ExperienceLevel, string> = {
   beginner: 'Beginner',
@@ -364,7 +364,7 @@ export const EXERCISE_EQUIPMENT_LABELS: Record<ExerciseEquipment, string> = {
   other: 'Other'
 };
 
-export const EXERCISE_EQUIPMENT_OPTIONS = (
+export const EXERCISE_EQUIPMENT_OPTIONS: { value: string; label: string }[] = (
   ['cable', 'dumbbell', 'kettlebell', 'barbell', 'machine'] as const
 ).map((value) => ({
   value,
@@ -381,7 +381,7 @@ export const CARDIO_MODE_OPTIONS = Object.entries(CARDIO_MODE_LABELS).filter(([v
   label
 }));
 
-export const LIFE_ACTIVITY_OPTIONS = (['walking', 'hiking'] as const).map((value) => ({
+export const LIFE_ACTIVITY_OPTIONS = ['walking', 'hiking', 'cycling'].map((value) => ({
   value,
   label: CARDIO_MODE_LABELS[value]
 }));
