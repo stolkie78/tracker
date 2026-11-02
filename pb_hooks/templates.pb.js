@@ -28,9 +28,6 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     if (!Number.isFinite(duration) || duration < 1 || duration > 600) {
       throw new BadRequestError("Enter a workout duration between 1 and 600 minutes.");
     }
-    if (type === "life" && ["walking", "hiking"].indexOf(record.getString("cardio_mode")) < 0) {
-      throw new BadRequestError("Choose walking or hiking for a Life activity.");
-    }
     if (type !== "cardio" && type !== "interval" && type !== "life") record.set("cardio_mode", "");
     if (type !== "cardio" && type !== "life") record.set("distance_km", 0);
     if (type !== "interval") {
@@ -60,7 +57,16 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
       var exercise = app.findRecordById("exercises", entry.exercise);
       var exerciseOwner = exercise.getString("owner");
       if (exerciseOwner && exerciseOwner !== e.auth.id) throw new NotFoundError("Exercise not found.");
-      if (entry.equipment && exercise.getStringSlice("equipment_options").indexOf(entry.equipment) < 0) {
+      if (!exercise.getBool("active") && !previous.some(function (old) { return old.getString("exercise") === entry.exercise; })) {
+        throw new BadRequestError("This exercise is not available for new selections.");
+      }
+      var retainedEquipment = previous.some(function (old) {
+        return old.getString("exercise") === entry.exercise && old.getString("equipment") === entry.equipment;
+      });
+      if (entry.equipment && !retainedEquipment) {
+        require(__hooks + "/catalog_lib.js").validateChoice(app, "equipment", entry.equipment, "strength", "");
+      }
+      if (entry.equipment && exercise.getStringSlice("equipment_options").indexOf(entry.equipment) < 0 && !retainedEquipment) {
         throw new BadRequestError("Choose valid equipment for the exercise.");
       }
       if (

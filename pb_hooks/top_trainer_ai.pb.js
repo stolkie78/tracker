@@ -181,12 +181,26 @@ routerAdd(
       fail(400, "No exercises are available yet. Add exercises and try again.");
     }
 
+    var catalog = $app.findRecordsByFilter("training_catalog", "active = true", "label", 0, 0);
+    var equipmentKeys = catalog.filter(function (entry) { return entry.getString("kind") === "equipment"; }).map(function (entry) { return entry.getString("key"); });
+    var activityKeys = function (kind, category) {
+      return catalog.filter(function (entry) {
+        return entry.getString("kind") === kind && entry.getStringSlice("categories").indexOf(category) >= 0;
+      }).map(function (entry) { return entry.getString("key"); });
+    };
+    var validCardio = activityKeys("movement", "cardio");
+    var validInterval = activityKeys("movement", "interval");
+    var validRecovery = activityKeys("recovery", "recovery");
+    if ((cardioCount && !validCardio.length) || (intervalCount && !validInterval.length) || (recoveryCount && !validRecovery.length)) {
+      fail(400, "The selected session types have no active activities. Ask an administrator to update the catalog.");
+    }
     var allowedExercises = {};
     var exerciseList = [];
     for (var exerciseIndex = 0; exerciseIndex < exercises.length; exerciseIndex++) {
       var exercise = exercises[exerciseIndex];
-      var options = exercise.getStringSlice("equipment_options");
-      allowedExercises[exercise.id] = options.length > 0 ? options : ["other"];
+      var options = exercise.getStringSlice("equipment_options").filter(function (key) { return equipmentKeys.indexOf(key) >= 0; });
+      if (!options.length) continue;
+      allowedExercises[exercise.id] = options;
       exerciseList.push({
         id: exercise.id,
         name: exercise.getString("name"),
@@ -194,6 +208,7 @@ routerAdd(
         equipment_options: options,
       });
     }
+    if (strengthCount && !exerciseList.length) fail(400, "No exercises with active equipment are available.");
 
     var userPrompt = {
       period: {
@@ -212,6 +227,12 @@ routerAdd(
         recovery_sessions: recoveryCount,
       },
       available_exercises: exerciseList,
+      catalog_labels: catalog.map(function (entry) {
+        return { key: entry.getString("key"), label: entry.getString("label"), kind: entry.getString("kind"), categories: entry.getStringSlice("categories") };
+      }),
+      available_cardio: validCardio,
+      available_interval: validInterval,
+      available_recovery: validRecovery,
       required_output: {
         title: "string",
         summary: "string",
@@ -233,12 +254,12 @@ routerAdd(
                 weight_increment: 2.5,
               },
             ],
-            cardio_mode: "running | cycling | rowing | swimming | other",
+            cardio_mode: "one key from available_cardio or available_interval, matching the workout type",
             distance_km: 0,
             interval_work_seconds: 30,
             interval_rest_seconds: 60,
             interval_rounds: 8,
-            recovery_activity: "rest | mobility | yoga | stretching | other",
+            recovery_activity: "one key from available_recovery",
           },
         ],
       },
@@ -305,8 +326,6 @@ routerAdd(
     }
 
     var validTypes = ["strength", "cardio", "interval", "recovery"];
-    var validCardio = ["running", "cycling", "rowing", "swimming", "other"];
-    var validRecovery = ["rest", "mobility", "yoga", "stretching", "other"];
     var weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     var expectedTypeCounts = {
       strength: strengthCount * weeks,
@@ -381,13 +400,15 @@ routerAdd(
           });
         }
       } else if (item.type === "cardio") {
-        normalized.cardio_mode = validEnum(item.cardio_mode, validCardio, "other");
+        if (validCardio.indexOf(item.cardio_mode) < 0) fail(502, "The AI selected an unavailable cardio activity.");
+        normalized.cardio_mode = item.cardio_mode;
         if (item.distance_km !== undefined && !isNumberInRange(item.distance_km, 0, 1000)) {
           fail(502, "The AI plan contains an invalid cardio distance.");
         }
         normalized.distance_km = item.distance_km || 0;
       } else if (item.type === "interval") {
-        normalized.cardio_mode = validEnum(item.cardio_mode, validCardio, "running");
+        if (validInterval.indexOf(item.cardio_mode) < 0) fail(502, "The AI selected an unavailable interval activity.");
+        normalized.cardio_mode = item.cardio_mode;
         if (
           !isIntegerInRange(item.interval_work_seconds, 1, 3600) ||
           !isIntegerInRange(item.interval_rest_seconds, 0, 3600) ||
@@ -399,7 +420,8 @@ routerAdd(
         normalized.interval_rest_seconds = item.interval_rest_seconds;
         normalized.interval_rounds = item.interval_rounds;
       } else {
-        normalized.recovery_activity = validEnum(item.recovery_activity, validRecovery, "mobility");
+        if (validRecovery.indexOf(item.recovery_activity) < 0) fail(502, "The AI selected an unavailable recovery activity.");
+        normalized.recovery_activity = item.recovery_activity;
       }
 
       normalizedWorkouts.push(normalized);

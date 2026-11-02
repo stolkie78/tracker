@@ -82,6 +82,12 @@ ensure_collection() {
     --arg list "$list_rule" --arg view "$view_rule" --arg create "$create_rule" --arg update "$update_rule" --arg delete "$delete_rule" \
     'def rule: if . == "__locked__" then null else . end; {name:$name,type:$type,fields:$fields,listRule:($list|rule),viewRule:($view|rule),createRule:($create|rule),updateRule:($update|rule),deleteRule:($delete|rule)}')"
   if [ -n "$existing_id" ]; then
+    local existing
+    existing="$(api "$PB_URL/api/collections/$existing_id")"
+    payload="$(printf '%s' "$payload" | jq --argjson existing "$existing" '
+      .fields |= map(. as $field | if .type == "select" then
+        .values = ((.values + ([$existing.fields[] | select(.name == $field.name and .type == "select") | .values[]])) | unique)
+      else . end)')"
     api -X PATCH "$PB_URL/api/collections/$existing_id" -H 'Content-Type: application/json' --data "$payload" >/dev/null
   else
     if ! api -X POST "$PB_URL/api/collections" -H 'Content-Type: application/json' --data "$payload" >/dev/null; then
@@ -98,7 +104,7 @@ ensure_select_values() {
   id="$(collection_id "$collection")"
   response="$(api "$PB_URL/api/collections/$id")"
   patched="$(printf '%s' "$response" | jq --arg field "$field_name" --argjson values "$values" '
-    .fields |= map(if .name == $field then .values = $values else . end)
+    .fields |= map(if .name == $field then .values = ((.values + $values) | unique) else . end)
   ')"
   api -X PATCH "$PB_URL/api/collections/$id" -H 'Content-Type: application/json' --data "$patched" >/dev/null
 }
@@ -134,6 +140,33 @@ secret_field() {
 }
 
 OWNER_FIELD="$(relation_field owner _pb_users_auth_ true)"
+CATALOG_FIELDS="$(jq -cn \
+  --argjson key "$(text_field key true)" --argjson label "$(text_field label true)" \
+  --argjson kind "$(select_field kind '["movement","recovery","sport","equipment"]' true)" \
+  --argjson categories "$(jq -cn '{name:"categories",type:"select",maxSelect:6,values:["strength","cardio","interval","recovery","sport","life"]}')" \
+  --argjson active "$(bool_field active)" '[$key,$label,$kind,$categories,$active]')"
+ensure_collection training_catalog base "$CATALOG_FIELDS" \
+  'id != ""' 'id != ""' '__locked__' '__locked__' '__locked__'
+CATALOG_ID="$(collection_id training_catalog)"
+api -X PATCH "$PB_URL/api/collections/$CATALOG_ID" -H 'Content-Type: application/json' \
+  --data '{"indexes":["CREATE UNIQUE INDEX idx_catalog_kind_key ON training_catalog (kind, key)"]}' >/dev/null
+while IFS= read -r entry; do
+  key="$(printf '%s' "$entry" | jq -r '.key')"
+  kind="$(printf '%s' "$entry" | jq -r '.kind')"
+  count="$(api -G "$PB_URL/api/collections/training_catalog/records" \
+    --data-urlencode "filter=key=\"$key\" && kind=\"$kind\"" | jq -r '.totalItems')"
+  if [ "$count" = 0 ]; then
+    api -X POST "$PB_URL/api/collections/training_catalog/records" -H 'Content-Type: application/json' --data "$entry" >/dev/null
+  fi
+done < <(jq -cn '
+  def entries($kind;$categories;$items): $items[] | {kind:$kind,key:.[0],label:.[1],categories:$categories,active:true};
+  entries("movement";["cardio","interval"];[["running","Running"],["rowing","Rowing"],["swimming","Swimming"],["other","Other"]]),
+  entries("movement";["cardio","interval","life"];[["cycling","Cycling"]]),
+  entries("movement";["life"];[["walking","Walking"],["hiking","Hiking"]]),
+  entries("recovery";["recovery"];[["rest","Rest"],["mobility","Mobility"],["yoga","Yoga"],["stretching","Stretching"],["other","Other"]]),
+  entries("sport";["sport"];[["indoor_volleyball","Indoor volleyball"],["beach_volleyball","Beach volleyball"],["pickleball","Pickleball"],["football","Football"],["tennis","Tennis"],["basketball","Basketball"]]),
+  entries("equipment";["strength"];[["cable","Cable"],["dumbbell","Dumbbell"],["kettlebell","Kettlebell"],["barbell","Barbell"],["machine","Machine"],["bodyweight","Bodyweight"],["band","Resistance band"],["other","Other"]])
+')
 PROFILE_FIELDS="$(jq -cn --argjson user "$(relation_field user _pb_users_auth_ true)" \
   --argjson display "$(text_field display_name true)" \
   --argjson birth "$(date_field birth_date)" \
@@ -164,11 +197,12 @@ ensure_collection body_measurements base "$MEASUREMENT_FIELDS" \
   'owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)' 'owner = @request.auth.id'
 
 EXERCISE_FIELDS="$(jq -cn --argjson name "$(text_field name true)" \
+  --argjson managed "$(bool_field catalog_managed)" --argjson seed "$(text_field seed_key)" \
   --argjson owner "$(relation_field owner _pb_users_auth_)" \
   --argjson category "$(select_field category '["compound","isolation","bodyweight","other"]' true)" \
   --argjson muscle "$(select_field muscle_group '["chest","back","shoulders","biceps","triceps","legs","glutes","core","full_body"]')" \
   --argjson equipment "$(jq -cn --argjson values '["barbell","dumbbell","kettlebell","machine","cable","bodyweight","band","other"]' '{name:"equipment_options",type:"select",required:false,maxSelect:8,values:$values}')" \
-  --argjson active "$(bool_field active true)" '[$name,$category,$muscle,$equipment,$active,$owner]')"
+  --argjson active "$(bool_field active)" '[$name,$category,$muscle,$equipment,$active,$owner,$managed,$seed]')"
 EXERCISE_EDIT_RULE='owner = @request.auth.id || (owner = "" && @collection.profiles:admin.user ?= @request.auth.id && @collection.profiles:admin.role ?= "admin")'
 ensure_collection exercises base "$EXERCISE_FIELDS" \
   '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' 'owner = @request.auth.id' \
@@ -355,13 +389,18 @@ done
 
 seed_exercise() {
   local name="$1" category="$2" muscle="$3" equipment="$4"
-  local existing exercise_collection_id payload
+  local existing exercise_collection_id payload managed record
   exercise_collection_id="$(collection_id exercises)"
-  existing="$(api --get --data-urlencode "filter=name=\"$name\" && owner=\"\"" --data-urlencode perPage=1 \
-    "$PB_URL/api/collections/$exercise_collection_id/records" | jq -r '.items[0].id // empty')"
+  record="$(api --get --data-urlencode "filter=(seed_key=\"$name\" || (seed_key=\"\" && name=\"$name\")) && owner=\"\"" --data-urlencode perPage=1 \
+    "$PB_URL/api/collections/$exercise_collection_id/records" | jq -c '.items[0] // {}')"
+  existing="$(printf '%s' "$record" | jq -r '.id // empty')"
+  managed="$(printf '%s' "$record" | jq -r '.catalog_managed // false')"
   payload="$(jq -n --arg name "$name" --arg category "$category" --arg muscle "$muscle" --arg equipment "$equipment" \
-    '{name:$name,category:$category,muscle_group:$muscle,equipment_options:($equipment|split(",")),active:true}')"
+    '{name:$name,seed_key:$name,category:$category,muscle_group:$muscle,equipment_options:($equipment|split(",")),active:true}')"
   if [ -n "$existing" ]; then
+    if [ "$managed" = true ]; then
+      payload="$(jq -cn --arg key "$name" '{seed_key:$key}')"
+    fi
     api -X PATCH "$PB_URL/api/collections/$exercise_collection_id/records/$existing" \
       -H 'Content-Type: application/json' --data "$payload" >/dev/null
   else

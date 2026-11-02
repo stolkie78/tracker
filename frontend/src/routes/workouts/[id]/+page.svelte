@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
+  import { activityOptions, equipmentOptions as availableEquipment } from '$lib/catalog';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { formatWorkoutTime, requiresDistanceAndTime, distanceCompletionData } from '$lib/workouts';
@@ -18,10 +19,6 @@
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     SPORT_ACTIVITY_LABELS,
-    SPORT_ACTIVITY_OPTIONS,
-    CARDIO_MODE_OPTIONS,
-    LIFE_ACTIVITY_OPTIONS,
-    RECOVERY_ACTIVITY_OPTIONS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
     WORKOUT_STATUS_CARD_STYLES,
@@ -73,7 +70,7 @@
   let addIncrement = 2.5;
 
   $: addOptions = catalog.filter((exercise) => !addMuscle || exercise.muscle_group === addMuscle);
-  $: equipmentOptions = catalog.find((exercise) => exercise.id === addExerciseId)?.equipment_options ?? [];
+  $: equipmentOptions = availableEquipment(catalog.find((exercise) => exercise.id === addExerciseId)?.equipment_options ?? []);
 
   const openAdd = async () => {
     showAdd = !showAdd;
@@ -102,6 +99,10 @@
   const addExerciseToWorkout = async () => {
     if (!workout || !addExerciseId || addRepsMin < 1 || addRepsMax < addRepsMin || addSets < 1) {
       error = 'Choose an exercise and check the sets and rep range.';
+      return;
+    }
+    if (!addEquipment && (catalog.find((exercise) => exercise.id === addExerciseId)?.equipment_options.length ?? 0) > 0) {
+      error = 'This exercise has no active material or machine. Choose another exercise or ask an administrator to update the catalog.';
       return;
     }
     adding = true;
@@ -388,7 +389,7 @@
         {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
           <div>
             <label class="label" for="edit-cardio">Activity</label>
-            <CycleChoice id="edit-cardio" label="Activity" options={workout.type === 'life' ? LIFE_ACTIVITY_OPTIONS : CARDIO_MODE_OPTIONS} bind:value={edit.cardio} />
+            <CycleChoice id="edit-cardio" label="Activity" options={activityOptions(workout.type, workout.cardio_mode)} bind:value={edit.cardio} />
           </div>
         {/if}
         {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
@@ -402,13 +403,13 @@
         {#if workout.type === 'recovery'}
           <div>
             <label class="label" for="edit-recovery">Activity</label>
-            <CycleChoice id="edit-recovery" label="Activity" options={RECOVERY_ACTIVITY_OPTIONS} bind:value={edit.recovery} />
+            <CycleChoice id="edit-recovery" label="Activity" options={activityOptions('recovery', workout.recovery_activity)} bind:value={edit.recovery} />
           </div>
         {/if}
         {#if workout.type === 'sport'}
           <div>
             <label class="label" for="edit-sport">Sport</label>
-            <CycleChoice id="edit-sport" label="Sport" options={SPORT_ACTIVITY_OPTIONS} bind:value={edit.sport} />
+            <CycleChoice id="edit-sport" label="Sport" options={activityOptions('sport', workout.sport_activity)} bind:value={edit.sport} />
           </div>
         {/if}
         <div class="sm:col-span-2"><label class="label" for="edit-notes">Notes</label><textarea id="edit-notes" class="input" rows="3" bind:value={edit.notes}></textarea></div>

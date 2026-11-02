@@ -44,6 +44,16 @@ Draai na deze update `docker compose run --rm pb-setup` en herstart PocketBase o
 
 Regressietests: `cd frontend && npm test` controleert BMI, meetgrafieken, periodeberekeningen, cycli en dagdelen. `PB_TEST_URL=... PB_TEST_SUPERUSER_EMAIL=... PB_TEST_SUPERUSER_PASSWORD=... node --test scripts/user-isolation.test.mjs` test de API-regels, relaties, metingen, beschermde foto's en atomair bewerken van bouwblokken met drie accounts (atleet, coach, admin). Gebruik uitsluitend een wegwerp-PocketBase met het setupscript en de hooks; de test maakt tijdelijke records en ruimt die weer op.
 
+### Centrale trainingscatalogus
+
+Een admin vindt **Catalog** in het trainingsmenu en **Manage training catalog** onder Instellingen. Dit scherm beheert de gedeelde activiteiten en krachtmaterialen/machines voor alle gebruikers. De zes hoofdcategorieën blijven vast: Strength, Cardio, Interval, Recovery, Sports en Life. Bewegingsactiviteiten kunnen onder meerdere categorieën beschikbaar zijn, bijvoorbeeld fietsen onder zowel Cardio als Life.
+
+Admins kunnen keuzes toevoegen, hernoemen en deactiveren. Stabiele technische sleutels blijven ongewijzigd: hernoemen past de getoonde naam aan zonder historie te herschrijven. Gedeactiveerde keuzes verdwijnen uit nieuwe invoer, maar bestaande selecties blijven leesbaar en bewerkbaar. Bestaande workoutbouwblokken houden hun opgeslagen keuzes; nieuwe activiteitkeuzes moeten actief zijn voor hun categorie. Bij **Strength** beheert de admin ook gedeelde krachtoefeningen met spiergroep en maximaal acht materialen/machines per oefening. Een nieuwe machine verschijnt in de workoutkeuze nadat deze aan een oefening is gekoppeld. Persoonlijke oefeningen worden hier niet gewijzigd. Bestaande trainingssets en voorschriften worden niet aangepast.
+
+De catalogus wordt bij het laden van de app opgehaald; andere gebruikers zien aanpassingen na herladen. Een laadfout wordt expliciet getoond en blokkeert invoer met verouderde keuzelijsten. De AI-planner gebruikt actieve catalogusactiviteiten en actieve materialen van de beschikbare oefeningen. Reguliere gebruikers kunnen de catalogus lezen, maar alleen admins kunnen via de serverroutes wijzigingen doen; rechtstreekse catalogusschrijfacties zijn geblokkeerd.
+
+**Uitrol:** voer `docker compose run --rm pb-setup` uit en herstart PocketBase vóór gebruik van de nieuwe frontend. Dit voegt `training_catalog`, de oefeningsvelden `seed_key` en `catalog_managed`, en de catalogushooks toe. De setup initialiseert standaardkeuzes alleen als ze ontbreken en behoudt aangepaste namen, beschikbaarheid, nieuwe selectiewaarden en door admins gewijzigde standaardkrachtoefeningen bij volgende deploys. De catalogus vervangt de bestaande gegevens niet.
+
 ### Workouts, losse sessies en programma's
 
 Een programma heeft de modus **Planned** (trainingen op vaste dagen) of **Free** (trainingen vrij oppakken binnen een periode). Dit staat los van de status van een afzonderlijke training.
@@ -99,7 +109,7 @@ Maak eerst per omgeving een `.env.test`, `.env.demo` of `.env.production` op bas
 - **Cardio:** activiteit, afstand, gemiddelde hartslag, duur en ervaren inspanning.
 - **Interval:** activiteit, werk- en rustduur, aantal rondes en ervaren inspanning.
 - **Herstel:** rust, mobiliteit, yoga, rekken of een andere herstelactiviteit.
-- **Life:** wandelen en hiking, met afstand en tijd bij het afronden. Fietsen blijft onder Cardio.
+- **Life:** wandelen, hiking en fietsen, met afstand en tijd bij het afronden. Fietsen is ook onder Cardio beschikbaar; bestaande fietstrainingen behouden hun categorie. Life-fietssessies tellen mee in de fietsresultaten, maar niet in de cardioafstand. Herstart PocketBase voor de bijgewerkte Life-validatiehook.
 
 **Insights → Training** toont voor wandelen, hiking en fietsen het aantal voltooide sessies, afstand, tijd, gemiddelde pace (of snelheid bij fietsen), langste afstand, hoogtemeters en links naar recente sessies binnen de gekozen periode. Life telt mee in het totaal en de verdeling per type, maar niet in de cardioafstand.
 
