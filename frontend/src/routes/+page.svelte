@@ -266,8 +266,8 @@
                 {#each category.groups as group}
                   {#each groupPeriodWorkouts(group.workouts) as item}
                     <div class="flex flex-wrap items-center gap-3 py-3">
-                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {WORKOUT_TYPE_STYLES[item.workouts[0].type].icon}">
-                        <svelte:component this={TYPE_ICONS[item.workouts[0].type]} size={21} strokeWidth={2.25} />
+                      <span class="flex h-7 w-7 shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
+                        <svelte:component this={TYPE_ICONS[category.type]} size={17} strokeWidth={2} />
                       </span>
                       <div class="min-w-0 flex-1">
                         <p class="font-semibold">{item.title}</p>
