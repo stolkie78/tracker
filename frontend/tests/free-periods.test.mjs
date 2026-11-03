@@ -12,7 +12,7 @@ const server = await createServer({
   appType: 'custom'
 });
 after(() => server.close());
-const { buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts } =
+const { activityView, activityViewHref, buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts } =
   await server.ssrLoadModule('/src/lib/programs.ts');
 const { workoutsInRange, openPastWorkouts } = await server.ssrLoadModule('/src/lib/workouts.ts');
 const { buildCalendar } = createRequire(import.meta.url)('../../pb_hooks/calendar_lib.js');
@@ -27,6 +27,28 @@ const plan = { id: 'period', title: 'My period', schedule_mode: 'free_period', s
 const records = buildFreePeriod('2026-10-21', 1, targets, templates).map((template, index) => ({
   ...template, template: template.id, id: `workout-${index}`, plan: plan.id, free_period: true, status: 'planned', performed_at: ''
 }));
+
+test('activity tabs default to planned and program links select the matching view', () => {
+  const planned = { ...plan, id: 'scheduled', schedule_mode: 'fixed_weekdays' };
+  const plans = [plan, planned];
+  assert.equal(activityView(new URLSearchParams(), plans), 'planned');
+  assert.equal(activityView(new URLSearchParams('view=free'), []), 'free');
+  assert.equal(activityView(new URLSearchParams('plan=period'), plans), 'free');
+  assert.equal(activityView(new URLSearchParams('plan=scheduled'), plans), 'planned');
+  assert.equal(activityView(new URLSearchParams('plan=missing'), plans), 'planned');
+  assert.equal(activityView(new URLSearchParams('view=planned&plan=period'), plans), 'planned');
+  assert.equal(activityView(new URLSearchParams('view=free&plan=scheduled'), plans), 'free');
+  assert.equal(activityView(new URLSearchParams('view=invalid'), plans), 'planned');
+});
+
+test('switching activity tabs preserves filters and clearing a program keeps the active tab', () => {
+  const params = new URLSearchParams('plan=period&view=free');
+  const plannedHref = activityViewHref(params, 'planned');
+  assert.equal(plannedHref, '/?plan=period&view=planned');
+  assert.equal(activityViewHref(new URL(plannedHref, 'https://example.com').searchParams, 'free'), '/?plan=period&view=free');
+  assert.equal(activityViewHref(params, 'free', true), '/?view=free');
+  assert.equal(params.toString(), 'plan=period&view=free', 'Link creation does not mutate the current URL');
+});
 
 test('the requested mix is eight undated sessions for the entire period, for every supported duration', () => {
   for (const weeks of [1, 2, 3, 4]) {

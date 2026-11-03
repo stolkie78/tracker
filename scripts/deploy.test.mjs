@@ -15,7 +15,7 @@ function deploy(failure = '') {
     writeFileSync(join(root, 'bin/docker'), `#!/bin/sh
 echo "docker $*" >> "$DEPLOY_TEST_LOG"
 case "$*" in
-  *"ps -a"*) echo "pb-setup exited 0" ;;
+  *"run --rm --no-deps pb-setup"*) [ "$DEPLOY_TEST_FAILURE" != migration ] || exit 1 ;;
   *"restart pocketbase"*) [ "$DEPLOY_TEST_FAILURE" != restart ] || exit 1 ;;
   *"--wait-timeout 120 pocketbase"*) [ "$DEPLOY_TEST_FAILURE" != health ] || exit 1 ;;
 esac
@@ -41,19 +41,22 @@ exit 0
 test('deploy reloads hooks after successful migrations and waits for health before smoke tests', () => {
   const result = deploy();
   assert.equal(result.status, 0, result.stderr);
-  const migration = result.commands.lastIndexOf('ps -a');
+  const migration = result.commands.indexOf('run --rm --no-deps pb-setup');
   const restart = result.commands.indexOf('restart pocketbase');
   const healthy = result.commands.indexOf('up -d --no-deps --wait --wait-timeout 120 pocketbase');
   const smoke = result.commands.indexOf('curl ');
-  assert.ok(migration >= 0 && restart > migration && healthy > restart && smoke > healthy);
+  const frontend = result.commands.indexOf('up -d --no-deps --force-recreate --wait --wait-timeout 120 frontend');
+  assert.ok(migration >= 0 && restart > migration && healthy > restart && frontend > healthy && smoke > frontend);
+  assert.doesNotMatch(result.commands, /ps -a/);
   assert.match(result.stdout, /Deploy test geslaagd/);
 });
 
-for (const failure of ['restart', 'health']) {
+for (const failure of ['migration', 'restart', 'health']) {
   test(`deploy stops without reporting success when PocketBase ${failure} fails`, () => {
     const result = deploy(failure);
     assert.notEqual(result.status, 0);
     assert.doesNotMatch(result.commands, /curl /);
+    assert.doesNotMatch(result.commands, /--wait-timeout 120 frontend/);
     assert.doesNotMatch(result.stdout, /Deploy test geslaagd/);
   });
 }

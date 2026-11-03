@@ -50,7 +50,7 @@ ENV_FILE=".env.$ENVIRONMENT"
 [ -f "$ENV_FILE" ] || { echo "$ENV_FILE ontbreekt. Kopieer .env.example en vul de waarden in." >&2; exit 1; }
 
 PROJECT="top-trainer-$ENVIRONMENT"
-export PB_DATA_DIR="$ROOT/pb_data_$ENVIRONMENT"
+export PB_DATA_DIR="${PB_DATA_DIR:-$ROOT/pb_data_$ENVIRONMENT}"
 SEED_DEMO="${SEED_DEMO_OVERRIDE:-$SEED_DEMO}"
 export SEED_DEMO
 [ "$ENVIRONMENT" = production ] || export PB_PORT FRONTEND_PORT
@@ -129,33 +129,24 @@ step "2/5 Applicatie bouwen"
 compose build
 
 step "3/5 Starten, migraties (setup-collections.sh) en data laden (SEED_DEMO=$SEED_DEMO)"
-compose up -d --remove-orphans
+compose up -d --no-deps --force-recreate --wait --wait-timeout 120 pocketbase
+compose run --rm --no-deps pb-setup
+compose restart pocketbase
+compose up -d --no-deps --wait --wait-timeout 120 pocketbase
+
+step "4/5 Frontend starten na geslaagde migraties"
+compose up -d --no-deps --force-recreate --wait --wait-timeout 120 frontend
 if [ "$DO_CADDY" = true ]; then
   step "Caddy site config"
   deploy_caddy
 fi
 
-step "4/5 Wachten op PocketBase en frontend"
 if [ "$ENVIRONMENT" = production ]; then
   DOMAIN="$(grep -E '^DOMAIN=' "$ENV_FILE" | cut -d= -f2-)"
   FRONT_URL="https://$DOMAIN"
 else
   FRONT_URL="http://localhost:$FRONTEND_PORT"
 fi
-for _ in $(seq 1 60); do
-  [ "$(compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' | grep '^pb-setup' | awk '{print $2 ":" $3}')" = "exited:0" ] && break
-  sleep 3
-done
-if ! compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' | grep -q '^pb-setup exited 0'; then
-  compose logs pb-setup | tail -30 >&2
-  echo "Migraties zijn mislukt." >&2
-  exit 1
-fi
-
-step "PocketBase herstarten om gewijzigde hooks te laden"
-compose restart pocketbase
-compose up -d --no-deps --wait --wait-timeout 120 pocketbase
-
 step "5/5 Smoke test"
 for _ in $(seq 1 30); do
   curl -fsS -o /dev/null "$FRONT_URL/" && break

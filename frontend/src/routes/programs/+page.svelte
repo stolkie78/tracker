@@ -407,7 +407,7 @@
               <p class="text-sm text-gray-500 dark:text-gray-400">
                 {plan.schedule_mode === 'free_period' ? `${plan.weeks}-week free period` : plan.schedule_mode === 'flexible_cycle' ? 'Legacy flexible program' : `${(plan.cycle_days || 7) / 7}-week cycle × ${plan.cycles || 1}`} · {formatDate(plan.start_date)} – {formatDate(plan.end_date)}
               </p>
-              <a class="text-sm font-semibold text-primary-700 underline dark:text-primary-300" href={`/?plan=${plan.id}`}>View on timeline</a>
+              <a class="text-sm font-semibold text-primary-700 underline dark:text-primary-300" href={`/?view=${plan.schedule_mode === 'free_period' ? 'free' : 'planned'}&plan=${plan.id}`}>View activities</a>
             </div>
           {/each}
         {/if}

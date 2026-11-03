@@ -50,6 +50,9 @@
   let actualDistance: number | undefined = undefined;
   let actualTime = '';
 
+  $: returnView = $page.url.searchParams.get('view') === 'free'
+    || (!$page.url.searchParams.has('view') && workout?.free_period) ? 'free' : 'planned';
+
   $: workoutDate = workout?.free_period && workout.status !== 'completed'
     ? (workout.status === 'in_progress' ? 'Free period · in progress' : 'Free period · no fixed date')
     : workout
@@ -378,7 +381,7 @@
     </div>
     {#key workout}<ActivityProgress />{/key}
   {/if}
-  <a href="/" class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> Back to timeline</a>
+  <a href={`/?view=${returnView}`} class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> {returnView === 'free' ? 'Back to free activities' : 'Back to timeline'}</a>
   <article class="card {WORKOUT_STATUS_CARD_STYLES[workout.status]}">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
