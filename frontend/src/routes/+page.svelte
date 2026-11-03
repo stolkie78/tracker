@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints, wellness: HeartPulse };
@@ -188,6 +189,8 @@
     </div>
   </div>
 
+  <ActivityProgress />
+
   <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1 dark:bg-gray-900" aria-label="Activity views">
     <a class="rounded-xl px-4 py-3 text-center text-sm font-bold transition {selectedView === 'planned' ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-800'}"
       href={viewHref('planned')} aria-current={selectedView === 'planned' ? 'page' : undefined}>Planned</a>
@@ -254,25 +257,35 @@
             <p><span class="font-bold">{period.completed} of {period.total} activities</span> completed</p>
             <p class="font-semibold text-primary-700 dark:text-primary-300">{remaining} remaining</p>
           </div>
-          <progress class="mt-2 block h-2 w-full overflow-hidden rounded-full accent-primary-600" value={period.completed} max={period.total} aria-label={`Progress for ${period.plan.title}`}></progress>
+          <progress class="activity-progress mt-2" value={period.completed} max={period.total} aria-label={`Progress for ${period.plan.title}`}></progress>
           {#if period.plan.end_date.slice(0, 10) < localDate(new Date())}
             <p class="mt-3 text-sm text-amber-800 dark:text-amber-200">Period ended. Unfinished sessions are still available.</p>
           {:else if period.plan.start_date.slice(0, 10) > localDate(new Date())}
             <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">Upcoming period</p>
           {/if}
           </div>
-          <div class="divide-y divide-gray-200 dark:divide-gray-800">
+          <div class="space-y-5 p-3 sm:p-5">
           {#each groupPeriodCategories(period.groups) as category}
-            <section class="p-4 sm:p-5" aria-label={`${category.label} activities`}>
-              <div class="mb-2 flex items-baseline justify-between gap-3">
-                <h5 class="font-bold">{category.label}</h5>
-                <span class="text-xs font-semibold text-gray-600 dark:text-gray-300">{category.completed}/{category.total} complete</span>
+            <section class="overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-sm dark:border-slate-600 dark:bg-gray-900" aria-label={`${category.label} activities`}>
+              <div class="border-b-2 border-slate-300 bg-slate-100 p-4 dark:border-slate-600 dark:bg-slate-800">
+                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <h5 class="flex items-center gap-3 text-lg font-black">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {WORKOUT_TYPE_STYLES[category.type].icon}">
+                      <svelte:component this={TYPE_ICONS[category.type]} size={23} strokeWidth={2.25} />
+                    </span>
+                    {category.label}
+                  </h5>
+                  <span class="text-sm font-bold text-gray-700 dark:text-gray-200">{category.completed}/{category.total} complete</span>
+                </div>
+                <progress class="activity-progress" value={category.completed} max={category.total} aria-label={`${category.label} progress`}></progress>
               </div>
-              <progress class="mb-2 block h-1.5 w-full overflow-hidden rounded-full accent-primary-600" value={category.completed} max={category.total} aria-label={`${category.label} progress`}></progress>
-              <div class="divide-y divide-gray-100 dark:divide-gray-800">
+              <div class="divide-y divide-gray-200 px-4 dark:divide-gray-700">
                 {#each category.groups as group}
                   {#each groupPeriodWorkouts(group.workouts) as item}
                     <div class="flex flex-wrap items-center gap-3 py-3">
+                      <span class="flex h-7 w-7 shrink-0 items-center justify-center text-gray-500 dark:text-gray-400">
+                        <svelte:component this={TYPE_ICONS[category.type]} size={17} strokeWidth={2} />
+                      </span>
                       <div class="min-w-0 flex-1">
                         <p class="font-semibold">{item.title}</p>
                         <p class="text-sm text-gray-600 dark:text-gray-300">
@@ -398,7 +411,7 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
+                  <span>{workout.day_part === 'all_day' ? group.label : workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
                   <span>View details →</span>
                 </div>
               </a>

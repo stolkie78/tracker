@@ -174,9 +174,10 @@ PROFILE_FIELDS="$(jq -cn --argjson user "$(relation_field user _pb_users_auth_ t
   --argjson birth "$(date_field birth_date)" \
   --argjson phone "$(text_field phone)" --argjson bio "$(text_field bio)" \
   --argjson height '{"name":"height_cm","type":"number","min":0,"max":300}' \
+  --argjson goals '{"name":"weekly_goals","type":"json","maxSize":524288}' \
   --argjson photo '{"name":"photo","type":"file","maxSelect":1,"maxSize":5242880,"mimeTypes":["image/jpeg","image/png","image/webp"],"protected":true}' \
   --argjson role "$(select_field role '["admin","coach","athlete"]' true)" \
-  '[$user,$display,$role,$birth,$phone,$bio,$height,$photo]')"
+  '[$user,$display,$role,$birth,$phone,$bio,$height,$photo,$goals]')"
 ensure_collection profiles base "$PROFILE_FIELDS" \
   'user = @request.auth.id' 'user = @request.auth.id' 'user = @request.auth.id && @request.body.role = "athlete"' 'user = @request.auth.id && (@request.body.user:isset = false || @request.body.user = @request.auth.id) && @request.body.role:isset = false' '__locked__'
 
@@ -297,7 +298,8 @@ TEMPLATE_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection template_exercises base "$TEMPLATE_EXERCISE_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
-  --argjson day_part "$(select_field day_part '["morning","afternoon","evening"]')" \
+  --argjson day_part "$(select_field day_part '["all_day","morning","afternoon","evening"]')" \
+  --argjson all_day_date "$(date_field all_day_date)" \
   --argjson free "$(bool_field free_period)" \
   --argjson plan "$(relation_field plan "$PLAN_ID")" \
   --argjson template "$(relation_field template "$TEMPLATE_ID")" \
@@ -316,7 +318,7 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson wellness "$(select_field wellness_activity '["breathing","diet","omad","fasting"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$effort,$series,$strava,$elevation,$template,$due,$day_part,$free]')"
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$effort,$series,$strava,$elevation,$template,$due,$day_part,$all_day_date,$free]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 

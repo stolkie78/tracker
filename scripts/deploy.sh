@@ -129,13 +129,13 @@ step "2/5 Applicatie bouwen"
 compose build
 
 step "3/5 Starten, migraties (setup-collections.sh) en data laden (SEED_DEMO=$SEED_DEMO)"
-compose up -d --no-deps --force-recreate --wait pocketbase
+compose up -d --no-deps --force-recreate --wait --wait-timeout 120 pocketbase
 compose run --rm --no-deps pb-setup
 compose restart pocketbase
-compose up -d --no-deps --wait pocketbase
+compose up -d --no-deps --wait --wait-timeout 120 pocketbase
 
 step "4/5 Frontend starten na geslaagde migraties"
-compose up -d --no-deps --force-recreate --wait frontend
+compose up -d --no-deps --force-recreate --wait --wait-timeout 120 frontend
 if [ "$DO_CADDY" = true ]; then
   step "Caddy site config"
   deploy_caddy

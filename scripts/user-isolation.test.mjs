@@ -53,6 +53,22 @@ test('personal records, relationships and protected photos stay with their owner
       users.push({ ...user, token, profile });
     }
     const [alice, bob, carol] = users;
+    const weeklyGoals = [{ week: '2026-11-02', target: 2 }];
+    const goalData = new FormData();
+    goalData.set('weekly_goals', JSON.stringify(weeklyGoals));
+    const savedGoal = await ok(path('profiles', alice.profile.id), alice.token, 'PATCH', goalData);
+    assert.deepEqual(savedGoal.weekly_goals, weeklyGoals);
+    assert.deepEqual((await ok(path('profiles', alice.profile.id), alice.token)).weekly_goals, weeklyGoals);
+    for (const stranger of [bob, carol]) {
+      await denied(path('profiles', alice.profile.id), stranger.token);
+      await denied(path('profiles', alice.profile.id), stranger.token, 'PATCH', { weekly_goals: [] });
+    }
+    for (const weekly_goals of [
+      [{ week: '2026-11-02', target: 8 }],
+      [{ week: '2026-11-03', target: 3 }],
+      [{ week: '2026-11-02', target: 1.5 }],
+      [{ week: '2026-11-02', target: 2 }, { week: '2026-11-02', target: 3 }]
+    ]) await denied(path('profiles', alice.profile.id), alice.token, 'PATCH', { weekly_goals });
     const catalogRoute = 'top-trainer/catalog';
     const catalogData = { kind: 'movement', label: `Trail activity ${crypto.randomUUID()}`, categories: ['life'], active: true };
     await denied(catalogRoute, '', 'POST', catalogData);
@@ -273,9 +289,13 @@ test('personal records, relationships and protected photos stay with their owner
     assert.equal(detachedCompleted.performed_at, directlyCompleted.performed_at);
     await ok(path('workouts', free.id), alice.token, 'PATCH', { notes: 'History survives deleting the period' });
     await denied(path('workouts', free.id), alice.token, 'PATCH', { status: 'planned' });
-    for (const dayPart of ['morning', 'afternoon', 'evening']) {
-      const updated = await ok(path('workouts', workout.id), alice.token, 'PATCH', { day_part: dayPart });
+    await denied(path('workouts', workout.id), alice.token, 'PATCH', { day_part: 'all_day', all_day_date: '' });
+    for (const dayPart of ['all_day', 'morning', 'afternoon', 'evening']) {
+      const updated = await ok(path('workouts', workout.id), alice.token, 'PATCH', {
+        day_part: dayPart, all_day_date: dayPart === 'all_day' ? '2026-10-21T00:00:00.000Z' : ''
+      });
       assert.equal(updated.day_part, dayPart);
+      assert.equal(updated.all_day_date.slice(0, 10), dayPart === 'all_day' ? '2026-10-21' : '');
       await denied(path('workouts', workout.id), bob.token, 'PATCH', { day_part: dayPart });
     }
     await denied(path('workouts', workout.id), alice.token, 'PATCH', { day_part: 'night' });

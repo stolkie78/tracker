@@ -75,6 +75,7 @@ export interface BaseRecord {
 }
 
 export interface Profile extends BaseRecord {
+  weekly_goals?: import('$lib/gamification').WeeklyGoal[];
   user: ID;
   display_name: string;
   role: UserRole;
@@ -114,6 +115,7 @@ export interface Workout extends BaseRecord {
   free_period?: boolean;
   performed_at: string;
   day_part?: DayPart | '';
+  all_day_date?: string;
   duration_minutes: number;
   notes: string;
   cardio_mode?: CardioMode;
@@ -156,15 +158,16 @@ export const SCHEDULE_MODE_LABELS: Record<ScheduleMode, string> = {
   free_period: 'Free'
 };
 
-export type DayPart = 'morning' | 'afternoon' | 'evening';
+export type DayPart = 'all_day' | 'morning' | 'afternoon' | 'evening';
 
-export const DAY_PARTS: DayPart[] = ['morning', 'afternoon', 'evening'];
+export const DAY_PARTS: DayPart[] = ['all_day', 'morning', 'afternoon', 'evening'];
 export const DAY_PART_LABELS: Record<DayPart, string> = {
+  all_day: 'All day',
   morning: 'Morning',
   afternoon: 'Afternoon',
   evening: 'Evening'
 };
-export const DAY_PART_HOURS: Record<DayPart, number> = { morning: 9, afternoon: 14, evening: 19 };
+export const DAY_PART_HOURS: Record<DayPart, number> = { all_day: 0, morning: 9, afternoon: 14, evening: 19 };
 export const DAY_PART_OPTIONS = DAY_PARTS.map((value) => ({ value, label: DAY_PART_LABELS[value] }));
 
 export interface CycleSlot {

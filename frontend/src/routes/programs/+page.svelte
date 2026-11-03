@@ -3,10 +3,14 @@
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { Check, ChevronDown, ChevronUp, LoaderCircle, Pencil, Plus, Repeat, Trash2 } from '@lucide/svelte';
   import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
-  import { blockTime, buildCycleSchedule, buildFreePeriod, countPeriodTargets, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, normalizePeriodTargets, replanCycle, replanFreePeriod, type PeriodTarget, type ScheduledBlock } from '$lib/programs';
-  import { DAY_PARTS, DAY_PART_LABELS, isDietaryActivity, templateLabel, WORKOUT_TYPE_STYLES, type CycleSlot, type DayPart, type TrainingPlan, type WorkoutTemplate } from '$lib/types';
+  import { applyActivityToCycle, blockTime, buildCycleSchedule, buildFreePeriod, countPeriodTargets, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, normalizePeriodTargets, replanCycle, replanFreePeriod, type PeriodTarget, type ScheduledBlock } from '$lib/programs';
+  import { DAY_PARTS, DAY_PART_LABELS, DAY_PART_OPTIONS, isDietaryActivity, templateLabel, WORKOUT_TYPE_STYLES, type CycleSlot, type DayPart, type TrainingPlan, type WorkoutTemplate } from '$lib/types';
 
   const MAX_WORKOUTS = 200;
+  const weekdays = [
+    { value: 1, label: 'Mon' }, { value: 2, label: 'Tue' }, { value: 3, label: 'Wed' },
+    { value: 4, label: 'Thu' }, { value: 5, label: 'Fri' }, { value: 6, label: 'Sat' }, { value: 0, label: 'Sun' }
+  ];
   let title = '';
   let goal = '';
   let startDate = localDate(new Date());
@@ -25,6 +29,11 @@
   let saving = false;
   let error = '';
   let success = '';
+  let bulkTemplate = '';
+  let bulkPart: DayPart = 'all_day';
+  let bulkWeeks = [0];
+  let bulkWeekdays = [1, 2, 3, 4, 5];
+  let bulkStatus = '';
 
   $: showForm = isCreating || editingPlan !== null;
   $: activePlanCount = plans.filter((plan) => planState(plan) === 'active').length;
@@ -94,6 +103,8 @@
     slots = Array.from({ length: weeks * 7 }, (_, index) => slots[index] ?? emptyCycleSlot());
     cycleWeeks = weeks;
     selectedWeek = Math.min(selectedWeek, weeks - 1);
+    bulkWeeks = Array.from({ length: weeks }, (_, week) => week);
+    bulkStatus = '';
   };
 
   const setPeriod = (day: number, part: DayPart, ids: string[]) => {
@@ -104,6 +115,28 @@
     const ids = [...slots[day].periods[part]];
     [ids[index], ids[index + delta]] = [ids[index + delta], ids[index]];
     setPeriod(day, part, ids);
+  };
+
+  const applyBulkActivity = () => {
+    error = '';
+    bulkStatus = '';
+    try {
+      if (!templateById.has(bulkTemplate)) throw new Error('Choose an available activity to apply.');
+      const updated = applyActivityToCycle(startDate, slots, bulkTemplate, bulkPart, bulkWeeks, bulkWeekdays);
+      const added = updated.reduce((sum, slot, day) => sum + slot.periods[bulkPart].length - slots[day].periods[bulkPart].length, 0);
+      slots = updated;
+      bulkStatus = added ? `Activity added to ${added} ${added === 1 ? 'day' : 'days'} in the cycle. All cycle repeats use this schedule.` : 'No changes: this activity is already on every selected day.';
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'The activity could not be applied.';
+    }
+  };
+
+  const resetBulk = (weeks: number) => {
+    bulkTemplate = '';
+    bulkPart = 'all_day';
+    bulkWeeks = Array.from({ length: weeks }, (_, week) => week);
+    bulkWeekdays = [1, 2, 3, 4, 5];
+    bulkStatus = '';
   };
 
   const save = async () => {
@@ -282,6 +315,7 @@
       goal = plan.goal === plan.title ? '' : plan.goal;
       startDate = start;
       cycleWeeks = days / 7;
+      resetBulk(cycleWeeks);
       selectedWeek = 0;
       cycles = plan.cycles || 4;
       window.setTimeout(() => document.getElementById('program-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
@@ -312,6 +346,7 @@
     mode = 'fixed_weekdays';
     periodWeeks = 1;
     targets = [];
+    resetBulk(1);
   };
 
   const removePlan = async (plan: TrainingPlan) => {
@@ -444,13 +479,52 @@
               {:else}<p class="mt-1">{formatDate(startDate)} – {formatDate(freePreview.end)}</p>{/if}
             </div>
           {:else}
-          <p class="text-sm text-gray-600 dark:text-gray-300">The cycle starts on the start date and repeats every {cycleWeeks * 7} days. Configure each week separately; leave a day part empty for rest.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-300">The cycle starts on the start date and repeats every {cycleWeeks * 7} days. Use All day for a whole-day activity, or choose Morning, Afternoon or Evening. Leave a day empty for rest.</p>
 
           {#if templates.length === 0}
             <p class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
               Create an activity in <a class="font-semibold underline" href="/library">Activities</a> first.
             </p>
           {/if}
+          <section class="space-y-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700" aria-label="Apply activity to multiple days">
+            <h3 class="font-bold">Apply activity to multiple days</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-300">Add an activity to selected weekdays and weeks at once, without replacing existing activities or adding duplicates. Workdays means Monday to Friday, based on the actual dates.</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label class="label" for="bulk-activity">Activity to apply</label>
+                <select id="bulk-activity" class="input" bind:value={bulkTemplate}>
+                  <option value="">Choose an activity...</option>
+                  {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
+                </select>
+              </div>
+              <div>
+                <label class="label" for="bulk-part">Day part</label>
+                <CycleChoice id="bulk-part" label="Day part to apply" bind:value={bulkPart} options={DAY_PART_OPTIONS} />
+              </div>
+            </div>
+            <fieldset class="space-y-2">
+              <legend class="label">Weeks in this cycle</legend>
+              <div class="flex flex-wrap gap-3">
+                {#each Array.from({ length: cycleWeeks }, (_, week) => week) as week}
+                  <label class="flex items-center gap-2"><input type="checkbox" bind:group={bulkWeeks} value={week} /> Week {week + 1}</label>
+                {/each}
+              </div>
+            </fieldset>
+            <fieldset class="space-y-2">
+              <legend class="label">Weekdays</legend>
+              <div class="flex flex-wrap gap-2">
+                <button class="btn-secondary" type="button" on:click={() => bulkWeekdays = [1, 2, 3, 4, 5]}>Workdays (Mon–Fri)</button>
+                <button class="btn-secondary" type="button" on:click={() => bulkWeekdays = [0, 1, 2, 3, 4, 5, 6]}>All days</button>
+              </div>
+              <div class="flex flex-wrap gap-3">
+                {#each weekdays as weekday}
+                  <label class="flex items-center gap-2"><input type="checkbox" bind:group={bulkWeekdays} value={weekday.value} /> {weekday.label}</label>
+                {/each}
+              </div>
+            </fieldset>
+            <button class="btn-secondary w-full" type="button" disabled={!bulkTemplate || !bulkWeeks.length || !bulkWeekdays.length} on:click={applyBulkActivity}><Plus size={16} /> Apply activity</button>
+            {#if bulkStatus}<p role="status" class="text-sm text-green-800 dark:text-green-200">{bulkStatus}</p>{/if}
+          </section>
           {#if cycleWeeks > 1}
             <div class="flex flex-wrap gap-2" role="group" aria-label="Cycle week">
               {#each Array.from({ length: cycleWeeks }, (_, week) => week) as week}

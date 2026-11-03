@@ -1,10 +1,13 @@
 <script lang="ts">
+  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
+  import { isDietaryActivity } from '$lib/types';
   import { onMount } from 'svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { activityOptions, equipmentOptions as availableEquipment } from '$lib/catalog';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { formatWorkoutTime, requiresDistanceAndTime, distanceCompletionData } from '$lib/workouts';
+  import { localDate } from '$lib/programs';
   import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
   import {
@@ -42,6 +45,7 @@
   let loading = true;
   let error = '';
   let statusSaving = false;
+  let justCompleted = false;
   let showDistanceCompletion = false;
   let actualDistance: number | undefined = undefined;
   let actualTime = '';
@@ -57,7 +61,7 @@
         day: 'numeric',
         month: 'long',
         year: 'numeric',
-        ...(workout.status === 'planned' ? {} : { hour: '2-digit', minute: '2-digit' })
+        ...(workout.status === 'planned' || workout.day_part === 'all_day' ? {} : { hour: '2-digit', minute: '2-digit' })
       }).format(new Date(workout.performed_at))
     : '';
 
@@ -184,6 +188,7 @@
     statusSaving = true;
     error = '';
     try {
+      const wasCompleted = workout.status === 'completed';
       if (status === 'completed' && workout.status !== 'completed' && workout.series_id) {
         for (const exercise of exerciseLogs) {
           const { record, sets } = exercise;
@@ -198,9 +203,13 @@
       workout = await updateWorkout(workout.id, {
         status,
         ...results,
-        ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
+        ...(workout.status === 'planned' && status === 'in_progress' ? {
+          performed_at: new Date().toISOString(),
+          ...(workout.day_part === 'all_day' ? { all_day_date: `${localDate(new Date())}T00:00:00.000Z` } : {})
+        } : {})
       });
       selectedStatus = workout.status;
+      justCompleted = status === 'completed' && !wasCompleted && !isDietaryActivity(workout.type, workout.wellness_activity);
       return true;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Workout could not be updated.';
@@ -213,6 +222,7 @@
   let editing = false;
   let saving = false;
   let editDayPart: DayPart | '' = '';
+  let editAllDayDate = '';
   let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball', wellness: 'breathing' };
 
   const toLocalInput = (iso: string) => {
@@ -224,6 +234,7 @@
   const openEdit = () => {
     if (!workout) return;
     editDayPart = workout.day_part || '';
+    editAllDayDate = workout.all_day_date?.slice(0, 10) || (workout.performed_at ? localDate(new Date(workout.performed_at)) : '');
     edit = {
       title: workout.title,
       when: workout.performed_at ? toLocalInput(workout.performed_at) : '',
@@ -243,7 +254,7 @@
 
   const saveEdit = async () => {
     if (!workout) return;
-    if (!edit.title.trim() || ((!workout.free_period || workout.status === 'completed') && !edit.when)) {
+    if (!edit.title.trim() || ((!workout.free_period || workout.status === 'completed') && !(editDayPart === 'all_day' ? editAllDayDate : edit.when))) {
       error = 'Title and date are required.';
       return;
     }
@@ -253,8 +264,11 @@
       const type = workout.type;
       const updated = await updateWorkout(workout.id, {
         title: edit.title.trim(),
-        ...(!workout.free_period || workout.status === 'completed' ? { performed_at: new Date(edit.when).toISOString() } : {}),
+        ...(!workout.free_period || workout.status === 'completed' ? {
+          performed_at: new Date(editDayPart === 'all_day' ? `${editAllDayDate}T00:00:00` : edit.when).toISOString()
+        } : {}),
         day_part: editDayPart,
+        all_day_date: editDayPart === 'all_day' ? `${editAllDayDate}T00:00:00.000Z` : '',
         duration_minutes: edit.duration,
         notes: edit.notes,
         ...(type === 'cardio' || type === 'life' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
@@ -360,6 +374,13 @@
   </div>
 {:else}
 <div class="space-y-5">
+  {#if justCompleted && workout.status === 'completed'}
+    <div role="status" class="card border-emerald-500 text-emerald-800 dark:text-emerald-200">
+      <p class="text-xl font-bold">Session complete. Well done!</p>
+      <p>You showed up for yourself. Recovery is part of progress too.</p>
+    </div>
+    {#key workout}<ActivityProgress />{/key}
+  {/if}
   <a href={`/?view=${returnView}`} class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> {returnView === 'free' ? 'Back to free activities' : 'Back to timeline'}</a>
   <article class="card {WORKOUT_STATUS_CARD_STYLES[workout.status]}">
     <div class="flex flex-wrap items-start justify-between gap-4">
@@ -382,7 +403,11 @@
       <form class="mt-5 grid gap-4 rounded-xl border border-gray-200 p-4 dark:border-gray-700 sm:grid-cols-2" on:submit|preventDefault={saveEdit}>
         <div><label class="label" for="edit-title">Title</label><input id="edit-title" class="input" bind:value={edit.title} maxlength="120" required /></div>
         {#if !workout.free_period || workout.status === 'completed'}
+        {#if editDayPart === 'all_day'}
+        <div><label class="label" for="edit-all-day-date">Date</label><input id="edit-all-day-date" class="input" type="date" bind:value={editAllDayDate} required /></div>
+        {:else}
         <div><label class="label" for="edit-when">Date and time</label><input id="edit-when" class="input" type="datetime-local" bind:value={edit.when} required /></div>
+        {/if}
         {/if}
         {#if !workout.free_period}
         <div>

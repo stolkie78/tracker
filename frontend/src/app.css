@@ -79,4 +79,47 @@
   .badge {
     @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
   }
+
+  .activity-progress {
+    --progress-track: #cbd5e1;
+    --progress-fill: #c2410c;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 0.75rem;
+    overflow: hidden;
+    border: 1px solid #64748b;
+    border-radius: 9999px;
+    background: var(--progress-track);
+    color: var(--progress-fill);
+  }
+
+  .dark .activity-progress {
+    --progress-track: #334155;
+    --progress-fill: #fb923c;
+    border-color: #94a3b8;
+  }
+
+  .activity-progress::-webkit-progress-bar {
+    background: var(--progress-track);
+    border-radius: 9999px;
+  }
+
+  .activity-progress::-webkit-progress-value {
+    background: var(--progress-fill);
+    border-radius: 9999px;
+  }
+
+  .activity-progress::-moz-progress-bar {
+    background: var(--progress-fill);
+    border-radius: 9999px;
+  }
+
+  @media (forced-colors: active) {
+    .activity-progress {
+      --progress-track: Canvas;
+      --progress-fill: Highlight;
+      border-color: CanvasText;
+    }
+  }
 }
