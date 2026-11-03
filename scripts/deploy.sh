@@ -152,6 +152,10 @@ if ! compose ps -a --format '{{.Service}} {{.State}} {{.ExitCode}}' | grep -q '^
   exit 1
 fi
 
+step "PocketBase herstarten om gewijzigde hooks te laden"
+compose restart pocketbase
+compose up -d --no-deps --wait --wait-timeout 120 pocketbase
+
 step "5/5 Smoke test"
 for _ in $(seq 1 30); do
   curl -fsS -o /dev/null "$FRONT_URL/" && break

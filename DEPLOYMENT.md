@@ -35,7 +35,7 @@ Configureer Strava na de deploy als applicatiebeheerder via **Instellingen → S
 2. **Back-up** (alleen production, als er al data is): `backups/pb_data_<tijdstempel>.tar.gz`.
 3. **Bouwen**: `docker compose build` van de frontend-image.
 4. **Migraties en data**: `pb-setup` draait `scripts/setup-collections.sh` (schema, 50 oefeningen, admin-gebruiker; idempotent). Bij `test` en `demo` volgt `scripts/seed-demo.sh` (voorbeeldtrainingen, een geplande reeks van 4 weken en een OMAD-programma met weekmenu en 4 dagen reeks; slaat onderdelen over als de data er al is).
-5. **Verificatie**: wacht tot `pb-setup` succesvol eindigt (anders worden de logs getoond en faalt het script) en voert een smoke test uit op frontend en `/api/health`.
+5. **Verificatie**: wacht tot `pb-setup` succesvol eindigt (anders worden de logs getoond en faalt het script), herstart PocketBase om gewijzigde hooks te laden en wacht maximaal 120 seconden op een gezonde container. Daarna volgt een smoke test op frontend en `/api/health`. Een mislukte herstart of gezondheidscontrole stopt de deploy; handmatig herstarten is niet nodig.
 
 ## Opties
 
