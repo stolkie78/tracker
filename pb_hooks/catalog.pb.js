@@ -3,7 +3,7 @@ routerAdd("POST", "/api/top-trainer/catalog", function (e) {
   var body = e.requestInfo().body || {};
   var name = typeof body.label === "string" ? body.label.trim() : "";
   var kind = body.kind;
-  var allowed = { movement: ["cardio", "interval", "life"], recovery: ["recovery"], sport: ["sport"], equipment: ["strength"] };
+  var allowed = { movement: ["cardio", "interval", "life"], recovery: ["recovery"], sport: ["sport"], wellness: ["wellness"], equipment: ["strength"] };
   if (!name || name.length > 80 || !Object.prototype.hasOwnProperty.call(allowed, kind)) {
     throw new BadRequestError("Enter a name of at most 80 characters and a valid entry type.");
   }
@@ -91,20 +91,23 @@ onRecordValidate(function (e) {
   var lib = require(__hooks + "/catalog_lib.js");
   var type = e.record.getString("type");
   var field = type === "cardio" || type === "interval" || type === "life" ? "cardio_mode"
-    : type === "recovery" ? "recovery_activity" : type === "sport" ? "sport_activity" : "";
+    : type === "recovery" ? "recovery_activity" : type === "sport" ? "sport_activity"
+    : type === "wellness" ? "wellness_activity" : "";
   if (field) {
     if (!e.record.getString(field)) throw new BadRequestError("Choose an activity for this category.");
     var original = e.record.original();
     var previous = !e.record.isNew() && original.getString("type") === type ? original.getString(field) : "";
-    lib.validateChoice(e.app, field === "cardio_mode" ? "movement" : type, e.record.getString(field), type, previous, e.record.getString("owner"));
+    var kind = field === "cardio_mode" ? "movement" : type === "wellness" ? "wellness" : type;
+    lib.validateChoice(e.app, kind, e.record.getString(field), type, previous, e.record.getString("owner"));
   }
   e.next();
 }, "workout_templates");
 
 onRecordValidate(function (e) {
   var type = e.record.getString("type");
-  var kind = type === "cardio" || type === "interval" || type === "life" ? "movement" : type;
-  var field = kind === "movement" ? "cardio_mode" : type === "recovery" ? "recovery_activity" : type === "sport" ? "sport_activity" : "";
+  var kind = type === "cardio" || type === "interval" || type === "life" ? "movement" : type === "wellness" ? "wellness" : type;
+  var field = kind === "movement" ? "cardio_mode" : type === "recovery" ? "recovery_activity" : type === "sport" ? "sport_activity" : type === "wellness" ? "wellness_activity" : "";
+  if (type === "wellness" && !e.record.getString(field)) throw new BadRequestError("Choose a wellness activity.");
   if (field && e.record.getString(field)) {
     var previous = !e.record.isNew() && e.record.original().getString("type") === type ? e.record.original().getString(field) : "";
     if (e.record.isNew() && e.record.getString("template")) {

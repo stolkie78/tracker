@@ -143,8 +143,8 @@ OWNER_FIELD="$(relation_field owner _pb_users_auth_ true)"
 CATALOG_FIELDS="$(jq -cn \
   --argjson owner "$(relation_field owner _pb_users_auth_)" \
   --argjson key "$(text_field key true)" --argjson label "$(text_field label true)" \
-  --argjson kind "$(select_field kind '["movement","recovery","sport","equipment"]' true)" \
-  --argjson categories "$(jq -cn '{name:"categories",type:"select",maxSelect:6,values:["strength","cardio","interval","recovery","sport","life"]}')" \
+  --argjson kind "$(select_field kind '["movement","recovery","sport","wellness","equipment"]' true)" \
+  --argjson categories "$(jq -cn '{name:"categories",type:"select",maxSelect:7,values:["strength","cardio","interval","recovery","sport","life","wellness"]}')" \
   --argjson active "$(bool_field active)" '[$key,$label,$kind,$categories,$active,$owner]')"
 ensure_collection training_catalog base "$CATALOG_FIELDS" \
   '(owner = "" || owner = @request.auth.id)' '(owner = "" || owner = @request.auth.id)' '__locked__' '__locked__' '__locked__'
@@ -166,6 +166,7 @@ done < <(jq -cn '
   entries("movement";["life"];[["walking","Walking"],["hiking","Hiking"]]),
   entries("recovery";["recovery"];[["rest","Rest"],["mobility","Mobility"],["yoga","Yoga"],["stretching","Stretching"],["other","Other"]]),
   entries("sport";["sport"];[["indoor_volleyball","Indoor volleyball"],["beach_volleyball","Beach volleyball"],["pickleball","Pickleball"],["football","Football"],["tennis","Tennis"],["basketball","Basketball"]]),
+  entries("wellness";["wellness"];[["breathing","Breathing"],["diet","Diet"],["omad","OMAD"],["fasting","Fasting"]]),
   entries("equipment";["strength"];[["cable","Cable"],["dumbbell","Dumbbell"],["kettlebell","Kettlebell"],["barbell","Barbell"],["machine","Machine"],["bodyweight","Bodyweight"],["band","Resistance band"],["other","Other"]])
 ')
 PROFILE_FIELDS="$(jq -cn --argjson user "$(relation_field user _pb_users_auth_ true)" \
@@ -268,7 +269,7 @@ PLAN_ID="$(collection_id training_plans)"
 EXERCISE_ID="$(collection_id exercises)"
 TEMPLATE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson title "$(text_field title true)" \
-  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life"]' true)" \
+  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life","wellness"]' true)" \
   --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
   --argjson cardio "$(select_field cardio_mode '["running","cycling","rowing","swimming","walking","hiking","other"]')" \
   --argjson distance "$(number_field distance_km)" \
@@ -276,9 +277,10 @@ TEMPLATE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson rounds "$(number_field interval_rounds)" \
   --argjson recovery "$(select_field recovery_activity '["rest","mobility","yoga","walking","stretching","other"]')" \
   --argjson sport "$(select_field sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]')" \
+  --argjson wellness "$(select_field wellness_activity '["breathing","diet","omad","fasting"]')" \
   --argjson level "$(select_field level '["beginner","intermediate","advanced"]')" \
   --argjson goal "$(text_field goal)" --argjson tags "$(text_field tags)" \
-  '[$owner,$title,$type,$duration,$notes,$cardio,$distance,$interval_work,$interval_rest,$rounds,$recovery,$sport,$level,$goal,$tags]')"
+  '[$owner,$title,$type,$duration,$notes,$cardio,$distance,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$level,$goal,$tags]')"
 ensure_collection workout_templates base "$TEMPLATE_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
@@ -301,7 +303,7 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson template "$(relation_field template "$TEMPLATE_ID")" \
   --argjson due "$(date_field due_date)" \
   --argjson title "$(text_field title true)" \
-  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life"]' true)" \
+  --argjson type "$(select_field type '["strength","cardio","interval","recovery","sport","life","wellness"]' true)" \
   --argjson status "$(select_field status '["planned","in_progress","completed","skipped"]' true)" \
   --argjson date "$(date_field performed_at)" \
   --argjson duration "$(number_field duration_minutes)" --argjson notes "$(text_field notes)" \
@@ -311,9 +313,10 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson rounds "$(number_field interval_rounds)" \
   --argjson recovery "$(select_field recovery_activity '["rest","mobility","yoga","walking","stretching","other"]')" \
   --argjson sport "$(select_field sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]')" \
+  --argjson wellness "$(select_field wellness_activity '["breathing","diet","omad","fasting"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$effort,$series,$strava,$elevation,$template,$due,$day_part,$free]')"
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$effort,$series,$strava,$elevation,$template,$due,$day_part,$free]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 
@@ -361,7 +364,10 @@ ensure_collection health_checkins base "$HEALTH_CHECKIN_FIELDS" \
 
 ensure_select_values workout_templates level '["beginner","intermediate","advanced"]'
 ensure_select_values training_plans schedule_mode '["fixed_weekdays","flexible_cycle","free_period"]'
-ensure_select_values workouts type '["strength","cardio","interval","recovery","sport","life"]'
+ensure_select_values workouts type '["strength","cardio","interval","recovery","sport","life","wellness"]'
+ensure_select_values workout_templates type '["strength","cardio","interval","recovery","sport","life","wellness"]'
+ensure_select_values workouts wellness_activity '["breathing","diet","omad","fasting"]'
+ensure_select_values workout_templates wellness_activity '["breathing","diet","omad","fasting"]'
 ensure_select_values workouts sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
 ensure_select_values workout_templates sport_activity '["indoor_volleyball","beach_volleyball","pickleball","football","tennis","basketball"]'
 ensure_select_values workouts status '["planned","in_progress","completed","skipped"]'

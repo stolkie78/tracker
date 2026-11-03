@@ -92,7 +92,7 @@
   {:else}
     <section class="card space-y-2 text-gray-600 dark:text-gray-300">
       <p>No body measurements in this period yet.</p>
-      <a class="font-bold text-overload-signal" href="/health/measurements">Add a measurement under Health → Measurements</a>
+      <a class="font-bold text-overload-signal" href="/health/measurements">Add a body measurement</a>
     </section>
   {/if}
 </div>

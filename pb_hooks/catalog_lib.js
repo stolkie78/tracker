@@ -40,8 +40,8 @@ function effective(records, identity) {
 function extendSchema(app, kind, key) {
   var targets = kind === "equipment"
     ? [["exercises", "equipment_options"], ["template_exercises", "equipment"], ["workout_exercises", "equipment"]]
-    : [["workout_templates", kind === "movement" ? "cardio_mode" : kind === "recovery" ? "recovery_activity" : "sport_activity"],
-       ["workouts", kind === "movement" ? "cardio_mode" : kind === "recovery" ? "recovery_activity" : "sport_activity"]];
+    : [["workout_templates", kind === "movement" ? "cardio_mode" : kind === "recovery" ? "recovery_activity" : kind === "wellness" ? "wellness_activity" : "sport_activity"],
+       ["workouts", kind === "movement" ? "cardio_mode" : kind === "recovery" ? "recovery_activity" : kind === "wellness" ? "wellness_activity" : "sport_activity"]];
   targets.forEach(function (target) {
     var collection = app.findCollectionByNameOrId(target[0]);
     var field = collection.fields.getByName(target[1]);

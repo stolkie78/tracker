@@ -12,7 +12,7 @@ const server = await createServer({
   appType: 'custom'
 });
 after(() => server.close());
-const { buildFreePeriod, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodWorkouts } =
+const { buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodWorkouts } =
   await server.ssrLoadModule('/src/lib/programs.ts');
 const { workoutsInRange, openPastWorkouts } = await server.ssrLoadModule('/src/lib/workouts.ts');
 const { buildCalendar } = createRequire(import.meta.url)('../../pb_hooks/calendar_lib.js');
@@ -102,6 +102,22 @@ test('compact workout rows count repeated sessions and prioritize a started sess
   assert.equal(finished[0].workouts.length, 2, 'History and skipped sessions stay accessible');
   assert.equal(groupPeriodWorkouts([records[0], records[1]])[0].next.id, records[0].id);
   assert.equal(sessions[2].status, 'in_progress', 'Grouping never changes the input');
+});
+
+test('nutrition activities count program targets in days while breathing remains a session', () => {
+  const wellnessTemplates = new Map([
+    ['omad', { id: 'omad', title: 'OMAD', type: 'wellness', wellness_activity: 'omad' }],
+    ['breathing', { id: 'breathing', title: 'Breathing', type: 'wellness', wellness_activity: 'breathing' }]
+  ]);
+  assert.deepEqual(countPeriodTargets([
+    { template: 'omad', count: 5 }, { template: 'breathing', count: 3 }, { template: 'missing', count: 2 }
+  ], wellnessTemplates), { days: 5, sessions: 3 });
+  const omadWorkouts = buildFreePeriod('2026-10-21', 1, [{ template: 'omad', count: 2 }], wellnessTemplates)
+    .map((template, index) => ({ ...template, id: `omad-${index}`, template: template.id, plan: plan.id, free_period: true, status: index ? 'planned' : 'completed' }));
+  const grouped = groupFreePeriods([plan], omadWorkouts, new Date(2026, 9, 24));
+  assert.equal(grouped[0].groups[0].label, 'Wellness · OMAD');
+  assert.equal(grouped[0].groups[0].unit, 'day');
+  assert.equal(groupPeriodWorkouts(omadWorkouts)[0].unit, 'day');
 });
 
 test('editing subtracts completed, active and skipped sessions by template without using their execution date', () => {

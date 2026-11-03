@@ -19,6 +19,7 @@
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     SPORT_ACTIVITY_LABELS,
+    WELLNESS_ACTIVITY_LABELS,
     nextSuggestedWeight,
     WORKOUT_STATUS_LABELS,
     WORKOUT_STATUS_CARD_STYLES,
@@ -209,7 +210,7 @@
   let editing = false;
   let saving = false;
   let editDayPart: DayPart | '' = '';
-  let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball' };
+  let edit = { title: '', when: '', duration: 0, notes: '', cardio: 'running', distance: 0, work: 30, rest: 60, rounds: 8, recovery: 'mobility', sport: 'indoor_volleyball', wellness: 'breathing' };
 
   const toLocalInput = (iso: string) => {
     const date = new Date(iso);
@@ -231,7 +232,8 @@
       rest: workout.interval_rest_seconds ?? 60,
       rounds: workout.interval_rounds ?? 8,
       recovery: workout.recovery_activity ?? 'mobility',
-      sport: workout.sport_activity ?? 'indoor_volleyball'
+      sport: workout.sport_activity ?? 'indoor_volleyball',
+      wellness: workout.wellness_activity ?? 'breathing'
     };
     editing = true;
   };
@@ -255,7 +257,8 @@
         ...(type === 'cardio' || type === 'life' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance } : {}),
         ...(type === 'interval' ? { cardio_mode: edit.cardio as Workout['cardio_mode'], distance_km: edit.distance, interval_work_seconds: edit.work, interval_rest_seconds: edit.rest, interval_rounds: edit.rounds } : {}),
         ...(type === 'recovery' ? { recovery_activity: edit.recovery as Workout['recovery_activity'] } : {}),
-        ...(type === 'sport' ? { sport_activity: edit.sport as Workout['sport_activity'] } : {})
+        ...(type === 'sport' ? { sport_activity: edit.sport as Workout['sport_activity'] } : {}),
+        ...(type === 'wellness' ? { wellness_activity: edit.wellness as Workout['wellness_activity'] } : {})
       });
       workout = { ...workout, ...updated, expand: workout.expand };
       editing = false;
@@ -385,7 +388,9 @@
             options={[{ value: '', label: 'No day part' }, ...DAY_PART_OPTIONS]} />
         </div>
         {/if}
-        <div><label class="label" for="edit-duration">Duration (minutes)</label><input id="edit-duration" class="input" type="number" min="0" step="any" bind:value={edit.duration} /></div>
+        {#if workout.type !== 'wellness'}
+          <div><label class="label" for="edit-duration">Duration (minutes)</label><input id="edit-duration" class="input" type="number" min="0" step="any" bind:value={edit.duration} /></div>
+        {/if}
         {#if workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life'}
           <div>
             <label class="label" for="edit-cardio">Activity</label>
@@ -412,6 +417,12 @@
             <CycleChoice id="edit-sport" label="Sport" options={activityOptions('sport', workout.sport_activity)} bind:value={edit.sport} />
           </div>
         {/if}
+        {#if workout.type === 'wellness'}
+          <div>
+            <label class="label" for="edit-wellness">Activity</label>
+            <CycleChoice id="edit-wellness" label="Activity" options={activityOptions('wellness', workout.wellness_activity)} bind:value={edit.wellness} />
+          </div>
+        {/if}
         <div class="sm:col-span-2"><label class="label" for="edit-notes">Notes</label><textarea id="edit-notes" class="input" rows="3" bind:value={edit.notes}></textarea></div>
         <button class="btn-primary sm:col-span-2" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save changes'}</button>
       </form>
@@ -431,6 +442,8 @@
         <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activity</span><p class="font-bold">{RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]}</p></div>
       {:else if workout.type === 'sport' && workout.sport_activity}
         <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Sport</span><p class="font-bold">{SPORT_ACTIVITY_LABELS[workout.sport_activity]}</p></div>
+      {:else if workout.type === 'wellness' && workout.wellness_activity}
+        <div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Activity</span><p class="font-bold">{WELLNESS_ACTIVITY_LABELS[workout.wellness_activity]}</p></div>
       {/if}
       {#if workout.perceived_effort}<div class="rounded-xl bg-gray-50 p-3 dark:bg-gray-800"><span class="text-sm text-gray-500 dark:text-gray-400">Perceived effort</span><p class="font-bold">{workout.perceived_effort} / 10</p></div>{/if}
     </div>

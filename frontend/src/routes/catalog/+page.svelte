@@ -18,7 +18,8 @@
   let entryForm: { id?: string; personalize?: boolean; kind: CatalogKind; label: string; categories: WorkoutType[]; active: boolean } | null = null;
   let exerciseForm: { id?: string; personalize?: boolean; name: string; category: string; muscle_group: string; equipment_options: string[]; active: boolean } | null = null;
   let kind: CatalogKind;
-  $: kind = selectedCategory === 'strength' ? 'equipment' : selectedCategory === 'sport' ? 'sport' : selectedCategory === 'recovery' ? 'recovery' : 'movement';
+  $: kind = selectedCategory === 'strength' ? 'equipment' : selectedCategory === 'sport' ? 'sport'
+    : selectedCategory === 'recovery' ? 'recovery' : selectedCategory === 'wellness' ? 'wellness' : 'movement';
   $: visibleEntries = entries.filter((entry) => entry.categories.includes(selectedCategory) && (showInactive || entry.active) && entry.label.toLowerCase().includes(search.toLowerCase()));
   $: visibleExercises = exercises.filter((exercise) => (showInactive || exercise.active) && exercise.name.toLowerCase().includes(search.toLowerCase()));
   $: equipmentLabels = Object.fromEntries(entries.filter((entry) => entry.kind === 'equipment').map((entry) => [entry.key, entry.label]));

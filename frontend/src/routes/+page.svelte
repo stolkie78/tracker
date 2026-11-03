@@ -1,7 +1,7 @@
 <script lang="ts">
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, Check, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
-  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints };
+  const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints, wellness: HeartPulse };
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
@@ -12,6 +12,7 @@
     CARDIO_MODE_LABELS,
     RECOVERY_ACTIVITY_LABELS,
     SPORT_ACTIVITY_LABELS,
+    WELLNESS_ACTIVITY_LABELS,
     WORKOUT_STATUS_LABELS,
     WORKOUT_TYPE_LABELS,
     WORKOUT_TYPE_STYLES,
@@ -157,6 +158,9 @@
     if (workout.type === 'sport' && workout.sport_activity) {
       details.push(SPORT_ACTIVITY_LABELS[workout.sport_activity]);
     }
+    if (workout.type === 'wellness' && workout.wellness_activity) {
+      details.push(WELLNESS_ACTIVITY_LABELS[workout.wellness_activity]);
+    }
     if (workout.duration_minutes) details.push(requiresDistanceAndTime(workout) ? formatWorkoutTime(workout.duration_minutes) : `${workout.duration_minutes} min`);
     return details.join(' · ') || 'No additional details';
   };
@@ -170,8 +174,8 @@
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div>
       <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Your activity</p>
-      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Workout log</h2>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your strength, cardio, interval, recovery, sports, and Life sessions.</p>
+      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Activity log</h2>
+      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your workouts, sports, breathing, and nutrition activities.</p>
     </div>
     <div class="flex w-full flex-wrap gap-2 sm:w-auto">
     <a class="btn-secondary w-full sm:w-auto" href="/programs?mode=free_period"><Plus size={19} /> Prepare a free period</a>
@@ -202,9 +206,9 @@
   <div class="card space-y-4 p-3 sm:p-5">
     <div class="flex flex-wrap items-end gap-2 sm:gap-3">
       <div class="min-w-0 flex-1">
-        <label class="label mb-1" for="type-filter">Workout type</label>
-        <CycleChoice id="type-filter" label="Workout type" bind:value={$activeWorkoutType}
-          options={[{ value: '', label: 'All workouts' }, ...WORKOUT_TYPE_OPTIONS]} />
+        <label class="label mb-1" for="type-filter">Activity type</label>
+          <CycleChoice id="type-filter" label="Activity type" bind:value={$activeWorkoutType}
+            options={[{ value: '', label: 'All activities' }, ...WORKOUT_TYPE_OPTIONS]} />
       </div>
     </div>
   </div>
@@ -248,7 +252,7 @@
                 </div>
                 <div class="min-w-0 flex-1">
                   <h5 class="font-bold">{group.label}</h5>
-                  <p class="text-xs text-gray-600 dark:text-gray-300">{group.completed} of {group.workouts.length} completed</p>
+                  <p class="text-xs text-gray-600 dark:text-gray-300">{group.completed} of {group.workouts.length} {group.unit === 'day' ? 'days' : 'sessions'} completed</p>
                 </div>
                 {#if group.completed === group.workouts.length}<Check size={20} class="shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="All sessions completed" />{/if}
               </div>
@@ -258,7 +262,7 @@
                     <div class="flex flex-wrap items-center justify-between gap-3">
                       <div class="min-w-0 flex-1">
                         <p class="font-semibold">{item.title}</p>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{item.remaining} remaining · {item.workouts.length} total</p>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{item.remaining} {item.unit === 'day' ? 'days' : 'sessions'} remaining · {item.workouts.length} total</p>
                       </div>
                       {#if item.next}
                         <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : 'Pick up'} ${item.title}`}>
@@ -269,11 +273,11 @@
                       {/if}
                     </div>
                     <details class="mt-3">
-                      <summary class="min-h-12 cursor-pointer py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">View sessions ({item.workouts.length})</summary>
+                      <summary class="min-h-12 cursor-pointer py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">View {item.unit === 'day' ? 'days' : 'sessions'} ({item.workouts.length})</summary>
                       <div class="mt-2 space-y-1">
                         {#each item.workouts as workout, index (workout.id)}
                           <a class="flex min-h-12 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}`}>
-                            <span>Session {index + 1}</span>
+                            <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}</span>
                             <span class="flex items-center gap-1 {workout.status === 'completed' ? 'text-emerald-700 dark:text-emerald-400' : workout.status === 'in_progress' ? 'font-bold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300'}">
                               {WORKOUT_STATUS_LABELS[workout.status]} <ChevronRight size={14} />
                             </span>
@@ -292,10 +296,10 @@
     </section>
   {/if}
 
-  <section class="space-y-3" aria-label="Dated workout timeline">
+  <section class="space-y-3" aria-label="Dated activity timeline">
     <div class="flex flex-wrap items-center justify-between gap-2">
       <h3 class="flex items-center gap-2 text-2xl font-black"><CalendarDays size={23} /> Timeline</h3>
-      <span class="text-sm text-gray-600 dark:text-gray-300">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'dated workout' : 'dated workouts'}</span>
+      <span class="text-sm text-gray-600 dark:text-gray-300">{visibleWorkouts.length} {visibleWorkouts.length === 1 ? 'dated activity' : 'dated activities'}</span>
     </div>
     <div class="flex flex-wrap gap-2" role="group" aria-label="Timeline date range">
       {#each DATE_RANGE_OPTIONS as option}
@@ -321,7 +325,7 @@
       <div class="rounded-2xl bg-primary-600 p-4 text-white"><Dumbbell size={28} /></div>
       <h3 class="mt-4 text-xl font-bold">{workouts.length === 0 ? 'Your timeline is empty' : 'No dated workouts in this range'}</h3>
       <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">Add a workout or choose a different date range.</p>
-      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Go to Workouts</button>
+      <button class="btn-primary mt-6" on:click={() => goto('/library')}><Plus size={18} /> Go to Activities</button>
     </div>
     {/if}
   {:else}

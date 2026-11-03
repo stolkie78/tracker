@@ -3,7 +3,7 @@
   import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { ChartNoAxesCombined, Dumbbell, HeartPulse, Settings, UserRound } from '@lucide/svelte';
+  import { ChartNoAxesCombined, Dumbbell, Settings, UserRound } from '@lucide/svelte';
   import { darkTheme } from '$lib/stores/theme';
   import { aiAvailability, loadAIAvailability } from '$lib/stores/ai';
   import { currentUser, isAuthenticated } from '$lib/stores/auth';
@@ -41,8 +41,7 @@
 
   const TRAINING_PATHS = ['/workouts', '/planner', '/programs', '/library', '/catalog'];
   const nav = [
-    { href: '/', label: 'Workout', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
-    { href: '/health', label: 'Health', icon: HeartPulse, match: (path: string) => path.startsWith('/health') },
+    { href: '/', label: 'Activities', icon: Dumbbell, match: (path: string) => path === '/' || TRAINING_PATHS.some((base) => path.startsWith(base)) },
     { href: '/stats', label: 'Insights', icon: ChartNoAxesCombined, match: (path: string) => path.startsWith('/stats') }
   ];
   const accountNav = [
@@ -52,7 +51,7 @@
 
   const trainingNav = [
     { href: '/', label: 'Timeline' },
-    { href: '/library', label: 'Workouts' },
+    { href: '/library', label: 'Activities' },
     { href: '/programs', label: 'Programs' },
     { href: '/catalog', label: 'Catalog' },
     { href: '/planner', label: 'AI planner', ai: true }
@@ -60,12 +59,6 @@
   const isActive = (path: string, href: string) =>
     href === '/' ? path === '/' : href === '/stats' ? path === href : path.startsWith(href);
 
-  const healthNav = [
-    { href: '/health/measurements', label: 'Measurements' },
-    { href: '/health/fasting', label: 'Fasting' },
-    { href: '/health/mindfulness', label: 'Mindfulness' },
-    { href: '/health/braintraining', label: 'Braintraining' }
-  ];
   const insightsNav = [
     { href: '/stats', label: 'Overview' },
     { href: '/stats/training', label: 'Training' },
@@ -74,9 +67,8 @@
   ];
 
   $: inTraining = nav[0].match($page.url.pathname);
-  $: inHealth = nav[1].match($page.url.pathname);
-  $: inInsights = nav[2].match($page.url.pathname);
-  $: subNav = inHealth ? healthNav : inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : inInsights ? insightsNav : [];
+  $: inInsights = nav[1].match($page.url.pathname);
+  $: subNav = inTraining ? trainingNav.filter((item) => !item.ai || $aiAvailability.enabled) : inInsights ? insightsNav : [];
 
   $: isLogin = $page.url.pathname === '/login';
 
@@ -158,7 +150,7 @@
             <h1 class="text-lg font-black">Trainer</h1>
           </div>
         </a>
-        <nav class="order-last grid w-full grid-cols-3 gap-2 sm:order-none sm:flex sm:w-auto" aria-label="Main menu">
+        <nav class="order-last grid w-full grid-cols-2 gap-2 sm:order-none sm:flex sm:w-auto" aria-label="Main menu">
           {#each nav as item}
             <a
               class="flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-3 text-sm font-bold transition sm:px-4 {item.match($page.url.pathname) ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800'}"
@@ -177,7 +169,7 @@
       </div>
     </header>
     {#if subNav.length}
-      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label={inHealth ? 'Health' : inInsights ? 'Insights' : 'Training'}>
+      <nav class="border-b border-gray-200 bg-white/70 dark:border-gray-800 dark:bg-gray-950/70" aria-label={inInsights ? 'Insights' : 'Activities'}>
         <div class="mx-auto flex max-w-4xl gap-1 overflow-x-auto px-4 py-2">
           {#each subNav as item}
             <a
@@ -222,7 +214,7 @@
       {/key}
     </main>
     <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur dark:border-gray-800 dark:bg-gray-950/95 lg:hidden" aria-label="Quick menu">
-      <div class="mx-auto grid max-w-4xl grid-cols-3">
+      <div class="mx-auto grid max-w-4xl grid-cols-2">
         {#each nav as tab}
           <a href={tab.href} class="flex min-h-[60px] flex-col items-center justify-center gap-1 text-xs font-bold {tab.match($page.url.pathname) ? 'text-overload-signal' : 'text-gray-600 dark:text-gray-300'}" aria-current={tab.match($page.url.pathname) ? 'page' : undefined}>
             <svelte:component this={tab.icon} size={22} strokeWidth={2.25} />
