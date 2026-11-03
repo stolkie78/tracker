@@ -12,7 +12,7 @@ const server = await createServer({
   appType: 'custom'
 });
 after(() => server.close());
-const { buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodWorkouts } =
+const { buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts } =
   await server.ssrLoadModule('/src/lib/programs.ts');
 const { workoutsInRange, openPastWorkouts } = await server.ssrLoadModule('/src/lib/workouts.ts');
 const { buildCalendar } = createRequire(import.meta.url)('../../pb_hooks/calendar_lib.js');
@@ -61,6 +61,9 @@ test('progress is grouped by period and activity, including more than one templa
   assert.equal(result[0].completed, 1);
   assert.deepEqual(result[0].groups.map((group) => [group.label, group.workouts.length, group.completed]), [
     ['Cardio · Running', 3, 1], ['Life · Walking', 3, 0], ['Cardio · Cycling', 1, 0], ['Strength', 2, 0]
+  ]);
+  assert.deepEqual(groupPeriodCategories(result[0].groups).map(({ label, completed, total }) => [label, completed, total]), [
+    ['Strength', 0, 2], ['Cardio', 1, 4], ['Life', 0, 3]
   ]);
   const second = { ...plan, id: 'second-period' };
   assert.equal(groupFreePeriods([plan, second], records, new Date(2026, 9, 24)).length, 1);

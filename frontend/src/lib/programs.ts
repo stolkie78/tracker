@@ -204,6 +204,36 @@ export function groupFreePeriods(plans: TrainingPlan[], workouts: Workout[], tod
   ));
 }
 
+export function groupPeriodCategories(groups: ReturnType<typeof groupFreePeriods>[number]['groups']) {
+  const categories = new Map<string, {
+    label: string;
+    type: Workout['type'];
+    groups: typeof groups;
+    completed: number;
+    total: number;
+  }>();
+  const categoryFor = (type: Workout['type']) =>
+    type === 'interval' ? 'cardio' : type;
+  const order = ['strength', 'cardio', 'sport', 'life', 'recovery', 'wellness'];
+
+  for (const group of groups) {
+    const type = group.workouts[0].type;
+    const category = categoryFor(type);
+    const current = categories.get(category) ?? {
+      label: category === 'sport' ? 'Sports' : WORKOUT_TYPE_LABELS[category],
+      type,
+      groups: [],
+      completed: 0,
+      total: 0
+    };
+    current.groups.push(group);
+    current.completed += group.completed;
+    current.total += group.workouts.length;
+    categories.set(category, current);
+  }
+  return [...categories.values()].sort((a, b) => order.indexOf(categoryFor(a.type)) - order.indexOf(categoryFor(b.type)));
+}
+
 export function groupPeriodWorkouts(workouts: Workout[]) {
   const groups = new Map<string, Workout[]>();
   for (const workout of workouts) {
