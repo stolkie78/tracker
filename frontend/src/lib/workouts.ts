@@ -2,8 +2,19 @@ import type { Workout } from './types';
 
 export type DateRangeFilter = 'today' | 'week' | 'month' | 'planned' | 'past';
 
+export function freeWorkoutSchedule(when: string) {
+  const date = new Date(when);
+  if (!when || !Number.isFinite(date.getTime())) throw new Error('Choose a valid date and time.');
+  return { due_date: date.toISOString() };
+}
+
 export const workoutsInRange = (records: Workout[], filter: DateRangeFilter, now = new Date()) => {
-  records = records.filter((workout) => !workout.free_period || workout.status === 'completed');
+  records = records.flatMap((workout) => {
+    if (!workout.free_period || workout.status === 'completed') return [workout];
+    if (workout.status === 'planned' && workout.due_date) return [{ ...workout, performed_at: workout.due_date }];
+    if (workout.status === 'in_progress' && workout.due_date && workout.performed_at) return [workout];
+    return [];
+  });
   if (filter === 'planned') return records.filter((workout) => workout.status === 'planned');
   const start = new Date(now);
   start.setHours(0, 0, 0, 0);

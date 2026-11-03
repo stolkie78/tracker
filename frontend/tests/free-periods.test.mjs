@@ -14,7 +14,7 @@ const server = await createServer({
 after(() => server.close());
 const { activityView, activityViewHref, buildFreePeriod, countPeriodTargets, cycleDate, localDate, normalizePeriodTargets, replanFreePeriod, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts } =
   await server.ssrLoadModule('/src/lib/programs.ts');
-const { workoutsInRange, openPastWorkouts } = await server.ssrLoadModule('/src/lib/workouts.ts');
+const { freeWorkoutSchedule, workoutsInRange, openPastWorkouts } = await server.ssrLoadModule('/src/lib/workouts.ts');
 const { buildCalendar } = createRequire(import.meta.url)('../../pb_hooks/calendar_lib.js');
 const templates = new Map([
   ['run', { id: 'run', title: 'Run', type: 'cardio', cardio_mode: 'running' }],
@@ -179,12 +179,38 @@ test('open free workouts never enter date filters or the overdue dated-workout c
   assert.deepEqual(workoutsInRange([...free, { ...completed, performed_at: yesterday }], 'past', now).map((record) => record.id), [completed.id]);
 });
 
-test('calendar emits completed free sessions at the execution time and preserves scheduled sessions', () => {
+test('a reserved free session appears in planned views without changing its period or execution date', () => {
+  const now = new Date(2026, 9, 24, 12);
+  const tomorrow = new Date(2026, 9, 25, 9);
+  const reserved = { ...records[0], ...freeWorkoutSchedule(tomorrow.toISOString()) };
+  assert.equal(reserved.performed_at, '');
+  assert.equal(reserved.free_period, true);
+  assert.equal(reserved.plan, plan.id);
+  assert.deepEqual(workoutsInRange([reserved], 'today', now), []);
+  const planned = workoutsInRange([reserved], 'planned', now);
+  assert.equal(planned.length, 1);
+  assert.equal(planned[0].performed_at, tomorrow.toISOString());
+  assert.equal(groupFreePeriods([plan], [reserved], now)[0].total, 1);
+  assert.equal(groupPeriodWorkouts([reserved])[0].remaining, 1);
+  assert.equal(openPastWorkouts([reserved], new Date(2026, 9, 26)).length, 1);
+  assert.deepEqual(workoutsInRange([{ ...reserved, due_date: '' }], 'planned', now), []);
+  const started = { ...reserved, status: 'in_progress', performed_at: now.toISOString() };
+  assert.equal(workoutsInRange([started], 'today', now)[0].performed_at, now.toISOString());
+  const completed = { ...started, status: 'completed' };
+  assert.equal(workoutsInRange([completed], 'today', now).length, 1);
+  assert.equal(workoutsInRange([{ ...reserved, status: 'skipped' }], 'week', now).length, 0);
+  assert.throws(() => freeWorkoutSchedule(''), /valid date/);
+  assert.throws(() => freeWorkoutSchedule('not a date'), /valid date/);
+});
+
+test('calendar emits reserved free sessions once and completed ones at the execution time', () => {
   const data = [
     { ...records[0] },
     { ...records[1], status: 'in_progress', performed_at: '2026-10-24T10:00:00Z' },
     { ...records[2], status: 'completed', performed_at: '2026-10-25T11:00:00Z' },
-    { ...records[5], id: 'fixed', free_period: false, performed_at: '2026-10-26T09:00:00Z' }
+    { ...records[5], id: 'fixed', free_period: false, performed_at: '2026-10-26T09:00:00Z' },
+    { ...records[0], id: 'reserved', due_date: '2026-10-27T09:00:00Z' },
+    { ...records[0], id: 'started', status: 'in_progress', due_date: '2026-10-27T09:00:00Z', performed_at: '2026-10-28T10:00:00Z' }
   ];
   const app = { findRecordsByFilter: (collection, filter) => {
     assert.match(filter, /free_period = false \|\| status = 'completed'/);
@@ -197,8 +223,10 @@ test('calendar emits completed free sessions at the execution time and preserves
     }));
   } };
   const calendar = buildCalendar(app, 'https://example.com', 'owner');
-  assert.equal((calendar.match(/BEGIN:VEVENT/g) ?? []).length, 2);
+  assert.equal((calendar.match(/BEGIN:VEVENT/g) ?? []).length, 4);
   assert.match(calendar, /DTSTART:20261025T110000Z/);
+  assert.match(calendar, /DTSTART:20261027T090000Z/);
+  assert.match(calendar, /DTSTART:20261028T100000Z/);
   assert.match(calendar, /UID:fixed@top-trainer/);
   assert.ok(!calendar.includes(`UID:${records[0].id}@top-trainer`));
   assert.ok(!calendar.includes(`UID:${records[1].id}@top-trainer`));

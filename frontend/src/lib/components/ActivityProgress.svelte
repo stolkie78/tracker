@@ -60,7 +60,7 @@
 <section class="card space-y-4" aria-label={collection ? 'Your achievements' : 'Your week'}>
   <div class="flex flex-wrap items-center justify-between gap-2">
     <h3 class="flex items-center gap-2 text-xl font-bold"><Trophy size={22} /> {collection ? 'Your achievements' : 'Your week'}</h3>
-    {#if !collection}<a class="font-bold text-overload-signal" href="/profile">View milestones</a>{/if}
+    {#if !collection}<a class="font-bold text-overload-signal" href="/stats/achievements">View milestones</a>{/if}
   </div>
   {#if loading}
     <p role="status">Loading your progress...</p>

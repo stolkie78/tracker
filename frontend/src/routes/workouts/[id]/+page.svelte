@@ -1,12 +1,11 @@
 <script lang="ts">
-  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
   import { isDietaryActivity } from '$lib/types';
   import { onMount } from 'svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { activityOptions, equipmentOptions as availableEquipment } from '$lib/catalog';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { formatWorkoutTime, requiresDistanceAndTime, distanceCompletionData } from '$lib/workouts';
+  import { formatWorkoutTime, requiresDistanceAndTime, distanceCompletionData, freeWorkoutSchedule } from '$lib/workouts';
   import { localDate } from '$lib/programs';
   import { ArrowLeft, Check, ChevronRight, Pencil, Play, Plus, Trash2 } from '@lucide/svelte';
   import { createWorkoutExercise, createWorkoutSet, deleteFutureSeries, deleteWorkout, getExercises, getStrengthSuggestion, getWorkout, getWorkoutExercises, getSetsForWorkoutExercise, updateNextSeriesExerciseWeight, updateWorkout } from '$lib/pocketbase';
@@ -49,6 +48,9 @@
   let showDistanceCompletion = false;
   let actualDistance: number | undefined = undefined;
   let actualTime = '';
+  let scheduleOpen = false;
+  let scheduleWhen = '';
+  let scheduleSaving = false;
 
   $: returnView = $page.url.searchParams.get('view') === 'free'
     || (!$page.url.searchParams.has('view') && workout?.free_period) ? 'free' : 'planned';
@@ -231,6 +233,30 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   };
 
+  const openSchedule = () => {
+    if (!workout) return;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    scheduleWhen = toLocalInput(workout.due_date || tomorrow.toISOString());
+    scheduleOpen = true;
+  };
+
+  const saveSchedule = async (clear = false) => {
+    if (!workout || scheduleSaving) return;
+    scheduleSaving = true;
+    error = '';
+    try {
+      const data = clear ? { due_date: '' } : freeWorkoutSchedule(scheduleWhen);
+      workout = await updateWorkout(workout.id, data);
+      scheduleOpen = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'The activity could not be scheduled.';
+    } finally {
+      scheduleSaving = false;
+    }
+  };
+
   const openEdit = () => {
     if (!workout) return;
     editDayPart = workout.day_part || '';
@@ -379,9 +405,42 @@
       <p class="text-xl font-bold">Session complete. Well done!</p>
       <p>You showed up for yourself. Recovery is part of progress too.</p>
     </div>
-    {#key workout}<ActivityProgress />{/key}
+    <a class="btn-secondary" href="/stats/achievements">View achievements</a>
   {/if}
   <a href={`/?view=${returnView}`} class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> {returnView === 'free' ? 'Back to free activities' : 'Back to timeline'}</a>
+  {#if workout.free_period && workout.status === 'planned'}
+    <section class="card space-y-4" aria-label="Pick up free activity">
+      <div>
+        <h3 class="text-xl font-bold">When would you like to do this?</h3>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Start now or choose a date. This activity stays part of your free period.</p>
+      </div>
+      {#if workout.due_date}
+        <p class="font-semibold">Scheduled: {new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(workout.due_date))}</p>
+      {/if}
+      <div class="flex flex-wrap gap-2">
+        <button class="btn-primary" disabled={statusSaving || scheduleSaving} on:click={startWorkout}><Play size={18} /> Do now</button>
+        <button class="btn-secondary" disabled={statusSaving || scheduleSaving} on:click={openSchedule}>{workout.due_date ? 'Reschedule' : 'Plan for later'}</button>
+        {#if workout.due_date}
+          <button class="btn-secondary" disabled={statusSaving || scheduleSaving} on:click={() => saveSchedule(true)}>Remove date</button>
+          <a class="btn-secondary" href="/?view=planned">View planned activities</a>
+        {/if}
+      </div>
+      {#if scheduleOpen}
+        <form class="space-y-3" on:submit|preventDefault={() => saveSchedule()}>
+          <div>
+            <label class="label" for="free-schedule-when">Date and time</label>
+            <input id="free-schedule-when" class="input" type="datetime-local" bind:value={scheduleWhen} disabled={scheduleSaving} required />
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-300">Defaults to tomorrow at 09:00. Change it to any date and time that suits you.</p>
+          <div class="flex gap-2">
+            <button class="btn-primary" type="submit" disabled={scheduleSaving}>{scheduleSaving ? 'Saving...' : 'Save date'}</button>
+            <button class="btn-secondary" type="button" disabled={scheduleSaving} on:click={() => scheduleOpen = false}>Cancel</button>
+          </div>
+        </form>
+      {/if}
+      {#if error}<p role="alert" class="text-sm text-red-700 dark:text-red-300">{error}</p>{/if}
+    </section>
+  {/if}
   <article class="card {WORKOUT_STATUS_CARD_STYLES[workout.status]}">
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -573,14 +632,14 @@
             </li>
           {/each}
         </ul>
-        {#if workout.status === 'planned'}
+        {#if workout.status === 'planned' && !workout.free_period}
           <button class="btn-primary w-full" disabled={statusSaving} on:click={startWorkout}><Play size={18} /> Start workout</button>
         {:else if workout.status === 'in_progress'}
           <button class="btn-primary w-full" disabled={statusSaving} on:click={finishWorkout}><Check size={18} /> Finish workout</button>
         {/if}
       {/if}
     </section>
-  {:else if workout.status === 'planned'}
+  {:else if workout.status === 'planned' && !workout.free_period}
     <button class="btn-primary w-full" disabled={statusSaving} on:click={startWorkout}><Play size={18} /> Start workout</button>
   {:else if workout.status === 'in_progress' && !showDistanceCompletion}
     <button class="btn-primary w-full" disabled={statusSaving} on:click={finishWorkout}><Check size={18} /> Finish workout</button>

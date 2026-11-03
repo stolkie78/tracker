@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints, wellness: HeartPulse };
@@ -189,8 +188,6 @@
     </div>
   </div>
 
-  <ActivityProgress />
-
   <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1 dark:bg-gray-900" aria-label="Activity views">
     <a class="rounded-xl px-4 py-3 text-center text-sm font-bold transition {selectedView === 'planned' ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-800'}"
       href={viewHref('planned')} aria-current={selectedView === 'planned' ? 'page' : undefined}>Planned</a>
@@ -292,6 +289,9 @@
                           {item.completed} of {item.workouts.length} complete
                           {#if item.remaining > 0} · {countLabel(item.remaining, item.unit)} left{/if}
                         </p>
+                        {#if item.next?.status === 'planned' && item.next.due_date}
+                          <p class="text-xs font-semibold text-primary-700 dark:text-primary-300">Scheduled: {formatPeriodDate(localDate(new Date(item.next.due_date)))} · {formatDateTime(item.next.due_date)}</p>
+                        {/if}
                       </div>
                       {#if item.next}
                         <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}?view=free`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} ${item.title}`}>
@@ -307,7 +307,7 @@
                         <div class="space-y-1">
                           {#each item.workouts as workout, index (workout.id)}
                             <a class="flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}?view=free`}>
-                              <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}</span>
+                              <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}{#if workout.status === 'planned' && workout.due_date} · {formatPeriodDate(localDate(new Date(workout.due_date)))} · {formatDateTime(workout.due_date)}{/if}</span>
                               <span class="flex items-center gap-1 {workout.status === 'completed' ? 'text-emerald-700 dark:text-emerald-400' : workout.status === 'in_progress' ? 'font-bold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300'}">
                                 {WORKOUT_STATUS_LABELS[workout.status]} <ChevronRight size={14} />
                               </span>
@@ -411,7 +411,7 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{workout.day_part === 'all_day' ? group.label : workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
+                  <span>{workout.day_part === 'all_day' ? group.label : workout.status === 'planned' ? (workout.day_part ? group.label : workout.free_period && workout.due_date ? formatDateTime(workout.due_date) : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
                   <span>View details →</span>
                 </div>
               </a>

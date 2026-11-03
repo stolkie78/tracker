@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
 </script>
 
 <svelte:head><title>Insights · T.O.P. Trainer</title></svelte:head>
@@ -11,7 +10,6 @@
     <p class="mt-1 text-gray-600 dark:text-gray-300">Explore your progress by topic. Choose a section to see its statistics and trends.</p>
   </div>
 
-  <ActivityProgress trends />
 
   <div class="grid gap-3 sm:grid-cols-2">
     <a class="card transition hover:border-primary-300" href="/stats/training">

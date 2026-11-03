@@ -64,7 +64,8 @@
     { href: '/stats', label: 'Overview' },
     { href: '/stats/training', label: 'Training' },
     { href: '/stats/exercises', label: 'Exercises' },
-    { href: '/stats/body', label: 'Body' }
+    { href: '/stats/body', label: 'Body' },
+    { href: '/stats/achievements', label: 'Achievements' }
   ];
 
   $: inInsights = nav[1].match($page.url.pathname);
