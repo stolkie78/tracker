@@ -1,6 +1,6 @@
 import { DAY_PARTS, DAY_PART_HOURS, DAY_PART_LABELS, CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, WELLNESS_ACTIVITY_LABELS, WORKOUT_TYPE_LABELS, isDietaryActivity, type TrainingPlan, type CycleSlot, type DayPart, type Workout, type WorkoutTemplate } from '$lib/types';
 
-export const emptyCycleSlot = (): CycleSlot => ({ periods: { morning: [], afternoon: [], evening: [] } });
+export const emptyCycleSlot = (): CycleSlot => ({ periods: { all_day: [], morning: [], afternoon: [], evening: [] } });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
@@ -43,6 +43,28 @@ export function normalizeCycleSlots(raw: unknown, days: number): CycleSlot[] {
     }
     return slot;
   });
+}
+
+export function applyActivityToCycle(
+  start: string, slots: CycleSlot[], template: string, part: DayPart, weeks: number[], weekdays: number[]
+): CycleSlot[] {
+  cycleDate(start, 0);
+  if (![7, 14, 21].includes(slots.length)) throw new Error('Choose a cycle of one to three weeks.');
+  if (!template || !DAY_PARTS.includes(part)) throw new Error('Choose an activity and day part.');
+  if (!weeks.length || weeks.some((week) => !Number.isInteger(week) || week < 0 || week >= slots.length / 7)) {
+    throw new Error('Choose at least one valid cycle week.');
+  }
+  if (!weekdays.length || weekdays.some((day) => !Number.isInteger(day) || day < 0 || day > 6)) {
+    throw new Error('Choose at least one valid weekday.');
+  }
+  const result = normalizeCycleSlots(slots, slots.length);
+  result.forEach((slot, day) => {
+    if (weeks.includes(Math.floor(day / 7)) && weekdays.includes(cycleDate(start, day).getDay())
+      && !slot.periods[part].includes(template)) {
+      slot.periods[part].push(template);
+    }
+  });
+  return result;
 }
 
 export interface ScheduledBlock {

@@ -39,6 +39,13 @@ onRecordValidate(function (e) {
   } else if (!e.record.getString("performed_at")) {
     throw new BadRequestError("A scheduled workout needs a date.");
   }
+  if (e.record.getString("day_part") === "all_day") {
+    if (!e.record.getString("all_day_date")) {
+      throw new BadRequestError("An all-day activity needs a calendar date.");
+    }
+  } else {
+    e.record.set("all_day_date", "");
+  }
   e.next();
 }, "workouts");
 

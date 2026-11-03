@@ -78,7 +78,7 @@ function detailLines(w) {
   var lines = [];
   var type = w.getString("type");
   lines.push((TYPE_LABELS[type] || type) + " - " + (STATUS_LABELS[w.getString("status")] || w.getString("status")));
-  var part = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" }[w.getString("day_part")];
+  var part = { all_day: "All day", morning: "Morning", afternoon: "Afternoon", evening: "Evening" }[w.getString("day_part")];
   if (part) lines.push("Day part: " + part);
   if ((type === "cardio" || type === "life") && w.getFloat("distance_km")) lines.push("Distance: " + w.getFloat("distance_km") + " km");
   if (type === "interval" && w.getInt("interval_rounds")) {
@@ -117,6 +117,13 @@ function buildCalendar(app, base, ownerId) {
     if (isNaN(start.getTime())) return;
     var minutes = w.getInt("duration_minutes") || 45;
     var end = new Date(start.getTime() + minutes * 60000);
+    var allDay = w.getString("day_part") === "all_day";
+    // Keep the chosen calendar date independent of the server's timezone.
+    if (allDay) {
+      start = parseDate(w.getString("all_day_date"));
+      if (isNaN(start.getTime())) return;
+      end = new Date(start.getTime() + 86400000);
+    }
     var link = base + "/workouts/" + w.id;
     var description = detailLines(w).concat(["", "Start workout: " + link]).join("\n");
     var summary = (w.getString("status") === "completed" ? "✓ " : "") + w.getString("title");
@@ -124,8 +131,8 @@ function buildCalendar(app, base, ownerId) {
       "BEGIN:VEVENT",
       "UID:" + w.id + "@top-trainer",
       "DTSTAMP:" + now,
-      "DTSTART:" + stamp(start),
-      "DTEND:" + stamp(end),
+      allDay ? "DTSTART;VALUE=DATE:" + stamp(start).slice(0, 8) : "DTSTART:" + stamp(start),
+      allDay ? "DTEND;VALUE=DATE:" + stamp(end).slice(0, 8) : "DTEND:" + stamp(end),
       "SUMMARY:" + escapeText(summary),
       "DESCRIPTION:" + escapeText(description),
       "URL:" + link,

@@ -289,9 +289,13 @@ test('personal records, relationships and protected photos stay with their owner
     assert.equal(detachedCompleted.performed_at, directlyCompleted.performed_at);
     await ok(path('workouts', free.id), alice.token, 'PATCH', { notes: 'History survives deleting the period' });
     await denied(path('workouts', free.id), alice.token, 'PATCH', { status: 'planned' });
-    for (const dayPart of ['morning', 'afternoon', 'evening']) {
-      const updated = await ok(path('workouts', workout.id), alice.token, 'PATCH', { day_part: dayPart });
+    await denied(path('workouts', workout.id), alice.token, 'PATCH', { day_part: 'all_day', all_day_date: '' });
+    for (const dayPart of ['all_day', 'morning', 'afternoon', 'evening']) {
+      const updated = await ok(path('workouts', workout.id), alice.token, 'PATCH', {
+        day_part: dayPart, all_day_date: dayPart === 'all_day' ? '2026-10-21T00:00:00.000Z' : ''
+      });
       assert.equal(updated.day_part, dayPart);
+      assert.equal(updated.all_day_date.slice(0, 10), dayPart === 'all_day' ? '2026-10-21' : '');
       await denied(path('workouts', workout.id), bob.token, 'PATCH', { day_part: dayPart });
     }
     await denied(path('workouts', workout.id), alice.token, 'PATCH', { day_part: 'night' });

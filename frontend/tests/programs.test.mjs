@@ -3,6 +3,8 @@ import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'vite';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const server = await createServer({
   configFile: false,
@@ -12,7 +14,7 @@ const server = await createServer({
   appType: 'custom'
 });
 after(() => server.close());
-const { blockTime, buildCycleSchedule, cycleDate, emptyCycleSlot, groupByDayPart, localDate, normalizeCycleSlots, replanCycle } =
+const { applyActivityToCycle, blockTime, buildCycleSchedule, cycleDate, emptyCycleSlot, groupByDayPart, localDate, normalizeCycleSlots, replanCycle } =
   await server.ssrLoadModule('/src/lib/programs.ts');
 const templates = new Map([
   ['strength', { id: 'strength', title: 'Strength', type: 'strength' }],
@@ -103,10 +105,72 @@ test('saved patterns round-trip and legacy fixed weekday blocks are preserved in
   restored[10].periods.evening.push('strength');
   assert.equal(slots[10].periods.evening.length, 2);
   const legacy = normalizeCycleSlots([{ templates: ['strength', 'mobility'] }, { template: 'strength' }], 7);
-  assert.deepEqual(legacy[0].periods, { morning: ['strength', 'mobility'], afternoon: [], evening: [] });
+  assert.deepEqual(legacy[0].periods, { all_day: [], morning: ['strength', 'mobility'], afternoon: [], evening: [] });
   assert.deepEqual(legacy[1].periods.morning, ['strength']);
   for (const invalid of [{}, [null], [{ periods: [] }], [{ periods: { morning: 'strength' } }]]) {
     assert.throws(() => normalizeCycleSlots(invalid, 7), /invalid/);
+  }
+});
+
+test('older daypart schedules gain an empty all-day slot without changing existing activities', () => {
+  const restored = normalizeCycleSlots([{ periods: { morning: ['strength'], afternoon: [], evening: ['mobility'] } }], 7);
+  assert.deepEqual(restored[0].periods, { all_day: [], morning: ['strength'], afternoon: [], evening: ['mobility'] });
+});
+
+test('all-day activities are single blocks, round-trip independently and appear before timed activities', () => {
+  const slots = slotsFor(1);
+  slots[0].periods.all_day = ['mobility'];
+  slots[0].periods.morning = ['strength'];
+  const restored = normalizeCycleSlots(JSON.parse(JSON.stringify(slots)), 7);
+  assert.deepEqual(restored, slots);
+  const entries = buildCycleSchedule('2026-10-21', 1, 2, restored, templates);
+  assert.equal(entries.length, 4);
+  assert.deepEqual(entries.map((entry) => entry.part), ['all_day', 'morning', 'all_day', 'morning']);
+  assert.equal(blockTime(entries[0]).getHours(), 0);
+  const groups = groupByDayPart([
+    record('morning', 'strength', 'morning', '2026-10-21T09:00:00'),
+    record('day', 'mobility', 'all_day', '2026-10-21T00:00:00')
+  ]);
+  assert.deepEqual(groups.map((group) => group.label), ['All day', 'Morning']);
+  const result = replanCycle(entries, [
+    record('done', 'mobility', 'all_day', '2026-10-21T00:00:00', 'completed')
+  ], new Date('2026-10-21T12:00:00'));
+  assert.deepEqual(result.retained.map((entry) => entry.id), ['done']);
+  assert.equal(result.pending.length, 3);
+  assert.equal(result.pending[0].part, 'morning');
+});
+
+test('bulk workdays use actual Monday-Friday dates even when the cycle starts midweek', () => {
+  const slots = slotsFor(3);
+  slots[0].periods.morning = ['strength'];
+  const updated = applyActivityToCycle('2026-10-21', slots, 'mobility', 'all_day', [0, 2], [1, 2, 3, 4, 5]);
+  assert.deepEqual(updated.flatMap((slot, day) => slot.periods.all_day.length ? [day] : []), [0, 1, 2, 5, 6, 14, 15, 16, 19, 20]);
+  assert.deepEqual(updated[0].periods.morning, ['strength']);
+  assert.ok(slots.every((slot) => slot.periods.all_day.length === 0), 'Original state is not mutated');
+  updated[1].periods.morning.push('mobility');
+  assert.deepEqual(updated[2].periods.morning, [], 'Days have independent arrays');
+  const repeated = applyActivityToCycle('2026-10-21', updated, 'mobility', 'all_day', [0, 2], [1, 2, 3, 4, 5]);
+  assert.deepEqual(repeated, updated, 'Applying twice does not add duplicates');
+});
+
+test('bulk additions support whole weeks, selected weeks, custom weekdays and timed slots', () => {
+  for (const weeks of [1, 2, 3]) {
+    const updated = applyActivityToCycle('2026-12-30', slotsFor(weeks), 'strength', 'all_day',
+      Array.from({ length: weeks }, (_, week) => week), [0, 1, 2, 3, 4, 5, 6]);
+    assert.ok(updated.every((slot) => slot.periods.all_day.length === 1));
+    assert.equal(buildCycleSchedule('2026-12-30', weeks, 2, updated, templates).length, weeks * 14);
+  }
+  const slots = applyActivityToCycle('2026-10-21', slotsFor(2), 'mobility', 'evening', [1], [6, 0]);
+  assert.deepEqual(slots.flatMap((slot, day) => slot.periods.evening.length ? [day] : []), [10, 11]);
+  assert.throws(() => applyActivityToCycle('invalid', slots, 'mobility', 'all_day', [0], [1]), /start date/);
+  assert.throws(() => applyActivityToCycle('2026-10-21', [], 'mobility', 'all_day', [0], [1]), /cycle/);
+  assert.throws(() => applyActivityToCycle('2026-10-21', slots, '', 'all_day', [0], [1]), /activity/);
+  assert.throws(() => applyActivityToCycle('2026-10-21', slots, 'mobility', 'night', [0], [1]), /day part/);
+  for (const weeks of [[], [-1], [2], [0.5], [NaN]]) {
+    assert.throws(() => applyActivityToCycle('2026-10-21', slots, 'mobility', 'all_day', weeks, [1]), /week/);
+  }
+  for (const weekdays of [[], [-1], [7], [0.5], [NaN]]) {
+    assert.throws(() => applyActivityToCycle('2026-10-21', slots, 'mobility', 'all_day', [0], weekdays), /weekday/);
   }
 });
 
@@ -165,4 +229,100 @@ test('calendar export keeps all combined blocks and identifies their dayparts', 
   assert.ok(calendar.includes('DTSTART:20261021T070000Z'));
   assert.ok(calendar.includes('DTSTART:20261021T070001Z'));
   assert.ok(calendar.includes('UID:evening@top-trainer'));
+});
+
+test('all-day calendar events use timezone-independent dates with exclusive next-day ends', () => {
+  const previous = process.env.TZ;
+  try {
+    for (const zone of ['Europe/Amsterdam', 'Pacific/Kiritimati', 'America/New_York']) {
+      process.env.TZ = zone;
+      for (const [date, next] of [['2026-10-25', '20261026'], ['2026-12-31', '20270101']]) {
+        const slots = slotsFor(1);
+        slots[0].periods.all_day = ['mobility'];
+        const entry = buildCycleSchedule(date, 1, 1, slots, templates)[0];
+        const data = {
+          day_part: entry.part, performed_at: blockTime(entry).toISOString(),
+          all_day_date: `${localDate(entry.date)}T00:00:00.000Z`, title: 'All-day mobility', type: 'recovery', status: 'planned'
+        };
+        const workout = {
+          id: 'all-day', getString: (name) => data[name] ?? '',
+          getBool: () => false, getInt: () => 30, getFloat: () => 0
+        };
+        const calendar = buildCalendar({ findRecordsByFilter: () => [workout] }, 'https://example.com', 'owner');
+        assert.match(calendar, new RegExp(`DTSTART;VALUE=DATE:${date.replaceAll('-', '')}\\r\\n`));
+        assert.match(calendar, new RegExp(`DTEND;VALUE=DATE:${next}\\r\\n`));
+        assert.match(calendar, /Day part: All day/);
+        assert.equal((calendar.match(/BEGIN:VEVENT/g) ?? []).length, 1);
+        assert.ok(!calendar.includes('DTSTART:'));
+      }
+    }
+  } finally {
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
+test('instantiation persists a single all-day activity and its local calendar date in every timezone', async () => {
+  const { pb, instantiateTemplate } = await server.ssrLoadModule('/src/lib/pocketbase.ts');
+  const originalCollection = pb.collection;
+  const previous = process.env.TZ;
+  const created = [];
+  pb.collection = (name) => {
+    assert.equal(name, 'workouts');
+    return { create: async (data) => { created.push(data); return { ...data, id: 'created' }; } };
+  };
+  try {
+    for (const zone of ['Europe/Amsterdam', 'Pacific/Kiritimati', 'America/New_York']) {
+      process.env.TZ = zone;
+      const slots = slotsFor(1);
+      slots[0].periods.all_day = ['mobility'];
+      const entry = buildCycleSchedule('2026-10-25', 1, 1, slots, templates)[0];
+      await instantiateTemplate(entry.template, blockTime(entry), { dayPart: entry.part, plan: 'program' });
+      assert.equal(created.at(-1).all_day_date, '2026-10-25T00:00:00.000Z');
+      assert.equal(localDate(new Date(created.at(-1).performed_at)), '2026-10-25');
+      assert.equal(created.at(-1).day_part, 'all_day');
+      assert.equal(created.at(-1).plan, 'program');
+    }
+    assert.equal(created.length, 3, 'One record per all-day activity');
+    await instantiateTemplate(templates.get('mobility'), new Date('2026-10-25T09:00:00'), { dayPart: 'morning' });
+    assert.ok(!('all_day_date' in created.at(-1)), 'Timed activities retain their existing payload');
+    await instantiateTemplate(templates.get('mobility'), null, { plan: 'free', freePeriod: true });
+    assert.ok(!('all_day_date' in created.at(-1)), 'Free activities remain undated');
+  } finally {
+    pb.collection = originalCollection;
+    if (previous === undefined) delete process.env.TZ;
+    else process.env.TZ = previous;
+  }
+});
+
+test('server requires an all-day calendar date and clears it for timed and free activities', () => {
+  let validate;
+  vm.runInNewContext(readFileSync(new URL('../../pb_hooks/periods.pb.js', import.meta.url), 'utf8'), {
+    onRecordValidate(fn, collection) { if (collection === 'workouts') validate = fn; },
+    onRecordDeleteRequest() {},
+    BadRequestError: Error
+  });
+  const check = (data) => {
+    const record = {
+      getString: (name) => data[name] ?? '',
+      getBool: (name) => !!data[name],
+      isNew: () => true,
+      original: () => record,
+      set: (name, value) => { data[name] = value; }
+    };
+    validate({
+      record, next() {},
+      app: { findRecordById: () => ({ getString: () => 'free_period' }) }
+    });
+    return data;
+  };
+  assert.throws(() => check({ day_part: 'all_day', performed_at: '2026-10-21T00:00:00Z' }), /calendar date/);
+  const allDay = { day_part: 'all_day', performed_at: '2026-10-21T00:00:00Z', all_day_date: '2026-10-21T00:00:00Z' };
+  assert.equal(check({ ...allDay }).all_day_date, allDay.all_day_date);
+  assert.equal(check({ ...allDay, day_part: 'morning' }).all_day_date, '');
+  const free = check({ ...allDay, free_period: true, plan: 'period', status: 'planned' });
+  assert.equal(free.all_day_date, '');
+  assert.equal(free.day_part, '');
+  assert.equal(free.performed_at, '');
+  assert.throws(() => check({ ...allDay, performed_at: '' }), /scheduled workout needs a date/);
 });
