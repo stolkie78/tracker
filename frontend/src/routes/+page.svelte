@@ -1,12 +1,12 @@
 <script lang="ts">
   import CycleChoice from '$lib/components/CycleChoice.svelte';
-  import { CalendarDays, Check, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
+  import { CalendarDays, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints, wellness: HeartPulse };
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
-  import { groupByDayPart, groupFreePeriods, groupPeriodWorkouts, localDate } from '$lib/programs';
+  import { groupByDayPart, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts, localDate } from '$lib/programs';
   import { formatWorkoutTime, requiresDistanceAndTime, openPastWorkouts, workoutsInRange, type DateRangeFilter } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
@@ -117,6 +117,8 @@
 
   const formatPeriodDate = (date: string) =>
     new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date.slice(0, 10)}T12:00:00`));
+
+  const countLabel = (count: number, unit: 'day' | 'session') => `${count} ${unit}${count === 1 ? '' : 's'}`;
 
   const formatDateTime = (date: string) =>
     new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(date));
@@ -232,7 +234,7 @@
             <a class="btn-secondary" href="/programs">Manage period</a>
           </div>
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <p><span class="font-bold">{period.completed} of {period.total}</span> completed</p>
+            <p><span class="font-bold">{period.completed} of {period.total} activities</span> completed</p>
             <p class="font-semibold text-primary-700 dark:text-primary-300">{remaining} remaining</p>
           </div>
           <progress class="mt-2 block h-2 w-full overflow-hidden rounded-full accent-primary-600" value={period.completed} max={period.total} aria-label={`Progress for ${period.plan.title}`}></progress>
@@ -242,53 +244,52 @@
             <p class="mt-3 text-sm text-gray-600 dark:text-gray-300">Upcoming period</p>
           {/if}
           </div>
-          <div class="grid items-start gap-3 p-3 sm:grid-cols-2 sm:gap-4 sm:p-5">
-          {#each period.groups as group}
-            {@const type = group.workouts[0].type}
-            <article class="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
-              <div class="flex items-center gap-3 border-b border-gray-100 p-4 dark:border-gray-800">
-                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {WORKOUT_TYPE_STYLES[type].icon}">
-                  <svelte:component this={TYPE_ICONS[type]} size={21} />
-                </div>
-                <div class="min-w-0 flex-1">
-                  <h5 class="font-bold">{group.label}</h5>
-                  <p class="text-xs text-gray-600 dark:text-gray-300">{group.completed} of {group.workouts.length} {group.unit === 'day' ? 'days' : 'sessions'} completed</p>
-                </div>
-                {#if group.completed === group.workouts.length}<Check size={20} class="shrink-0 text-emerald-600 dark:text-emerald-400" aria-label="All sessions completed" />{/if}
+          <div class="divide-y divide-gray-200 dark:divide-gray-800">
+          {#each groupPeriodCategories(period.groups) as category}
+            <section class="p-4 sm:p-5" aria-label={`${category.label} activities`}>
+              <div class="mb-2 flex items-baseline justify-between gap-3">
+                <h5 class="font-bold">{category.label}</h5>
+                <span class="text-xs font-semibold text-gray-600 dark:text-gray-300">{category.completed}/{category.total} complete</span>
               </div>
+              <progress class="mb-2 block h-1.5 w-full overflow-hidden rounded-full accent-primary-600" value={category.completed} max={category.total} aria-label={`${category.label} progress`}></progress>
               <div class="divide-y divide-gray-100 dark:divide-gray-800">
-                {#each groupPeriodWorkouts(group.workouts) as item}
-                  <div class="p-4">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
+                {#each category.groups as group}
+                  {#each groupPeriodWorkouts(group.workouts) as item}
+                    <div class="flex flex-wrap items-center gap-3 py-3">
                       <div class="min-w-0 flex-1">
                         <p class="font-semibold">{item.title}</p>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{item.remaining} {item.unit === 'day' ? 'days' : 'sessions'} remaining · {item.workouts.length} total</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-300">
+                          {item.completed} of {item.workouts.length} complete
+                          {#if item.remaining > 0} · {countLabel(item.remaining, item.unit)} left{/if}
+                        </p>
                       </div>
                       {#if item.next}
-                        <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : 'Pick up'} ${item.title}`}>
-                          {item.next.status === 'in_progress' ? 'Continue' : 'Pick up'} <ChevronRight size={16} />
+                        <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} ${item.title}`}>
+                          {item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} <ChevronRight size={16} />
                         </a>
                       {:else}
-                        <span class="badge bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200">{item.completed === item.workouts.length ? 'Completed' : 'No open sessions'}</span>
+                        <span class="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{item.completed === item.workouts.length ? 'Completed' : 'No open activities'}</span>
                       {/if}
+                      <details class="basis-full pl-1">
+                        <summary class="min-h-8 cursor-pointer py-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                          History · {countLabel(item.workouts.length, item.unit)}
+                        </summary>
+                        <div class="space-y-1">
+                          {#each item.workouts as workout, index (workout.id)}
+                            <a class="flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}`}>
+                              <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}</span>
+                              <span class="flex items-center gap-1 {workout.status === 'completed' ? 'text-emerald-700 dark:text-emerald-400' : workout.status === 'in_progress' ? 'font-bold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300'}">
+                                {WORKOUT_STATUS_LABELS[workout.status]} <ChevronRight size={14} />
+                              </span>
+                            </a>
+                          {/each}
+                        </div>
+                      </details>
                     </div>
-                    <details class="mt-3">
-                      <summary class="min-h-12 cursor-pointer py-3 text-xs font-semibold text-gray-600 dark:text-gray-300">View {item.unit === 'day' ? 'days' : 'sessions'} ({item.workouts.length})</summary>
-                      <div class="mt-2 space-y-1">
-                        {#each item.workouts as workout, index (workout.id)}
-                          <a class="flex min-h-12 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}`}>
-                            <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}</span>
-                            <span class="flex items-center gap-1 {workout.status === 'completed' ? 'text-emerald-700 dark:text-emerald-400' : workout.status === 'in_progress' ? 'font-bold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300'}">
-                              {WORKOUT_STATUS_LABELS[workout.status]} <ChevronRight size={14} />
-                            </span>
-                          </a>
-                        {/each}
-                      </div>
-                    </details>
-                  </div>
+                  {/each}
                 {/each}
               </div>
-            </article>
+            </section>
           {/each}
           </div>
         </section>
