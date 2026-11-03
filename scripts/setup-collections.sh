@@ -174,9 +174,10 @@ PROFILE_FIELDS="$(jq -cn --argjson user "$(relation_field user _pb_users_auth_ t
   --argjson birth "$(date_field birth_date)" \
   --argjson phone "$(text_field phone)" --argjson bio "$(text_field bio)" \
   --argjson height '{"name":"height_cm","type":"number","min":0,"max":300}' \
+  --argjson goals '{"name":"weekly_goals","type":"json","maxSize":524288}' \
   --argjson photo '{"name":"photo","type":"file","maxSelect":1,"maxSize":5242880,"mimeTypes":["image/jpeg","image/png","image/webp"],"protected":true}' \
   --argjson role "$(select_field role '["admin","coach","athlete"]' true)" \
-  '[$user,$display,$role,$birth,$phone,$bio,$height,$photo]')"
+  '[$user,$display,$role,$birth,$phone,$bio,$height,$photo,$goals]')"
 ensure_collection profiles base "$PROFILE_FIELDS" \
   'user = @request.auth.id' 'user = @request.auth.id' 'user = @request.auth.id && @request.body.role = "athlete"' 'user = @request.auth.id && (@request.body.user:isset = false || @request.body.user = @request.auth.id) && @request.body.role:isset = false' '__locked__'
 

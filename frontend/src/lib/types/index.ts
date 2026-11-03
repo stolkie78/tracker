@@ -75,6 +75,7 @@ export interface BaseRecord {
 }
 
 export interface Profile extends BaseRecord {
+  weekly_goals?: import('$lib/gamification').WeeklyGoal[];
   user: ID;
   display_name: string;
   role: UserRole;

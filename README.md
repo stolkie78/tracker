@@ -103,6 +103,14 @@ Elke omgeving wordt met één commando uitgerold; zie [DEPLOYMENT.md](DEPLOYMENT
 
 Maak eerst per omgeving een `.env.test`, `.env.demo` of `.env.production` op basis van `.env.example`. Caddy draait als aparte centrale instantie; `deploy.sh` installeert `caddy/conf.d/tracker.setbaas.nl.caddy` en herlaadt Caddy (zie DEPLOYMENT.md). `/api/*` en `/_/*` gaan naar PocketBase, de rest naar de SPA. DNS voor `DOMAIN` moet naar de server wijzen en poorten 80 en 443 moeten bereikbaar zijn voor Let's Encrypt.
 
+## Persoonlijke voortgang
+
+De tijdlijn toont **Your week** met een persoonlijk weekdoel (standaard 3 sessies, instelbaar van 1 t/m 7), een voortgangsbalk en een streak van weken waarin het doel is gehaald. Weken lopen van maandag t/m zondag in de lokale tijdzone. Een lopende week verbreekt de streak niet; rustdagen zijn vrij. Doelwijzigingen gelden vanaf de huidige week, eerdere weken behouden hun doel (standaard 3 als er nog geen instelling bestond).
+
+**Profiel** bevat zes mijlpalen voor sessies, krachttraining, herstel, wandelen/hiking en wekelijkse consistentie. **Insights** toont de laatste acht weken en de beste streak. Na afronden verschijnt een rustige bevestiging met de actuele voortgang. Alleen voltooide sessies tot het huidige moment tellen mee, inclusief geïmporteerde sessies; voeding en fasting leveren geen beloningen op. Voortgang wordt uit de bestaande historie berekend, niet als losse awards opgeslagen: opnieuw laden, status wijzigen en correcties maken geen dubbele awards.
+
+**Uitrol:** voer `docker compose run --rm pb-setup` uit en herstart PocketBase vóór de nieuwe frontend. Dit voegt het persoonlijke JSON-veld `profiles.weekly_goals` en validatie van weekdoelen toe. Bestaande profielregels blijven van toepassing; doelen zijn alleen voor de eigenaar beschikbaar.
+
 ## Trainingsgegevens
 
 - **Kracht:** oefeningen, werksets, repbereik, startgewicht en gewichtsstap. Een set telt voor de suggestie als voltooid wanneer deze aangevinkt is. Alleen als elke set het maximum aantal reps haalt, wordt de volgende suggestie met de gewichtsstap verhoogd; anders blijft het gewicht gelijk.

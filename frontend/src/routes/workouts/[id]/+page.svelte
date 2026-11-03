@@ -1,4 +1,6 @@
 <script lang="ts">
+  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
+  import { isDietaryActivity } from '$lib/types';
   import { onMount } from 'svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { activityOptions, equipmentOptions as availableEquipment } from '$lib/catalog';
@@ -42,6 +44,7 @@
   let loading = true;
   let error = '';
   let statusSaving = false;
+  let justCompleted = false;
   let showDistanceCompletion = false;
   let actualDistance: number | undefined = undefined;
   let actualTime = '';
@@ -181,6 +184,7 @@
     statusSaving = true;
     error = '';
     try {
+      const wasCompleted = workout.status === 'completed';
       if (status === 'completed' && workout.status !== 'completed' && workout.series_id) {
         for (const exercise of exerciseLogs) {
           const { record, sets } = exercise;
@@ -198,6 +202,7 @@
         ...(workout.status === 'planned' && status === 'in_progress' ? { performed_at: new Date().toISOString() } : {})
       });
       selectedStatus = workout.status;
+      justCompleted = status === 'completed' && !wasCompleted && !isDietaryActivity(workout.type, workout.wellness_activity);
       return true;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Workout could not be updated.';
@@ -357,6 +362,13 @@
   </div>
 {:else}
 <div class="space-y-5">
+  {#if justCompleted && workout.status === 'completed'}
+    <div role="status" class="card border-emerald-500 text-emerald-800 dark:text-emerald-200">
+      <p class="text-xl font-bold">Session complete. Well done!</p>
+      <p>You showed up for yourself. Recovery is part of progress too.</p>
+    </div>
+    {#key workout}<ActivityProgress />{/key}
+  {/if}
   <a href="/" class="inline-flex min-h-12 items-center gap-2 font-semibold text-gray-600 hover:text-primary-700 dark:text-gray-300 dark:hover:text-primary-300"><ArrowLeft size={18} /> Back to timeline</a>
   <article class="card {WORKOUT_STATUS_CARD_STYLES[workout.status]}">
     <div class="flex flex-wrap items-start justify-between gap-4">

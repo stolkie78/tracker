@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { CalendarDays, ChevronRight, Dumbbell, Footprints, HeartPulse, Plus, Timer, Trophy } from '@lucide/svelte';
   const TYPE_ICONS = { strength: Dumbbell, cardio: Footprints, interval: Timer, recovery: HeartPulse, sport: Trophy, life: Footprints, wellness: HeartPulse };
@@ -186,6 +187,8 @@
     </button>
     </div>
   </div>
+
+  <ActivityProgress />
 
   {#if openPastCount > 0 || openOnly}
     <div class="card flex flex-wrap items-center justify-between gap-3 border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950">
