@@ -74,7 +74,7 @@
         <p><strong class="text-2xl">{progress.completed} / {progress.target}</strong> sessions this week</p>
         <p><strong>{progress.streak}</strong> {progress.streak === 1 ? 'week' : 'weeks'} of consistency</p>
       </div>
-      <progress class="h-3 w-full accent-emerald-600" max={progress.target} value={Math.min(progress.completed, progress.target)} aria-label="Weekly session goal"></progress>
+      <progress class="activity-progress" max={progress.target} value={Math.min(progress.completed, progress.target)} aria-label="Weekly session goal"></progress>
       <p class="text-sm text-gray-600 dark:text-gray-300">
         {progress.completed >= progress.target ? 'Weekly goal met. Enjoy your rest days.' : 'Monday to Sunday. Walking and recovery count; daily training is not required.'}
         An unfinished week does not break your streak.
@@ -97,7 +97,7 @@
               <p class="font-bold">{badge.title} <span class="text-sm">{badge.earned ? '- Earned' : '- In progress'}</span></p>
               <p class="text-sm">{badge.description}</p>
               <p class="mt-2 text-sm">{Math.min(badge.value, badge.target)} / {badge.target} {badge.unit}</p>
-              <progress class="h-2 w-full accent-emerald-600" max={badge.target} value={Math.min(badge.value, badge.target)} aria-label={badge.title}></progress>
+              <progress class="activity-progress" max={badge.target} value={Math.min(badge.value, badge.target)} aria-label={badge.title}></progress>
             </div>
           {/each}
         </div>
