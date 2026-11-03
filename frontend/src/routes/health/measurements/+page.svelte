@@ -67,13 +67,13 @@
   };
 </script>
 
-<svelte:head><title>Measurements · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>Measurements · Insights · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-5">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Health</p>
-      <h2 class="mt-1 text-3xl font-black">Measurements</h2>
+      <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Insights</p>
+      <h2 class="mt-1 text-3xl font-black">Body measurements</h2>
       <p class="mt-2 text-gray-600 dark:text-gray-300">Track your weight, BMI, and waist. Your measurements are visible only to you.</p>
     </div>
     <button type="button" class="btn-primary shrink-0" disabled={loading || saving} on:click={() => (showForm = !showForm)}><Plus size={18} /> New</button>

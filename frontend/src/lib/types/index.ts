@@ -1,6 +1,6 @@
 export type ID = string;
 
-export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport' | 'life';
+export type WorkoutType = 'strength' | 'cardio' | 'interval' | 'recovery' | 'sport' | 'life' | 'wellness';
 export type WorkoutStatus = 'planned' | 'in_progress' | 'completed' | 'skipped';
 export type CardioMode = string;
 export type RecoveryActivity = string;
@@ -8,12 +8,23 @@ export type SportActivity = string;
 export type UserRole = 'admin' | 'coach' | 'athlete';
 export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
 export type ExerciseEquipment = string;
+export type WellnessActivity = string;
 
 export const EXPERIENCE_LEVEL_LABELS: Record<ExperienceLevel, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced'
 };
+
+export const WELLNESS_ACTIVITY_LABELS: Record<WellnessActivity, string> = {
+  breathing: 'Breathing',
+  diet: 'Diet',
+  omad: 'OMAD',
+  fasting: 'Fasting'
+};
+export const WELLNESS_DAY_ACTIVITIES = new Set<WellnessActivity>(['diet', 'omad', 'fasting']);
+export const isDietaryActivity = (type: WorkoutType, activity?: WellnessActivity) =>
+  type === 'wellness' && Boolean(activity && WELLNESS_DAY_ACTIVITIES.has(activity));
 
 export const DEFAULT_STRENGTH_REST_SECONDS = 90;
 export const DEFAULT_STRENGTH_TEMPO = '3-1-1-0';
@@ -113,6 +124,7 @@ export interface Workout extends BaseRecord {
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
   sport_activity?: SportActivity;
+  wellness_activity?: WellnessActivity;
   perceived_effort?: number;
   series_id?: string;
   strava_id?: string;
@@ -175,6 +187,7 @@ export interface WorkoutTemplate extends BaseRecord {
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
   sport_activity?: SportActivity;
+  wellness_activity?: WellnessActivity;
   expand?: {
     template_exercises_via_template?: TemplateExercise[];
   };
@@ -232,6 +245,7 @@ export interface GeneratedWorkout {
   interval_rounds?: number;
   recovery_activity?: RecoveryActivity;
   sport_activity?: SportActivity;
+  wellness_activity?: WellnessActivity;
 }
 
 export interface GeneratedPlan {
@@ -274,16 +288,19 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   interval: 'Interval',
   recovery: 'Recovery',
   sport: 'Sports',
-  life: 'Life'
+  life: 'Life',
+  wellness: 'Wellness'
 };
 
-export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode; sport_activity?: SportActivity }) => {
+export const templateLabel = (template: { title: string; type: WorkoutType; cardio_mode?: CardioMode; sport_activity?: SportActivity; wellness_activity?: WellnessActivity }) => {
   const prefix =
     (template.type === 'cardio' || template.type === 'life') && template.cardio_mode
       ? CARDIO_MODE_LABELS[template.cardio_mode]
       : template.type === 'sport' && template.sport_activity
         ? SPORT_ACTIVITY_LABELS[template.sport_activity]
-        : WORKOUT_TYPE_LABELS[template.type];
+        : template.type === 'wellness' && template.wellness_activity
+          ? WELLNESS_ACTIVITY_LABELS[template.wellness_activity]
+          : WORKOUT_TYPE_LABELS[template.type];
   return `${prefix} · ${template.title}`;
 };
 
@@ -354,6 +371,11 @@ export const MUSCLE_GROUP_OPTIONS = (Object.keys(MUSCLE_GROUP_LABELS) as MuscleG
   label: MUSCLE_GROUP_LABELS[value]
 }));
 
+export const WELLNESS_ACTIVITY_OPTIONS = Object.entries(WELLNESS_ACTIVITY_LABELS).map(([value, label]) => ({
+  value: value as WellnessActivity,
+  label
+}));
+
 export const EXERCISE_EQUIPMENT_LABELS: Record<ExerciseEquipment, string> = {
   cable: 'Cable',
   dumbbell: 'Dumbbell',
@@ -421,7 +443,8 @@ export const WORKOUT_TYPE_STYLES: Record<WorkoutType, { icon: string; badge: str
   interval: { icon: 'bg-rose-500 text-white', badge: 'bg-rose-500 text-white' },
   recovery: { icon: 'bg-emerald-500 text-white', badge: 'bg-emerald-500 text-white' },
   sport: { icon: 'bg-violet-500 text-white', badge: 'bg-violet-500 text-white' },
-  life: { icon: 'bg-teal-600 text-white', badge: 'bg-teal-600 text-white' }
+  life: { icon: 'bg-teal-600 text-white', badge: 'bg-teal-600 text-white' },
+  wellness: { icon: 'bg-fuchsia-600 text-white', badge: 'bg-fuchsia-600 text-white' }
 };
 
 export const exerciseLabel = (name: string, equipment?: ExerciseEquipment | '') =>

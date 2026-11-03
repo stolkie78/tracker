@@ -1,4 +1,4 @@
-import { DAY_PARTS, DAY_PART_HOURS, DAY_PART_LABELS, CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, WORKOUT_TYPE_LABELS, type TrainingPlan, type CycleSlot, type DayPart, type Workout, type WorkoutTemplate } from '$lib/types';
+import { DAY_PARTS, DAY_PART_HOURS, DAY_PART_LABELS, CARDIO_MODE_LABELS, RECOVERY_ACTIVITY_LABELS, SPORT_ACTIVITY_LABELS, WELLNESS_ACTIVITY_LABELS, WORKOUT_TYPE_LABELS, isDietaryActivity, type TrainingPlan, type CycleSlot, type DayPart, type Workout, type WorkoutTemplate } from '$lib/types';
 
 export const emptyCycleSlot = (): CycleSlot => ({ periods: { morning: [], afternoon: [], evening: [] } });
 
@@ -123,6 +123,16 @@ export interface PeriodTarget {
   count: number;
 }
 
+export function countPeriodTargets(targets: PeriodTarget[], lookup: Map<string, WorkoutTemplate>) {
+  return targets.reduce((counts, target) => {
+    const template = lookup.get(target.template);
+    if (!template) return counts;
+    if (isDietaryActivity(template.type, template.wellness_activity)) counts.days += target.count;
+    else counts.sessions += target.count;
+    return counts;
+  }, { days: 0, sessions: 0 });
+}
+
 export function buildFreePeriod(start: string, weeks: number, targets: PeriodTarget[], lookup: Map<string, WorkoutTemplate>) {
   cycleDate(start, 0);
   if (!Number.isInteger(weeks) || weeks < 1 || weeks > 4) throw new Error('Choose a period of one to four weeks.');
@@ -169,15 +179,20 @@ export function groupFreePeriods(plans: TrainingPlan[], workouts: Workout[], tod
   const day = localDate(today);
   return plans.filter((plan) => plan.schedule_mode === 'free_period').map((plan) => {
     const records = workouts.filter((workout) => workout.free_period && workout.plan === plan.id);
-    const groups = new Map<string, { label: string; workouts: Workout[]; completed: number }>();
+    const groups = new Map<string, { label: string; workouts: Workout[]; completed: number; unit: 'day' | 'session' }>();
     for (const workout of records) {
       const activity = (workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life') ? workout.cardio_mode
-        : workout.type === 'recovery' ? workout.recovery_activity : workout.type === 'sport' ? workout.sport_activity : '';
+        : workout.type === 'recovery' ? workout.recovery_activity : workout.type === 'sport' ? workout.sport_activity
+        : workout.type === 'wellness' ? workout.wellness_activity : '';
       const key = `${workout.type}:${activity || ''}`;
       const label = (workout.type === 'cardio' || workout.type === 'interval' || workout.type === 'life') && workout.cardio_mode ? CARDIO_MODE_LABELS[workout.cardio_mode]
         : workout.type === 'recovery' && workout.recovery_activity ? RECOVERY_ACTIVITY_LABELS[workout.recovery_activity]
-        : workout.type === 'sport' && workout.sport_activity ? SPORT_ACTIVITY_LABELS[workout.sport_activity] : WORKOUT_TYPE_LABELS[workout.type];
-      const group = groups.get(key) ?? { label: activity ? `${WORKOUT_TYPE_LABELS[workout.type]} · ${label}` : label, workouts: [], completed: 0 };
+        : workout.type === 'sport' && workout.sport_activity ? SPORT_ACTIVITY_LABELS[workout.sport_activity]
+        : workout.type === 'wellness' && workout.wellness_activity ? WELLNESS_ACTIVITY_LABELS[workout.wellness_activity] : WORKOUT_TYPE_LABELS[workout.type];
+      const group = groups.get(key) ?? {
+        label: activity ? `${WORKOUT_TYPE_LABELS[workout.type]} · ${label}` : label,
+        workouts: [], completed: 0, unit: isDietaryActivity(workout.type, workout.wellness_activity) ? 'day' : 'session'
+      };
       group.workouts.push(workout);
       if (workout.status === 'completed') group.completed += 1;
       groups.set(key, group);
@@ -200,6 +215,7 @@ export function groupPeriodWorkouts(workouts: Workout[]) {
   return [...groups.values()].map((records) => ({
     title: records[0].title,
     workouts: records,
+    unit: isDietaryActivity(records[0].type, records[0].wellness_activity) ? 'day' as const : 'session' as const,
     completed: records.filter((workout) => workout.status === 'completed').length,
     remaining: records.filter((workout) => workout.status === 'planned' || workout.status === 'in_progress').length,
     next: records.find((workout) => workout.status === 'in_progress') ?? records.find((workout) => workout.status === 'planned')

@@ -18,15 +18,15 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     var fields = [
       "title", "type", "duration_minutes", "notes", "level", "goal", "tags",
       "cardio_mode", "distance_km", "interval_work_seconds", "interval_rest_seconds",
-      "interval_rounds", "recovery_activity", "sport_activity"
+      "interval_rounds", "recovery_activity", "sport_activity", "wellness_activity"
     ];
     for (var i = 0; i < fields.length; i++) {
       if (Object.prototype.hasOwnProperty.call(data, fields[i])) record.set(fields[i], data[fields[i]]);
     }
     var type = record.getString("type");
     var duration = record.getFloat("duration_minutes");
-    if (!Number.isFinite(duration) || duration < 1 || duration > 600) {
-      throw new BadRequestError("Enter a workout duration between 1 and 600 minutes.");
+    if (!Number.isFinite(duration) || duration < (type === "wellness" ? 0 : 1) || duration > 600) {
+      throw new BadRequestError(type === "wellness" ? "Enter a workout duration between 0 and 600 minutes." : "Enter a workout duration between 1 and 600 minutes.");
     }
     if (type !== "cardio" && type !== "interval" && type !== "life") record.set("cardio_mode", "");
     if (type !== "cardio" && type !== "life") record.set("distance_km", 0);
@@ -37,6 +37,7 @@ routerAdd("POST", "/api/top-trainer/templates", function (e) {
     }
     if (type !== "recovery") record.set("recovery_activity", "");
     if (type !== "sport") record.set("sport_activity", "");
+    if (type !== "wellness") record.set("wellness_activity", "");
     if (record.getString("type") === "strength" && entries.length === 0) {
       throw new BadRequestError("Add at least one exercise.");
     }

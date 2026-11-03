@@ -23,6 +23,7 @@
     MUSCLE_GROUP_OPTIONS,
     RECOVERY_ACTIVITY_LABELS,
     SPORT_ACTIVITY_LABELS,
+    WELLNESS_ACTIVITY_LABELS,
     WORKOUT_TYPE_LABELS,
     WORKOUT_TYPE_OPTIONS,
     WORKOUT_TYPE_STYLES,
@@ -33,6 +34,7 @@
     type ExerciseEquipment,
     type RecoveryActivity,
     type SportActivity,
+    type WellnessActivity,
     type WorkoutTemplate,
     type WorkoutType
   } from '$lib/types';
@@ -70,6 +72,7 @@
   let intervalRounds = 8;
   let recoveryActivity: RecoveryActivity = 'mobility';
   let sportActivity: SportActivity = 'indoor_volleyball';
+  let wellnessActivity: WellnessActivity = 'breathing';
   let entries: Entry[] = [emptyEntry()];
 
   onMount(async () => {
@@ -115,6 +118,7 @@
     intervalRounds = 8;
     recoveryActivity = 'mobility';
     sportActivity = 'indoor_volleyball';
+    wellnessActivity = 'breathing';
     entries = [emptyEntry()];
   };
 
@@ -124,6 +128,7 @@
     lifeActivity = activityOptions('life')[0]?.value ?? '';
     recoveryActivity = activityOptions('recovery')[0]?.value ?? '';
     sportActivity = activityOptions('sport')[0]?.value ?? '';
+    wellnessActivity = activityOptions('wellness')[0]?.value ?? '';
     wizardStep = 2;
     error = '';
     await tick();
@@ -147,6 +152,7 @@
     intervalRounds = template.interval_rounds ?? 8;
     recoveryActivity = template.recovery_activity ?? 'mobility';
     sportActivity = template.sport_activity ?? 'indoor_volleyball';
+    wellnessActivity = template.wellness_activity ?? 'breathing';
     entries = [...(template.expand?.template_exercises_via_template ?? [])]
       .sort((a, b) => a.set_order - b.set_order)
       .map((entry) => ({
@@ -166,7 +172,7 @@
   };
 
   const detailsOf = (template: WorkoutTemplate) => {
-    const parts: string[] = [`${template.duration_minutes} min`];
+    const parts: string[] = template.duration_minutes ? [`${template.duration_minutes} min`] : [];
     if (template.type === 'strength') parts.push(`${template.expand?.template_exercises_via_template?.length ?? 0} exercises`);
     if (template.type === 'cardio' || template.type === 'life') {
       if (template.cardio_mode) parts.push(CARDIO_MODE_LABELS[template.cardio_mode]);
@@ -175,6 +181,10 @@
     if (template.type === 'interval') parts.push(`${template.interval_rounds} × ${template.interval_work_seconds}s / ${template.interval_rest_seconds}s`);
     if (template.type === 'sport' && template.sport_activity) parts.push(SPORT_ACTIVITY_LABELS[template.sport_activity]);
     if (template.type === 'recovery' && template.recovery_activity) parts.push(RECOVERY_ACTIVITY_LABELS[template.recovery_activity]);
+    if (template.type === 'wellness' && template.wellness_activity) {
+      parts.push(WELLNESS_ACTIVITY_LABELS[template.wellness_activity]);
+      if (['diet', 'omad', 'fasting'].includes(template.wellness_activity)) parts.push('counted in days');
+    }
     return parts.join(' · ');
   };
 
@@ -200,7 +210,7 @@
       const created = await saveTemplate(editing, {
         title: title.trim(),
         type,
-        duration_minutes: duration,
+        duration_minutes: type === 'wellness' ? 0 : duration,
         notes,
         level,
         goal: goal.trim(),
@@ -211,7 +221,8 @@
         interval_rest_seconds: type === 'interval' ? intervalRest : 0,
         interval_rounds: type === 'interval' ? intervalRounds : 0,
         recovery_activity: type === 'recovery' ? recoveryActivity : undefined,
-        sport_activity: type === 'sport' ? sportActivity : undefined
+        sport_activity: type === 'sport' ? sportActivity : undefined,
+        wellness_activity: type === 'wellness' ? wellnessActivity : undefined
       }, type === 'strength' ? entries.map((entry, index) => ({
         exercise: entry.exercise,
         ...(entry.equipment ? { equipment: entry.equipment } : {}),
@@ -282,14 +293,14 @@
   };
 </script>
 
-<svelte:head><title>Workouts · T.O.P. Trainer</title></svelte:head>
+<svelte:head><title>Activities · T.O.P. Trainer</title></svelte:head>
 
 <div class="space-y-6">
   <div class="flex items-start justify-between gap-3">
     <div>
-      <h2 class="text-3xl font-black tracking-tight sm:text-4xl">Workouts</h2>
+      <h2 class="text-3xl font-black tracking-tight sm:text-4xl">Activities</h2>
       <p class="mt-2 text-gray-600 dark:text-gray-300">
-        Create reusable workouts (such as a 10K run or an upper-body session). Start them now, schedule them for a day, or use them in a
+        Create reusable activities (such as a 10K run or an upper-body session). Start them now, schedule them for a day, or use them in a
         <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/programs">a program</a>.
       </p>
     </div>
@@ -301,12 +312,12 @@
 
   {#if showForm}
     <form class="card space-y-4" on:submit|preventDefault={save}>
-      <h3 class="text-xl font-bold">{editing ? 'Edit workout' : 'New workout'}</h3>
+      <h3 class="text-xl font-bold">{editing ? 'Edit activity' : 'New activity'}</h3>
       {#if editing}<p class="text-sm text-gray-600 dark:text-gray-300">Changes apply to new workouts. Previously scheduled and completed workouts will not change.</p>{/if}
       <p class="text-sm text-gray-500 dark:text-gray-400">Step {wizardStep} of 2 · {wizardStep === 1 ? 'Choose a type' : 'Enter details'}</p>
       <fieldset disabled={saving} class="min-w-0 space-y-4">
       {#if wizardStep === 1}
-        <label class="label" for="tpl-type">What type of workout would you like to create?</label>
+        <label class="label" for="tpl-type">What type of activity would you like to create?</label>
         <CycleChoice id="tpl-type" label="Workout type" options={WORKOUT_TYPE_OPTIONS} bind:value={type} />
         <p class="text-xs text-gray-500 dark:text-gray-400">Click to cycle through the options.</p>
         <button class="btn-primary w-full" type="button" on:click={() => chooseType(type)}>Continue</button>
@@ -318,12 +329,14 @@
       <div class="grid gap-4 sm:grid-cols-2">
         <div>
           <label class="label" for="tpl-title">Name</label>
-          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'For example: Upper body' : type === 'recovery' ? 'For example: Mobility' : type === 'sport' ? 'For example: Volleyball practice' : type === 'life' ? 'For example: Weekend hike' : 'For example: 10K run'} required />
+          <input id="tpl-title" class="input" bind:value={title} maxlength="120" placeholder={type === 'strength' ? 'For example: Upper body' : type === 'recovery' ? 'For example: Mobility' : type === 'sport' ? 'For example: Volleyball practice' : type === 'life' ? 'For example: Weekend hike' : type === 'wellness' ? 'For example: Daily fasting' : 'For example: 10K run'} required />
         </div>
+        {#if type !== 'wellness'}
         <div>
           <label class="label" for="tpl-duration">Duration (min)</label>
           <input id="tpl-duration" class="input" type="number" required min="1" max="600" bind:value={duration} />
         </div>
+        {/if}
         {#if type === 'cardio' || type === 'interval'}
           <div>
             <label class="label" for="tpl-cardio">Activity</label>
@@ -357,6 +370,13 @@
           <div>
             <label class="label" for="tpl-recovery">Activity</label>
             <CycleChoice id="tpl-recovery" label="Activity" options={activityOptions('recovery', editing ? recoveryActivity : '')} bind:value={recoveryActivity} />
+          </div>
+        {/if}
+        {#if type === 'wellness'}
+          <div>
+            <label class="label" for="tpl-wellness">Activity</label>
+            <CycleChoice id="tpl-wellness" label="Activity" options={activityOptions('wellness', editing ? wellnessActivity : '')} bind:value={wellnessActivity} />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Diet, OMAD, and fasting targets are counted in days when used in a program.</p>
           </div>
         {/if}
       </div>
@@ -424,7 +444,7 @@
   {:else if pageLoading}
     <div class="card animate-pulse">Loading...</div>
   {:else if templates.length === 0}
-    <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any workouts yet. Create your first workout with “New”.</div>
+    <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any activities yet. Create your first activity with “New”.</div>
   {:else}
     <div class="space-y-3">
       {#each templates as template}

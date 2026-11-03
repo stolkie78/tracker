@@ -94,7 +94,7 @@ export const computeStats = (workouts: Workout[], period: PeriodKey): Stats => {
     .filter((workout) => workout.status === 'completed' && (!start || new Date(workout.performed_at) >= start))
     .sort((a, b) => a.performed_at.localeCompare(b.performed_at));
 
-  const byType: Record<WorkoutType, number> = { strength: 0, cardio: 0, interval: 0, recovery: 0, sport: 0, life: 0 };
+  const byType: Record<WorkoutType, number> = { strength: 0, cardio: 0, interval: 0, recovery: 0, sport: 0, life: 0, wellness: 0 };
   const cardioKm: Partial<Record<CardioMode, number>> = {};
   let totalMinutes = 0;
   let longestRunKm = 0;

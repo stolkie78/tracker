@@ -3,8 +3,8 @@
   import CycleChoice from '$lib/components/CycleChoice.svelte';
   import { Check, ChevronDown, ChevronUp, LoaderCircle, Pencil, Plus, Repeat, Trash2 } from '@lucide/svelte';
   import { createTrainingPlan, deleteTrainingPlan, deleteWorkout, getPlanWorkouts, getTemplates, getTrainingPlans, instantiateTemplate, updateTrainingPlan } from '$lib/pocketbase';
-  import { blockTime, buildCycleSchedule, buildFreePeriod, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, normalizePeriodTargets, replanCycle, replanFreePeriod, type PeriodTarget, type ScheduledBlock } from '$lib/programs';
-  import { DAY_PARTS, DAY_PART_LABELS, templateLabel, WORKOUT_TYPE_STYLES, type CycleSlot, type DayPart, type TrainingPlan, type WorkoutTemplate } from '$lib/types';
+  import { blockTime, buildCycleSchedule, buildFreePeriod, countPeriodTargets, cycleDate, emptyCycleSlot, localDate, normalizeCycleSlots, normalizePeriodTargets, replanCycle, replanFreePeriod, type PeriodTarget, type ScheduledBlock } from '$lib/programs';
+  import { DAY_PARTS, DAY_PART_LABELS, isDietaryActivity, templateLabel, WORKOUT_TYPE_STYLES, type CycleSlot, type DayPart, type TrainingPlan, type WorkoutTemplate } from '$lib/types';
 
   const MAX_WORKOUTS = 200;
   let title = '';
@@ -31,7 +31,9 @@
   $: templateById = new Map(templates.map((template) => [template.id, template]));
   $: preview = previewSchedule(startDate, cycleWeeks, cycles, slots, templateById);
   $: schedule = preview.entries;
+  $: plannedCounts = countPeriodTargets(schedule.map((entry) => ({ template: entry.template.id, count: 1 })), templateById);
   $: freePreview = previewPeriod(startDate, periodWeeks, targets, templateById);
+  $: freeCounts = countPeriodTargets(targets, templateById);
 
   onMount(async () => {
     try {
@@ -120,11 +122,11 @@
       return;
     }
     if (!schedule.length) {
-      error = 'Choose at least one workout.';
+      error = 'Choose at least one activity.';
       return;
     }
     if (schedule.length > MAX_WORKOUTS) {
-      error = `A program can contain at most ${MAX_WORKOUTS} workouts. Shorten the schedule or choose fewer repetitions.`;
+      error = `A program can contain at most ${MAX_WORKOUTS} activities. Shorten the schedule or choose fewer repetitions.`;
       return;
     }
 
@@ -147,7 +149,7 @@
         start_date: `${startDate}T12:00:00.000Z`,
         end_date: `${localDate(cycleDate(startDate, cycleWeeks * 7 * cycles - 1))}T12:00:00.000Z`,
         weeks: cycleWeeks * cycles,
-        summary: `${cycleWeeks}-week cycle × ${cycles} · ${schedule.length} workouts`,
+        summary: `${cycleWeeks}-week cycle × ${cycles} · ${plannedCounts.days} days · ${plannedCounts.sessions} activities`,
         schedule_mode: 'fixed_weekdays' as const,
         cycle_days: cycleWeeks * 7,
         cycles,
@@ -170,13 +172,13 @@
       }
       plans = editingPlan ? plans.map((item) => item.id === plan.id ? plan : item) : [plan, ...plans];
       success = editingPlan
-        ? `Program updated: ${created} workouts rescheduled, ${kept} existing workouts kept.`
-        : `Program saved with ${created} scheduled workouts on your timeline.`;
+        ? `Program updated: ${created} activities rescheduled, ${kept} existing activities kept.`
+        : `Program saved with ${created} scheduled activities on your timeline.`;
       cancelEdit();
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'Could not save changes.';
       error = changed
-        ? `Could not complete the save: ${created} workouts created. Check your timeline before trying again. ${reason}`
+        ? `Could not complete the save: ${created} activities created. Check your timeline before trying again. ${reason}`
         : reason;
       if (planId && changed) {
         try {
@@ -193,7 +195,7 @@
 
   const saveFreePeriod = async () => {
     if (freePreview.error || !freePreview.entries.length) {
-      error = freePreview.error || 'Choose at least one workout.';
+      error = freePreview.error || 'Choose at least one activity.';
       return;
     }
     saving = true;
@@ -209,7 +211,10 @@
         start_date: `${startDate}T12:00:00.000Z`,
         end_date: `${freePreview.end}T12:00:00.000Z`,
         weeks: periodWeeks,
-        summary: `${periodWeeks}-week free period · ${freePreview.entries.length} workouts`,
+        summary: (() => {
+          const counts = countPeriodTargets(targets, templateById);
+          return `${periodWeeks}-week free period · ${counts.days} days · ${counts.sessions} sessions`;
+        })(),
         schedule_mode: 'free_period' as const,
         cycle_days: periodWeeks * 7,
         cycles: 1,
@@ -224,11 +229,11 @@
         created += 1;
       }
       plans = editingPlan ? plans.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...plans];
-      success = `Period saved: ${created} workouts ready to pick up, ${replanning.retained.length} existing workouts kept.`;
+      success = `Period saved: ${created} activities ready to pick up, ${replanning.retained.length} existing activities kept.`;
       cancelEdit();
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'The period could not be saved.';
-      error = changed ? `The period was saved, but only ${created} new workouts were created. Open the period again to restore the remaining targets. ${reason}` : reason;
+      error = changed ? `The period was saved, but only ${created} new activities were created. Open the period again to restore the remaining targets. ${reason}` : reason;
       if (savedPlan) {
         const saved = savedPlan;
         plans = plans.some((plan) => plan.id === saved.id) ? plans.map((plan) => plan.id === saved.id ? saved : plan) : [saved, ...plans];
@@ -325,10 +330,10 @@
 
 <div class="space-y-6">
   <div>
-    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Multiple workouts</p>
+    <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Multiple activities</p>
     <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Programs</h2>
     <p class="mt-2 text-gray-600 dark:text-gray-300">
-      Choose Planned to schedule your <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">workouts</a> by day, or Free to pick up sessions in any order during a period of one to four weeks.
+      Choose Planned to schedule your <a class="font-semibold text-primary-700 underline dark:text-primary-300" href="/library">activities</a> by day, or Free to pick them up in any order during a period of one to four weeks.
     </p>
   </div>
 
@@ -345,7 +350,7 @@
           <button class="btn-primary" type="button" on:click={startCreate}><Plus size={18} /> New</button>
         </div>
         {#if plans.length === 0}
-          <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any programs yet. Create a program to schedule workouts on your timeline.</div>
+          <div class="card text-sm text-gray-600 dark:text-gray-300">You don't have any programs yet. Create a program to schedule activities on your timeline.</div>
         {:else}
           {#each plans as plan}
             <div class="card space-y-2">
@@ -414,27 +419,27 @@
             {/if}
           </div>
           {#if mode === 'free_period'}
-            <p class="text-sm text-gray-600 dark:text-gray-300">Choose the total number of sessions for the entire period, not per week. Sessions have no fixed day or order and appear on the calendar only after completion. Unfinished sessions remain available after the end date.</p>
+            <p class="text-sm text-gray-600 dark:text-gray-300">Choose the total number of days for diet, OMAD, or fasting activities, and sessions for other activities. These targets cover the entire period, not each week. They have no fixed day or order and appear on the calendar only after completion.</p>
             {#each targets as target, index}
               <div class="grid gap-3 rounded-xl border border-gray-200 p-3 dark:border-gray-700 sm:grid-cols-[1fr_8rem_auto]">
                 <div>
-                  <label class="label" for={`period-template-${index}`}>Workout</label>
+                  <label class="label" for={`period-template-${index}`}>Activity</label>
                   <select id={`period-template-${index}`} class="input" bind:value={target.template} required>
-                    <option value="">Choose a workout...</option>
+                    <option value="">Choose an activity...</option>
                     {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
                   </select>
                 </div>
                 <div>
-                  <label class="label" for={`period-count-${index}`}>Total sessions</label>
+                  <label class="label" for={`period-count-${index}`}>Total {isDietaryActivity(templateById.get(target.template)?.type ?? 'wellness', templateById.get(target.template)?.wellness_activity) ? 'days' : 'sessions'}</label>
                   <input id={`period-count-${index}`} class="input" type="number" min="1" max="200" step="1" bind:value={target.count} required />
                 </div>
-                <button class="btn-secondary self-end" type="button" aria-label={`Remove workout ${index + 1}`} on:click={() => targets = targets.filter((_, item) => item !== index)}><Trash2 size={16} /></button>
+                <button class="btn-secondary self-end" type="button" aria-label={`Remove activity ${index + 1}`} on:click={() => targets = targets.filter((_, item) => item !== index)}><Trash2 size={16} /></button>
               </div>
             {/each}
-            <button class="btn-secondary w-full" type="button" on:click={() => targets = [...targets, { template: '', count: 1 }]}><Plus size={16} /> Add workout</button>
-            {#if !templates.length}<p class="text-sm text-amber-800 dark:text-amber-200">Create a workout in <a class="underline" href="/library">Workouts</a> first.</p>{/if}
+            <button class="btn-secondary w-full" type="button" on:click={() => targets = [...targets, { template: '', count: 1 }]}><Plus size={16} /> Add activity</button>
+            {#if !templates.length}<p class="text-sm text-amber-800 dark:text-amber-200">Create an activity in <a class="underline" href="/library">Activities</a> first.</p>{/if}
             <div class="rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-900">
-              <p class="font-bold">Preview: {freePreview.entries.length} sessions for this period</p>
+              <p class="font-bold">Preview: {freeCounts.days} {freeCounts.days === 1 ? 'day' : 'days'} · {freeCounts.sessions} {freeCounts.sessions === 1 ? 'session' : 'sessions'} for this period</p>
               {#if freePreview.error}<p class="mt-1 text-amber-800 dark:text-amber-200">{freePreview.error}</p>
               {:else}<p class="mt-1">{formatDate(startDate)} – {formatDate(freePreview.end)}</p>{/if}
             </div>
@@ -443,7 +448,7 @@
 
           {#if templates.length === 0}
             <p class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
-              Create a workout in <a class="font-semibold underline" href="/library">Workouts</a> first.
+              Create an activity in <a class="font-semibold underline" href="/library">Activities</a> first.
             </p>
           {/if}
           {#if cycleWeeks > 1}
@@ -463,7 +468,7 @@
                   <summary class="cursor-pointer font-bold capitalize">
                     {dayLabel(day)}
                     <span class="text-xs font-normal normal-case text-gray-500 dark:text-gray-400">
-                      · {count ? `${count} ${count === 1 ? 'workout' : 'workouts'}` : 'Rest day'}
+                      · {count ? `${count} ${count === 1 ? 'activity' : 'activities'}` : 'Rest day'}
                     </span>
                   </summary>
                   <div class="mt-4 space-y-4">
@@ -473,17 +478,17 @@
                         {#each slot.periods[part] as _, order}
                           <div class="space-y-2 rounded-xl bg-gray-50 p-2 dark:bg-gray-900">
                             <select class="input min-w-0" aria-label={`Workout ${order + 1}, day ${day + 1}, ${DAY_PART_LABELS[part]}`} bind:value={slot.periods[part][order]} required>
-                              <option value="">Choose a workout…</option>
+                              <option value="">Choose an activity…</option>
                               {#each templates as template}<option value={template.id}>{templateLabel(template)}</option>{/each}
                             </select>
                             <div class="flex flex-wrap justify-end gap-2">
-                              <button class="btn-secondary" type="button" aria-label="Move workout earlier" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Move workout later" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
-                              <button class="btn-secondary" type="button" aria-label="Remove workout" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Move activity earlier" disabled={order === 0} on:click={() => moveBlock(day, part, order, -1)}><ChevronUp size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Move activity later" disabled={order === slot.periods[part].length - 1} on:click={() => moveBlock(day, part, order, 1)}><ChevronDown size={16} /></button>
+                              <button class="btn-secondary" type="button" aria-label="Remove activity" on:click={() => setPeriod(day, part, slot.periods[part].filter((_, index) => index !== order))}><Trash2 size={16} /></button>
                             </div>
                           </div>
                         {/each}
-                        <button class="btn-secondary w-full" type="button" aria-label={`New workout, day ${day + 1}, ${DAY_PART_LABELS[part]}`} on:click={() => setPeriod(day, part, [...slot.periods[part], ''])}><Plus size={16} /> Add workout</button>
+                        <button class="btn-secondary w-full" type="button" aria-label={`New activity, day ${day + 1}, ${DAY_PART_LABELS[part]}`} on:click={() => setPeriod(day, part, [...slot.periods[part], ''])}><Plus size={16} /> Add activity</button>
                       </fieldset>
                     {/each}
                   </div>
@@ -493,7 +498,7 @@
           {/each}
 
           <div class="rounded-xl bg-gray-50 p-4 text-sm dark:bg-gray-900">
-            <p class="font-bold">Preview: {schedule.length} scheduled workouts</p>
+            <p class="font-bold">Preview: {plannedCounts.days} days · {plannedCounts.sessions} scheduled activities</p>
             {#if preview.error}
               <p class="mt-1 text-amber-800 dark:text-amber-200">{preview.error}</p>
             {:else}
@@ -507,7 +512,7 @@
                 {#if schedule.length > 14}<li class="text-gray-500">+ {schedule.length - 14} more</li>{/if}
               </ul>
             {/if}
-            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximum {MAX_WORKOUTS} workouts per program. Choose fewer repeats or workouts.</p>{/if}
+            {#if schedule.length > MAX_WORKOUTS}<p role="alert" class="mt-2 text-red-700 dark:text-red-300">Maximum {MAX_WORKOUTS} activities per program. Choose fewer repeats or activities.</p>{/if}
           </div>
           {/if}
 

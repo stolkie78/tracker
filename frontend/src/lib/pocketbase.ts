@@ -414,7 +414,8 @@ export const instantiateTemplate = async (
     ...(template.interval_rest_seconds ? { interval_rest_seconds: template.interval_rest_seconds } : {}),
     ...(template.interval_rounds ? { interval_rounds: template.interval_rounds } : {}),
     ...(template.recovery_activity ? { recovery_activity: template.recovery_activity } : {}),
-    ...(template.sport_activity ? { sport_activity: template.sport_activity } : {})
+    ...(template.sport_activity ? { sport_activity: template.sport_activity } : {}),
+    ...(template.wellness_activity ? { wellness_activity: template.wellness_activity } : {})
   });
 
   const entries = [...(template.expand?.template_exercises_via_template ?? [])].sort((a, b) => a.set_order - b.set_order);
