@@ -34,8 +34,10 @@ Configureer Strava na de deploy als applicatiebeheerder via **Instellingen → S
 1. **Controles**: `npm ci`, `npm run check` en `npm run build` in `frontend/`, plus `docker compose config -q`. Een fout stopt de deploy.
 2. **Back-up** (alleen production, als er al data is): `backups/pb_data_<tijdstempel>.tar.gz`.
 3. **Bouwen**: `docker compose build` van de frontend-image.
-4. **Migraties en data**: `pb-setup` draait `scripts/setup-collections.sh` (schema, 50 oefeningen, admin-gebruiker; idempotent). Bij `test` en `demo` volgt `scripts/seed-demo.sh` (voorbeeldtrainingen, een geplande reeks van 4 weken en een OMAD-programma met weekmenu en 4 dagen reeks; slaat onderdelen over als de data er al is).
-5. **Verificatie**: wacht tot `pb-setup` succesvol eindigt (anders worden de logs getoond en faalt het script) en voert een smoke test uit op frontend en `/api/health`.
+4. **Migraties en data**: PocketBase wordt opnieuw aangemaakt met de actuele hooks, met behoud van de datamap. Daarna draait `pb-setup` bij **elke deploy** als een nieuwe, eenmalige container via `docker compose run --rm --no-deps pb-setup`; een eerder succesvol afgesloten setupcontainer wordt nooit als bewijs van actuele migraties gebruikt. Deze stap draait `scripts/setup-collections.sh` (schema, oefeningen, admin-gebruiker; idempotent). Bij `test` en `demo` volgt `scripts/seed-demo.sh` (voorbeeldtrainingen, een geplande reeks van 4 weken en een OMAD-programma met weekmenu en 4 dagen reeks; slaat onderdelen over als de data er al is). Een fout wordt direct getoond en stopt de deploy, ook met `--no-checks`.
+5. **Verificatie**: na geslaagde migraties wordt PocketBase herstart en op gezondheid gecontroleerd. Pas daarna wordt de frontend opnieuw gestart met de gebouwde image. Vervolgens draait een smoke test op frontend en `/api/health`.
+
+Standaard blijft data in `pb_data_<omgeving>/`. Alleen bij het bewust overnemen van een bestaande omgeving kan `PB_DATA_DIR` als omgevingsvariabele naar de bestaande datamap wijzen. Gebruik geen `--reset` bij het bijwerken van een omgeving met te behouden accounts of historie.
 
 ## Opties
 

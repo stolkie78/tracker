@@ -6,7 +6,7 @@
   import { page } from '$app/stores';
   import { getTrainingPlans, getWorkouts } from '$lib/pocketbase';
   import { activeWorkoutType, contextFilter } from '$lib/stores/context';
-  import { groupByDayPart, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts, localDate } from '$lib/programs';
+  import { activityView, activityViewHref, groupByDayPart, groupFreePeriods, groupPeriodCategories, groupPeriodWorkouts, localDate, type ActivityView } from '$lib/programs';
   import { formatWorkoutTime, requiresDistanceAndTime, openPastWorkouts, workoutsInRange, type DateRangeFilter } from '$lib/workouts';
   import {
     CARDIO_MODE_LABELS,
@@ -59,6 +59,8 @@
   };
 
   $: selectedPlan = $page.url.searchParams.get('plan') ?? '';
+  $: selectedView = activityView($page.url.searchParams, plans);
+  const viewHref = (view: ActivityView, clearPlan = false) => activityViewHref($page.url.searchParams, view, clearPlan);
   $: if (typeof window !== 'undefined') void loadWorkouts($activeWorkoutType, selectedPlan);
 
   const workoutFilter = (type: WorkoutType | '', planId: string) =>
@@ -169,25 +171,31 @@
 </script>
 
 <svelte:head>
-  <title>Timeline · T.O.P. Trainer</title>
+  <title>Activities · T.O.P. Trainer</title>
 </svelte:head>
 
 <div class="space-y-6">
   <div class="flex flex-wrap items-end justify-between gap-4">
     <div>
       <p class="text-sm font-bold uppercase tracking-[0.18em] text-overload-signal">Your activity</p>
-      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Activity log</h2>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">A timeline of your workouts, sports, breathing, and nutrition activities.</p>
+      <h2 class="mt-1 text-3xl font-black tracking-tight sm:text-4xl">Activities</h2>
+      <p class="mt-2 text-gray-600 dark:text-gray-300">Follow your schedule or pick up a free activity.</p>
     </div>
     <div class="flex w-full flex-wrap gap-2 sm:w-auto">
-    <a class="btn-secondary w-full sm:w-auto" href="/programs?mode=free_period"><Plus size={19} /> Prepare a free period</a>
     <button class="btn-primary w-full sm:w-auto" on:click={() => goto('/library')}>
-      <Plus size={19} /> Choose a workout
+      <Plus size={19} /> Choose an activity
     </button>
     </div>
   </div>
 
-  {#if openPastCount > 0 || openOnly}
+  <nav class="grid grid-cols-2 gap-1 rounded-2xl bg-gray-100 p-1 dark:bg-gray-900" aria-label="Activity views">
+    <a class="rounded-xl px-4 py-3 text-center text-sm font-bold transition {selectedView === 'planned' ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-800'}"
+      href={viewHref('planned')} aria-current={selectedView === 'planned' ? 'page' : undefined}>Planned</a>
+    <a class="rounded-xl px-4 py-3 text-center text-sm font-bold transition {selectedView === 'free' ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-700 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-800'}"
+      href={viewHref('free')} aria-current={selectedView === 'free' ? 'page' : undefined}>Free</a>
+  </nav>
+
+  {#if selectedView === 'planned' && (openPastCount > 0 || openOnly)}
     <div class="card flex flex-wrap items-center justify-between gap-3 border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950">
       <button type="button" class="text-left text-sm font-bold text-amber-900 underline dark:text-amber-200" on:click={showOpenPast}>
         Open activities in the past ({openPastCount}) →
@@ -200,8 +208,8 @@
 
   {#if selectedPlan}
     <div class="card flex flex-wrap items-center justify-between gap-3">
-      <p class="text-sm font-semibold">Timeline filtered by program: {planTitles.get(selectedPlan) ?? 'unknown'}.</p>
-      <button class="btn-secondary" on:click={() => goto('/')}>Show all workouts</button>
+      <p class="text-sm font-semibold">Activities filtered by program: {planTitles.get(selectedPlan) ?? 'unknown'}.</p>
+      <a class="btn-secondary" href={viewHref(selectedView, true)}>Show all activities</a>
     </div>
   {/if}
 
@@ -215,7 +223,16 @@
     </div>
   </div>
 
-  {#if !loading && !error && freePeriods.length > 0}
+  {#if loading}
+    <div class="card animate-pulse py-8 text-center text-gray-500">Loading your activities...</div>
+  {:else if error}
+    <div class="card border-red-300 text-red-700 dark:border-red-900 dark:text-red-300" role="alert">
+      <p class="font-bold">Loading failed</p>
+      <p class="mt-1 text-sm">{error}</p>
+      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType, selectedPlan)}>Try again</button>
+    </div>
+  {:else if selectedView === 'free'}
+    {#if freePeriods.length > 0}
     <section class="space-y-4" aria-label="Free training periods">
       <div>
         <h3 class="text-2xl font-black">Ready when you are</h3>
@@ -264,7 +281,7 @@
                         </p>
                       </div>
                       {#if item.next}
-                        <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} ${item.title}`}>
+                        <a class={item.next.status === 'in_progress' ? 'btn-primary' : 'btn-secondary'} href={`/workouts/${item.next.id}?view=free`} aria-label={`${item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} ${item.title}`}>
                           {item.next.status === 'in_progress' ? 'Continue' : item.unit === 'day' ? 'Log day' : 'Pick up'} <ChevronRight size={16} />
                         </a>
                       {:else}
@@ -276,7 +293,7 @@
                         </summary>
                         <div class="space-y-1">
                           {#each item.workouts as workout, index (workout.id)}
-                            <a class="flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}`}>
+                            <a class="flex min-h-10 items-center justify-between gap-2 rounded-lg px-2 py-2 text-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:hover:bg-gray-800" href={`/workouts/${workout.id}?view=free`}>
                               <span>{item.unit === 'day' ? 'Day' : 'Session'} {index + 1}</span>
                               <span class="flex items-center gap-1 {workout.status === 'completed' ? 'text-emerald-700 dark:text-emerald-400' : workout.status === 'in_progress' ? 'font-bold text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-300'}">
                                 {WORKOUT_STATUS_LABELS[workout.status]} <ChevronRight size={14} />
@@ -295,7 +312,15 @@
         </section>
       {/each}
     </section>
-  {/if}
+    {:else}
+      <div class="card flex flex-col items-center py-12 text-center">
+        <div class="rounded-2xl bg-primary-600 p-4 text-white"><Dumbbell size={28} /></div>
+        <h3 class="mt-4 text-xl font-bold">No free activities</h3>
+        <p class="mt-2 max-w-md text-gray-600 dark:text-gray-300">No free periods match your filters. Prepare a period in Setup, then pick up its activities here whenever you are ready.</p>
+        <a class="btn-primary mt-6" href="/programs?mode=free_period"><Plus size={18} /> Prepare a free period</a>
+      </div>
+    {/if}
+  {:else}
 
   <section class="space-y-3" aria-label="Dated activity timeline">
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -310,15 +335,7 @@
     </div>
   </section>
 
-  {#if loading}
-    <div class="card animate-pulse py-8 text-center text-gray-500">Loading your timeline...</div>
-  {:else if error}
-    <div class="card border-red-300 text-red-700 dark:border-red-900 dark:text-red-300">
-      <p class="font-bold">Loading failed</p>
-      <p class="mt-1 text-sm">{error}</p>
-      <button class="btn-secondary mt-4" on:click={() => loadWorkouts($activeWorkoutType, selectedPlan)}>Try again</button>
-    </div>
-  {:else if visibleWorkouts.length === 0}
+  {#if visibleWorkouts.length === 0}
     {#if freePeriods.length > 0}
       <p class="rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">No dated workouts in this range. Completed sessions from your free periods will appear here on their execution date.</p>
     {:else}
@@ -344,7 +361,7 @@
             {#each group.workouts as workout (workout.id)}
               <a
                 class="card block border-2 p-4 transition hover:shadow-md sm:p-5 {WORKOUT_STATUS_CARD_STYLES[workout.status] || (activeWorkout?.id === workout.id ? 'border-emerald-500 bg-emerald-50 dark:border-emerald-600 dark:bg-emerald-950' : isToday(workout.performed_at) ? 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950' : upcomingWorkout?.id === workout.id ? 'border-primary-400 bg-primary-50 dark:border-primary-700 dark:bg-primary-950' : 'border-transparent hover:border-primary-300 dark:hover:border-primary-800')}"
-                href={`/workouts/${workout.id}`}>
+                href={`/workouts/${workout.id}?view=planned`}>
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div class="flex min-w-0 items-start gap-3">
                     <div class="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-md sm:h-12 sm:w-12 {WORKOUT_TYPE_STYLES[workout.type].icon}">
@@ -392,5 +409,6 @@
         </section>
       {/each}
     </div>
+  {/if}
   {/if}
 </div>

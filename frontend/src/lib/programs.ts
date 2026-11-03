@@ -8,6 +8,21 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 export const localDate = (date: Date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+export type ActivityView = 'planned' | 'free';
+
+export function activityView(params: URLSearchParams, plans: TrainingPlan[]): ActivityView {
+  const view = params.get('view');
+  if (view === 'free' || view === 'planned') return view;
+  return plans.some((plan) => plan.id === params.get('plan') && plan.schedule_mode === 'free_period') ? 'free' : 'planned';
+}
+
+export function activityViewHref(searchParams: URLSearchParams, view: ActivityView, clearPlan = false) {
+  const params = new URLSearchParams(searchParams);
+  params.set('view', view);
+  if (clearPlan) params.delete('plan');
+  return `/?${params}`;
+}
+
 export function cycleDate(start: string, offset: number) {
   const date = new Date(`${start}T12:00:00`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || Number.isNaN(date.getTime()) || localDate(date) !== start) {
