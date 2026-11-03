@@ -31,6 +31,7 @@ onRecordValidate(function (e) {
   if (free) {
     e.record.set("day_part", "");
     var status = e.record.getString("status");
+    if (status === "skipped") e.record.set("due_date", "");
     if (status === "planned" || status === "skipped") {
       e.record.set("performed_at", "");
     } else if (!e.record.getString("performed_at")) {

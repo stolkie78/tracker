@@ -94,7 +94,7 @@ function buildCalendar(app, base, ownerId) {
   var from = new Date(Date.now() - 90 * 86400000).toISOString().replace("T", " ");
   var workouts = app.findRecordsByFilter(
     "workouts",
-    "owner = {:owner} && status != 'skipped' && (free_period = false || status = 'completed') && performed_at >= {:from}",
+    "owner = {:owner} && status != 'skipped' && (((free_period = false || status = 'completed' || (status = 'in_progress' && due_date != '')) && performed_at >= {:from}) || (free_period = true && status = 'planned' && due_date >= {:from}))",
     "performed_at",
     1000,
     0,
@@ -112,8 +112,10 @@ function buildCalendar(app, base, ownerId) {
     "X-PUBLISHED-TTL:PT1H",
   ];
   workouts.forEach(function (w) {
-    if (w.getBool("free_period") && w.getString("status") !== "completed") return;
-    var start = parseDate(w.getString("performed_at"));
+    var free = w.getBool("free_period");
+    var status = w.getString("status");
+    if (free && status !== "completed" && (!w.getString("due_date") || status === "skipped")) return;
+    var start = parseDate(free && status === "planned" ? w.getString("due_date") : w.getString("performed_at"));
     if (isNaN(start.getTime())) return;
     var minutes = w.getInt("duration_minutes") || 45;
     var end = new Date(start.getTime() + minutes * 60000);

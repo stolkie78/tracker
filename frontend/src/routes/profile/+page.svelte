@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ActivityProgress from '$lib/components/ActivityProgress.svelte';
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { LogOut, Moon, Sun } from '@lucide/svelte';
@@ -98,7 +97,7 @@
       <button type="button" class="btn-secondary gap-2" on:click={signOut}><LogOut size={20} /> Sign out</button>
     </div>
   </section>
-  <ActivityProgress collection />
+  <a class="btn-secondary" href="/stats/achievements">View achievements and milestones</a>
   {#if error}<p role="alert" class="card text-red-700 dark:text-red-300">{error}</p>{/if}
   {#if success}<p role="status" class="card text-emerald-700 dark:text-emerald-300">{success}</p>{/if}
   {#if loading}
