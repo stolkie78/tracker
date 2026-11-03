@@ -298,7 +298,8 @@ TEMPLATE_EXERCISE_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
 ensure_collection template_exercises base "$TEMPLATE_EXERCISE_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
-  --argjson day_part "$(select_field day_part '["morning","afternoon","evening"]')" \
+  --argjson day_part "$(select_field day_part '["all_day","morning","afternoon","evening"]')" \
+  --argjson all_day_date "$(date_field all_day_date)" \
   --argjson free "$(bool_field free_period)" \
   --argjson plan "$(relation_field plan "$PLAN_ID")" \
   --argjson template "$(relation_field template "$TEMPLATE_ID")" \
@@ -317,7 +318,7 @@ WORKOUT_FIELDS="$(jq -cn --argjson owner "$OWNER_FIELD" \
   --argjson wellness "$(select_field wellness_activity '["breathing","diet","omad","fasting"]')" \
   --argjson effort "$(number_field perceived_effort)" --argjson series "$(text_field series_id)" \
   --argjson strava "$(text_field strava_id)" --argjson elevation "$(number_field elevation_gain_m)" \
-  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$effort,$series,$strava,$elevation,$template,$due,$day_part,$free]')"
+  '[$owner,$plan,$title,$type,$status,$date,$duration,$notes,$cardio,$distance,$heart,$interval_work,$interval_rest,$rounds,$recovery,$sport,$wellness,$effort,$series,$strava,$elevation,$template,$due,$day_part,$all_day_date,$free]')"
 ensure_collection workouts base "$WORKOUT_FIELDS" \
   'owner = @request.auth.id' 'owner = @request.auth.id' 'owner = @request.auth.id' "owner = @request.auth.id && (@request.body.owner:isset = false || @request.body.owner = @request.auth.id)" 'owner = @request.auth.id'
 

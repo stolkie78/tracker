@@ -394,7 +394,7 @@
                   <p class="mt-4 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">{workout.notes}</p>
                 {/if}
                 <div class="mt-4 flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  <span>{workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
+                  <span>{workout.day_part === 'all_day' ? group.label : workout.status === 'planned' ? (workout.day_part ? group.label : 'Time not scheduled') : formatDateTime(workout.performed_at)}</span>
                   <span>View details →</span>
                 </div>
               </a>

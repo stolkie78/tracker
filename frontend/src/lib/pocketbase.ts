@@ -1,5 +1,6 @@
 import PocketBase, { ClientResponseError } from 'pocketbase';
 import { effectiveCatalog, effectiveExercises, type CatalogEntry } from './catalog';
+import { localDate } from './programs';
 import {
   DEFAULT_STRENGTH_REST_SECONDS,
   DEFAULT_STRENGTH_TEMPO,
@@ -401,6 +402,7 @@ export const instantiateTemplate = async (
     ...(options.plan ? { plan: options.plan } : {}),
     ...(options.dueDate ? { due_date: options.dueDate } : {}),
     ...(options.dayPart ? { day_part: options.dayPart } : {}),
+    ...(options.dayPart === 'all_day' && performedAt ? { all_day_date: `${localDate(performedAt)}T00:00:00.000Z` } : {}),
     title: template.title,
     type: template.type,
     status: options.status ?? 'planned',
